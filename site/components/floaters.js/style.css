@@ -1,0 +1,659 @@
+/**
+ * Floater Components Styles
+ * 
+ * Styles for all floater/dropdown components including:
+ * - Profile floater
+ * - Notification floater
+ * - Search floater
+ * - Solution floater
+ * - Resources floater
+ * - Category floater
+ * - Menu floater
+ * 
+ * @module components/floaters/style
+ */
+
+/* ============================================================================
+   FLOATER CONTAINER STYLES
+   ============================================================================ */
+
+/* Main Floater Container */
+.entrepreneur-floater-cnt {
+  height: calc(100vh - 50px);
+  width: 100vw;
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  z-index: 1000;
+}
+
+#entrepreneur-floater-cnt {
+  display: block;
+}
+
+/* Extra Floater Container (for search) */
+.entrepreneur-floater-cnt-xtra {
+  height: 100vh;
+  width: 100vw;
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+}
+
+/* ============================================================================
+   PROFILE FLOATER
+   ============================================================================ */
+
+.profile-floater {
+  position: absolute;
+  top: 5px;
+  right: 10px;
+  border-radius: 5px;
+  height: auto;
+  width: 300px;
+  background-color: #fff;
+}
+
+.profile-floater ul {
+  list-style-type: none;
+  padding: 0px 8px;
+  margin: 0;
+}
+
+.profile-floater ul li {
+  width: 100%;
+  padding: 5px;
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: flex-end;
+  border-radius: 5px;
+  border: 1px solid #ededed;
+}
+
+.profile-floater ul li:hover {
+  background-color: #ededed;
+}
+
+/* ============================================================================
+   NOTIFICATION FLOATER
+   ============================================================================ */
+
+.notification-floater {
+  position: absolute;
+  top: 5px;
+  right: 50px;
+  border-radius: 5px;
+  height: calc(100vh - 120px);
+  width: 300px;
+  background-color: #fff;
+}
+
+.notification-floater div {
+  height: auto;
+  border-radius: 5px;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 10px;
+  background-color: inherit;
+}
+
+.notification-floater ul {
+  list-style-type: none;
+  padding: 0px 4px;
+  height: calc(100% - 40px);
+  margin: 0;
+  overflow: auto;
+}
+
+.notification-floater ul li {
+  width: 100%;
+  padding: 2.5px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-end;
+  border-bottom: 1px solid #9e9e9e;
+}
+
+.notification-floater ul li:last-child {
+  border: none;
+}
+
+.notification-floater ul li:hover {
+  background-color: #ededed;
+}
+
+/* ============================================================================
+   SEARCH FLOATER
+   ============================================================================ */
+
+.search-floater {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: auto;
+  width: 100%;
+  z-index: 100000000;
+  padding: 5px;
+  background-color: #fff;
+}
+
+/* Search Input Container */
+.search-floater section:first-child {
+  display: flex;
+  justify-content: space-between;
+  border-radius: 5px;
+  padding: 4px 10px;
+  border: 2px solid #000;
+  width: 100%;
+}
+
+.search-floater section:first-child span:first-child {
+  width: 20px;
+}
+
+.search-floater section:first-child span:last-child {
+  width: 20px;
+}
+
+.search-floater section:first-child span:nth-child(2) {
+  width: calc(100% - 50px);
+  background-color: #ededed;
+}
+
+/* Category Filters */
+.search-floater section:nth-child(2) {
+  padding: 0px;
+  background-color: #fff;
+  display: flex;
+  width: 100%;
+  height: auto;
+  flex-wrap: wrap;
+  margin: 5px 0px;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.search-floater section:nth-child(2) span {
+  padding: 3px 5px;
+  background-color: #ededed;
+  display: flex;
+  width: auto;
+  margin: 3px 4px;
+  font-size: small;
+  border-radius: 10px;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Empty State */
+.search-floater section:nth-child(3) {
+  justify-content: flex-end;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+}
+
+.search-floater div {
+  height: auto;
+  border-radius: 5px;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 10px;
+  background-color: inherit;
+}
+
+/* Search Input */
+input {
+  height: 30px;
+  border-radius: 5px;
+  border: none;
+  outline: none;
+  padding: 10px;
+  width: calc(100% - 0px);
+  display: flex;
+  align-items: center;
+  font-size: small;
+}
+
+/* Search Results List */
+.search-floater ul {
+  list-style-type: none;
+  padding: 0px 4px;
+  height: calc(100% - 40px);
+  margin: 0;
+  overflow: auto;
+}
+
+.search-floater ul li {
+  width: 100%;
+  padding: 2.5px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-end;
+  border-bottom: 1px solid #9e9e9e;
+}
+
+.search-floater ul li:last-child {
+  border: none;
+}
+
+.search-floater ul li:hover {
+  background-color: #ededed;
+}
+
+/* Search Floater - Desktop Styles */
+@media (min-width: 600px) {
+  .search-floater {
+    position: absolute;
+    transform: translate(-50%, 0%);
+    height: auto;
+    width: 300px;
+    padding: 10px;
+    background-color: #fff;
+  }
+
+  .search-floater section:first-child {
+    display: flex;
+    justify-content: space-between;
+    border-radius: 5px;
+    padding: 4px 10px;
+    border: 2px solid #000;
+    width: 100%;
+  }
+
+  .search-floater section:first-child span:first-child {
+    width: 20px;
+  }
+
+  .search-floater section:first-child span:last-child {
+    width: 20px;
+  }
+
+  .search-floater section:first-child span:nth-child(2) {
+    width: calc(100% - 50px);
+    background-color: #ededed;
+  }
+
+  .search-floater section:nth-child(2) {
+    padding: 0px;
+    background-color: #fff;
+    display: flex;
+    width: 100%;
+    height: auto;
+    flex-wrap: wrap;
+    margin: 5px 0px;
+    justify-content: flex-start;
+    align-items: center;
+  }
+
+  .search-floater section:nth-child(2) span {
+    padding: 3px 5px;
+    background-color: #ededed;
+    display: flex;
+    width: auto;
+    margin: 3px 4px;
+    font-size: small;
+    border-radius: 10px;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .search-floater section:nth-child(3) {
+    justify-content: flex-end;
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+  }
+
+  .search-floater div {
+    height: auto;
+    border-radius: 5px;
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 10px;
+    background-color: inherit;
+  }
+
+  input {
+    height: 30px;
+    border-radius: 5px;
+    border: none;
+    outline: none;
+    padding: 10px;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    font-size: small;
+  }
+
+  .search-floater ul {
+    list-style-type: none;
+    padding: 0px 4px;
+    height: calc(100% - 40px);
+    margin: 0;
+    overflow: auto;
+  }
+
+  .search-floater ul li {
+    width: 100%;
+    padding: 2.5px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-end;
+    border-bottom: 1px solid #9e9e9e;
+  }
+
+  .search-floater ul li:last-child {
+    border: none;
+  }
+
+  .search-floater ul li:hover {
+    background-color: #ededed;
+  }
+}
+
+/* ============================================================================
+   SOLUTION FLOATER
+   ============================================================================ */
+
+.solution-floater-overlay {
+  height: 100vh;
+  width: 100vw;
+  position: fixed;
+  top: 60px;
+  left: 0;
+  z-index: 10000000;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.solution-floater {
+  background-color: #000;
+  height: calc(100% - 60px);
+  width: 100%;
+  padding: 30px;
+  display: flex;
+  border-radius: 5px;
+  overflow: auto;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-evenly;
+}
+
+.solution-floater section {
+  display: flex;
+  margin-bottom: 20px;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: 0;
+}
+
+.solution-floater section ul {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+}
+
+.solution-floater section ul li {
+  color: #fff;
+  display: flex;
+  padding: 15px;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+
+.solution-floater section ul li:hover {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 10px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+
+.solution-floater section ul li small {
+  font-weight: 100;
+  font-size: medium;
+}
+
+.solution-floater section ul li h6 {
+  font-size: large;
+  font-weight: 400;
+}
+
+.solution-floater section h5 {
+  color: #fff;
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: flex-end;
+}
+
+.solution-floater section hr {
+  background-color: #fff;
+  color: #fff;
+}
+
+/* Solution Floater - Mobile */
+@media screen and (max-width: 660px) {
+  .solution-floater section {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+    margin-bottom: 20px;
+    justify-content: flex-start;
+    padding: 0;
+  }
+}
+
+/* ============================================================================
+   RESOURCES FLOATER
+   ============================================================================ */
+
+.resources-floater-overlay {
+  height: 100vh;
+  width: 100vw;
+  position: fixed;
+  top: 60px;
+  left: 0;
+  z-index: 10000000;
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.resources-floater {
+  background-color: #000;
+  height: calc(100% - 60px);
+  width: 100%;
+  padding: 30px;
+  display: flex;
+  border-radius: 5px;
+  overflow: auto;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.resources-floater section {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 20px;
+  justify-content: flex-start;
+  padding: 0;
+}
+
+.resources-floater section ul {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+}
+
+.resources-floater section ul li {
+  color: #fff;
+  display: flex;
+  padding: 15px;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+
+.resources-floater section ul li:hover {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 10px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+
+.resources-floater section ul li small {
+  font-weight: 100;
+  font-size: medium;
+}
+
+.resources-floater section ul li h6 {
+  font-size: large;
+  font-weight: 400;
+}
+
+.resources-floater section h5 {
+  color: #fff;
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-start;
+  align-items: flex-end;
+}
+
+.resources-floater section hr {
+  background-color: #fff;
+  color: #fff;
+}
+
+/* Resources Floater - Mobile */
+@media screen and (max-width: 660px) {
+  .resources-floater section {
+    display: flex;
+    margin-bottom: 20px;
+    width: 100%;
+    flex-direction: column;
+    justify-content: flex-start;
+    padding: 0;
+  }
+}
+
+/* ============================================================================
+   CATEGORY FLOATER
+   ============================================================================ */
+
+.category-floater {
+  height: 100vh;
+  width: 100vw;
+  position: fixed;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  top: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-end;
+}
+
+.category-floater-cnt {
+  height: 100%;
+  width: 400px;
+  padding: 20px;
+  background-color: #fff;
+}
+
+.category-floater-cnt .category-head {
+  height: 100px;
+  width: 100%;
+  background-color: #fff;
+}
+
+.category-floater-cnt .category-body {
+  height: calc(100% - 100px);
+  width: 100%;
+  background-color: #fff;
+}
+
+.category-floater-cnt .category-body .input-cnt input {
+  height: 50px;
+  width: 100%;
+  border: 1px solid #727272;
+}
+
+/* ============================================================================
+   MENU FLOATER (Mobile Navigation)
+   ============================================================================ */
+
+.menu-floater {
+  height: calc(100vh - 60px);
+  width: 100vw;
+  position: fixed;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 10000;
+  bottom: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-end;
+}
+
+.menu-floater-cnt {
+  height: 100%;
+  width: 100%;
+  background-color: transparent;
+  display: flex;
+  justify-content: space-between;
+  flex-direction: column;
+  align-items: center;
+}
+
+.menu-floater-cnt ul {
+  height: auto;
+  width: 100%;
+  margin-top: 20px;
+}
+
+.menu-floater-cnt ul li {
+  height: auto;
+  width: 100%;
+  color: #fff;
+  padding: 20px 0px;
+  text-align: center;
+  margin: 0;
+}
+
+.menu-floater-cnt ul li:hover {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 10px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+
+.menu-floater-cnt div button {
+  height: auto;
+  width: 100%;
+  justify-content: center;
+  display: flex;
+  flex-direction: row;
+  background-color: transparent;
+  align-items: center;
+  padding: 20px;
+}
+
+.menu-floater-cnt div {
+  height: auto;
+  width: 100%;
+  justify-content: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}

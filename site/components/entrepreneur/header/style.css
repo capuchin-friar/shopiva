@@ -1,0 +1,150 @@
+/**
+ * Header Component Styles
+ * 
+ * Responsive styles for the entrepreneur dashboard header.
+ * Includes styles for different breakpoints.
+ * 
+ * @module components/entrepreneur/header/style
+ */
+
+/* ============================================================================
+   BASE HEADER STYLES
+   ============================================================================ */
+
+header {
+  width: 100%;
+  background-color: #000;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0px 10px;
+  justify-content: space-between;
+}
+
+/* ============================================================================
+   INPUT STYLES
+   ============================================================================ */
+
+input {
+  height: 30px;
+  border-radius: 5px;
+  border: none;
+  outline: none;
+  padding: 10px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  font-size: small;
+}
+
+/* ============================================================================
+   BUTTON STYLES
+   ============================================================================ */
+
+button {
+  display: flex;
+  align-items: center;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  color: #fff;
+  height: 100%;
+  background-color: #000;
+  justify-content: space-between;
+}
+
+/* ============================================================================
+   SMALL PHONES (max-width: 360px)
+   ============================================================================ */
+
+@media (max-width: 360px) {
+  .header-section:first-child {
+    display: flex;
+    width: 60%;
+    height: 100%;
+    justify-content: space-between;
+  }
+
+  .header-section:last-child {
+    display: flex;
+    height: 100%;
+    width: 20%;
+    justify-content: space-between;
+  }
+
+  .header-section:last-child button div:last-child {
+    display: none;
+  }
+}
+
+/* ============================================================================
+   MEDIUM PHONES (361px - 411px)
+   ============================================================================ */
+
+@media (min-width: 361px) and (max-width: 411px) {
+  .header-section:first-child {
+    display: flex;
+    width: 60%;
+    height: 100%;
+    justify-content: space-between;
+  }
+
+  .header-section:last-child {
+    display: flex;
+    height: 100%;
+    width: 20%;
+    justify-content: space-between;
+  }
+
+  .header-section:last-child button div:last-child {
+    display: none;
+  }
+}
+
+/* ============================================================================
+   LARGE PHONES (412px - 599px)
+   ============================================================================ */
+
+@media (min-width: 412px) and (max-width: 599px) {
+  .header-section:first-child {
+    display: flex;
+    width: 60%;
+    height: 100%;
+    justify-content: space-between;
+  }
+
+  .header-section:last-child {
+    display: flex;
+    height: 100%;
+    width: 20%;
+    justify-content: space-between;
+  }
+
+  .header-section:last-child button div:last-child {
+    display: none;
+  }
+}
+
+/* ============================================================================
+   TABLETS AND DESKTOP (600px+)
+   ============================================================================ */
+
+@media (min-width: 600px) {
+  input {
+    width: 400px;
+  }
+
+  section {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  button {
+    height: auto;
+  }
+
+  section:last-child button div:last-child {
+    display: flex;
+  }
+}

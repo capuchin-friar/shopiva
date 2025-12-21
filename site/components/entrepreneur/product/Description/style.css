@@ -1,0 +1,57 @@
+
+.product-description{
+    height: fit-content;
+    width: 100%;
+    height: fit-content;
+    margin: 10px 0px 20px 0px;
+}
+
+.product-description .input-cnt{
+    height: fit-content;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+
+    height: fit-content;
+}
+
+.product-description .input-cnt .editor{
+    outline: none;
+    width: 100%;
+    height: 200px;
+    border-radius: 5px;
+    padding: 10px;
+    font-size: large;
+    font-weight: 400;
+    color: #727272;
+    resize: none;
+}
+
+.product-description .input-cnt label{
+    color: #727272;
+    padding-left: 2.5px;
+    font-size: small;
+    font-weight: 400;
+}
+
+
+.tools-cnt{
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-direction: row;
+}
+
+button{
+    background-color: #fff;
+    margin: 0px 10px;
+}
+
+.editor{
+    height: 200px;
+    overflow: auto;
+    width: 100%;
+    background-color: #fcfcfc;
+    padding: 10px;
+    outline: none;
+}

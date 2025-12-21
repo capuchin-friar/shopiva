@@ -1,0 +1,249 @@
+{
+    "furnitures": {
+        "living_room": {},
+        "bedroom": {},
+        "office": {},
+        "outdoor": {},
+        "shelves_cabinets": {},
+        "images": "https://example.com/images/furnitures.jpg"
+    },
+
+    "electronics": {
+        "gadgets": {
+            "smartwatches": {},
+            "fitness_bands": {},
+            "earbuds_headphones": {},
+            "bluetooth_speakers": {},
+            "power_banks": {},
+            "mini_projectors": {},
+            "smart_trackers": {},
+            "vr_devices": {},
+            "portable_gaming_devices": {},
+            "usb_tools": {},
+            "led_light": {
+                "torch": "",
+                "bulb": "",
+                "torlampsch": ""
+            }
+        },
+        "television_home_theater": {},
+        "cameras_drones": {},
+        "audio_devices": {},
+        "wearable_tech": {},
+        "images": "https://example.com/images/electronics.jpg"
+    },
+
+    "appliances": {
+        "kitchen_appliances": {},
+        "home_appliances": {},
+        "laundry": {},
+        "small_appliances": {
+            "mini_fans": ""
+        },
+        "images": "https://example.com/images/appliances.jpg"
+    },
+
+    "fashion": {
+        "male": {
+            "clothing": {
+                "t_shirt": {},
+                "shorts": {},
+                "socks": {},
+                "caps": {}
+            },
+            "jewelry": {},
+            "wrist_wear": {
+                "bracelet": [],
+                "wristbands": [],
+                "watches": {
+                    "smartwatch": [],
+                    "analog_watch": []
+                }
+            },
+            "bags": {},
+            "footwear": {},
+            "accessories": {}
+        },
+        "female": {
+            "clothing": {
+                "t_shirt": {},
+                "crop_top": {},
+                "shorts": {},
+                "socks": {},
+                "caps": {}
+            },
+            "jewelry": {},
+            "wrist_wear": {
+                "bracelet": [],
+                "wristbands": [],
+                "watches": {
+                    "smartwatch": [],
+                    "analog_watch": []
+                }
+            },
+            "bags": {},
+            "footwear": {},
+            "accessories": {}
+        },
+        "unisex": {
+            "clothing": {
+                "t_shirt": {},
+                "shorts": {},
+                "socks": {},
+                "caps": {}
+            },
+            "jewelry": {},
+            "wrist_wear": {
+                "bracelet": [],
+                "wristbands": [],
+                "watches": {
+                    "smartwatch": [],
+                    "analog_watch": []
+                }
+            },
+            "bags": {},
+            "footwear": {},
+            "accessories": {}
+        },
+        "images": "https://example.com/images/fashion.jpg"
+    },
+
+    "health_beauty": {
+        "skincare": {},
+        "haircare": {},
+        "lip_gloss": {},
+        "fragrances": {},
+        "makeup": {},
+        "personal_care": {},
+        "health_devices": {},
+        "nail_lashes": {},
+        "images": "https://example.com/images/health_beauty.jpg"
+    },
+
+    "baby_essentials": {
+        "feeding": {},
+        "clothing": {},
+        "toys": {},
+        "socks": {},
+        "bibs": {},
+        "hair_bow": {},
+        "diapers_care": {},
+        "strollers_carriers": {},
+        "images": "https://example.com/images/baby_essentials.jpg"
+    },
+
+    "kitchen_utensils": {
+        "cookware": {},
+        "cutlery": {},
+        "storage_containers": {},
+        "baking_tools": {},
+        "kitchen_tools": {},
+        "drinkware": {
+            "water_bottles": {}
+        },
+        "images": "https://example.com/images/kitchen_utensils.jpg"
+    },
+
+    "phones": {
+        "android": {},
+        "iphone": {},
+        "phone_accessories": {
+            "chargers": {},
+            "cables": {},
+            "cases": {},
+            "earphones": {},
+            "screen_protectors": {}
+        },
+        "images": "https://example.com/images/phones.jpg"
+    },
+
+    "computer": {
+        "laptops": {},
+        "desktops": {},
+        "computer_accessories": {
+            "keyboards": {},
+            "mice": {},
+            "external_drives": {},
+            "webcams": {}
+        },
+        "networking_devices": {},
+        "images": "https://example.com/images/computer.jpg"
+    },
+
+    "games": {
+        "video_games": {
+            "playstation": {},
+            "xbox": {},
+            "nintendo": {},
+            "pc_games": {},
+            "mobile_game_cards": {},
+            "retro_games": {}
+        },
+        "gaming_consoles": {
+            "playstation_consoles": {},
+            "xbox_consoles": {},
+            "nintendo_switch": {},
+            "handheld_consoles": {}
+        },
+        "gaming_accessories": {
+            "controllers": {},
+            "gaming_headsets": {},
+            "gaming_keyboards": {},
+            "gaming_mice": {},
+            "console_accessories": {},
+            "vr_accessories": {}
+        },
+        "board_games": {
+            "strategy_games": {},
+            "card_games": {},
+            "classic_board_games": {}
+        },
+        "educational_games": {},
+        "outdoor_games": {},
+        "kids_electronic_games": {},
+        "images": "https://example.com/images/games.jpg"
+    },
+
+    "gym": {
+        "exercise_machines": {},
+        "strength_training": {
+            "dumbbells": {},
+            "barbells": {},
+            "kettlebells": {},
+            "weight_plates": {},
+            "bench_press": {}
+        },
+        "yoga_accessories": {
+            "yoga_mats": {},
+            "yoga_blocks": {},
+            "yoga_straps": {},
+            "meditation_cushions": {}
+        },
+        "fitness_accessories": {
+            "resistance_bands": {},
+            "skipping_ropes": {},
+            "gym_gloves": {},
+            "foam_rollers": {},
+            "water_bottles": {}
+        },
+        "cardio_equipment": {
+            "treadmills": {},
+            "stationary_bikes": {},
+            "elliptical_trainers": {},
+            "rowing_machines": {}
+        },
+        "images": "https://example.com/images/gym.jpg"
+    },
+
+    "home_living": {
+        "home_decor": {
+            "photo_frames": {
+                "mini_frames": {}
+            }
+        },
+        "storage_organization": {
+            "small_organizers": {}
+        },
+        "images": "https://example.com/images/home_living.jpg"
+    }
+}

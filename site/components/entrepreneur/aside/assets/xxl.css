@@ -1,0 +1,117 @@
+/**
+ * Aside Component Styles - Extra Large Screens
+ * 
+ * Styles for sidebar navigation on screens 1201px and above.
+ * 
+ * @module components/entrepreneur/aside/assets/xxl
+ */
+
+@media screen and (min-width: 1201px) {
+  /* ============================================================================
+     CONTAINER STYLES
+     ============================================================================ */
+
+  div {
+    height: 100%;
+    width: 100%;
+  }
+
+  /* ============================================================================
+     LIST STYLES
+     ============================================================================ */
+
+  ul {
+    list-style-type: none;
+    padding: 0px 5px;
+  }
+
+  ul li {
+    padding: 0px 10px;
+    margin: 5px 0px;
+    cursor: pointer;
+    color: #000;
+    font-weight: 500;
+    font-size: small;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  ul li div {
+    height: auto;
+    padding: 7px;
+    margin: 5px 0px;
+    cursor: pointer;
+    color: #000;
+    font-weight: 500;
+    font-size: small;
+    display: flex;
+    align-items: center;
+  }
+
+  ul li div:hover {
+    border-radius: 7px;
+    background-color: #fff;
+  }
+
+  ul li div span {
+    color: #000;
+    font-weight: 500;
+  }
+
+  ul li section {
+    padding: 0px 10px;
+    transition: 4s;
+  }
+
+  /* ============================================================================
+     NAVIGATION LINKS CONTAINER
+     ============================================================================ */
+
+  .links {
+    height: 90%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 5px 10px;
+  }
+
+  /* Active Link State */
+  #link {
+    background-color: #ffffff;
+    border-radius: 7px;
+  }
+
+  /* ============================================================================
+     TOP NAVIGATION LINKS
+     ============================================================================ */
+
+  .top-links {
+    height: calc(100% - 140px);
+    overflow: auto;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* ============================================================================
+     BOTTOM NAVIGATION LINKS (Resources)
+     ============================================================================ */
+
+  .btm-links {
+    height: 130px;
+  }
+
+  /* ============================================================================
+     LOGO SECTION
+     ============================================================================ */
+
+  .logo {
+    height: 10%;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    flex-direction: column;
+    justify-content: center;
+  }
+}

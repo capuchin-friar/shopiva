@@ -1,0 +1,104 @@
+/* Medium phones */
+@media screen and (max-width: 480px) {
+    .entrepreneur-aside{
+        transition: .5s;
+        margin-left: -100%;
+    }
+    #entrepreneur-aside{
+        margin-left: 0;
+        transition: .5s;
+    }
+    div{
+    height: 100%;
+    width: 100%;
+    }
+
+    ul{
+    list-style-type: none;
+    padding: 0px 5px;
+    }
+
+    ul li{
+    padding: 0px 10px;
+    margin: 5px 0px;
+    cursor: pointer;
+    color: #000;
+    font-weight: 500;
+    font-size: small;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    }
+
+    ul li div:hover{
+    border-radius: 7px;
+    background-color: #fff;
+    }
+
+    ul li div{
+    height: auto;
+    padding: 7px;
+    margin: 5px 0px;
+    cursor: pointer;
+    color: #000;
+    font-weight: 500;
+    font-size: small;
+    display: flex;
+    align-items: center;
+    }
+
+    ul li div span{
+    color: #000;
+    font-weight: 500;
+    }
+
+    ul li section{
+    padding: 0px 10px;
+    transition: 4s;
+    }
+
+    
+    .links{
+    height: 90%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 5px 10px;
+    }
+
+    #link{
+    background-color: #ffffff;
+    border-radius: 7px;
+    }
+
+    .top-links{
+    height: calc(100% - 140px);
+    overflow: auto;
+    margin: 0;
+    padding: 0;
+    }
+
+
+    .btm-links{
+    height: 130px;
+    margin: 0;
+    padding: 0;
+
+    }
+    .btm-links ul{
+        margin: 0;
+        padding: 0;
+    
+        }
+
+
+    .logo{
+    height: 10%;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    flex-direction: column;
+    justify-content: center;
+    }
+}

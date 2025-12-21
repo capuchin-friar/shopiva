@@ -1,0 +1,18 @@
+import express from "express";
+import { authenticate } from "../middleware/auth.js";
+import { DeleteUserController, SigninController, SignupController, UpdateEmailController, UpdatePasswordController, UpdatePhoneController, UpdatePhotoController, UpdateProfileController, UpdateRoleController } from "../controllers/user.js";
+
+export const UserRouter = express.Router();
+
+// Public routes (no middleware)
+UserRouter.post("/user/signup", SignupController);
+UserRouter.post("/user/signin", SigninController);
+
+// Protected routes (use middleware)
+UserRouter.delete('/user/delete/:id', authenticate, DeleteUserController);
+UserRouter.put('/user/update/role/:id', authenticate, UpdateRoleController);
+UserRouter.put('/user/update/email/:id', authenticate, UpdateEmailController);
+UserRouter.put('/user/update/phone/:id', authenticate, UpdatePhoneController);
+UserRouter.put('/user/update/photo/:id', authenticate, UpdatePhotoController);
+UserRouter.put('/user/update/profile/:id', authenticate, UpdateProfileController);
+UserRouter.put('/user/update/password/:id', authenticate, UpdatePasswordController);

@@ -1,0 +1,120 @@
+@media screen and (max-width: 480px){
+    header{
+        height: 50px;
+        width: 100%;
+        color: #000;
+        display: flex;
+        justify-content: space-between;
+        background-color: #fff;
+    }
+    
+    header section:last-child{
+        display: flex;
+        align-items: flex-end;
+    }
+    
+    main{
+        height: calc(100vh - 50px);
+        width: 100%;
+        background-color: #f7f7f7;
+        overflow: auto;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    }
+    
+    main nav{
+        height: auto;
+        width: 100%;
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        padding: 10px;
+        
+    }
+    
+    main nav button{
+        padding: 8px;
+        color: green;
+        border-radius: 5px;
+        margin: 0px 0px;
+        background-color: #f7f7f7;
+    }
+    
+    main nav button:last-child{
+        margin-left: 15px;
+    }
+    
+    main nav button:hover{
+        background-color: rgb(0,128,0);
+        font-weight: 500;
+        background-color: rgb(0,128,0,.1);
+    }
+    
+    
+    .content{
+        background-color: #f7f7f7;
+        height: auto;
+        width: 100%;
+        /* padding: 10px; */
+    }
+    
+    
+    .general-cnt{
+    
+    }
+    
+    .input-cnt{
+        width: 100%;
+        height: 40px;
+        margin: 10px 0px;
+        /* background-color: blue; */
+    }
+    
+    input,select{
+        height: 100%;
+        width: 100%;
+        border: 1px solid #000;
+        margin: 8px 0px;
+        border-radius: 2.5px;
+    }
+    
+    .email-section, .phone-section{
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-direction: column;
+    }
+    
+    .update-btn{
+        padding: 10px;
+        border: 5px;
+        height: 30px;
+        border-radius: 5px;
+        background-color: rgb(0, 0, 0);
+    }
+    
+    .content-cnt{
+        background-color: #fff;
+        width: 100%;
+        height: auto;
+        padding: 10px;
+    }
+    
+    button{
+        padding: 8px;
+        /* color: green; */
+        border-radius: 10px;
+        color: #fff;
+        margin: 0px 0px;
+        background-color: #000;
+    }
+    
+    small{
+        font-size: 15px;
+        margin-top: 10px;
+    }
+
+    button small{
+        margin: 0;
+        font-size: small;
+    }
+}

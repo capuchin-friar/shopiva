@@ -1,0 +1,39 @@
+{
+  "name": "node",
+  "version": "1.0.0",
+  "description": "server for shopiva",
+  "license": "ISC",
+  "author": "Akpulu Chinedu Fabian",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc --skipLibCheck && node scripts/copy-tsx-files.js",
+    "lint": "eslint \"src\" --fix",
+    "start": "tsc && node scripts/copy-tsx-files.js && pm2-runtime start ecosystem.config.cjs --env production",
+    "dev": "tsc && node scripts/copy-tsx-files.js && pm2-runtime start ecosystem.config.cjs --env development --watch",
+    "local": "nodemon",
+    "stop": "pm2 stop ecosystem.config.cjs",
+    "restart": "pm2 restart ecosystem.config.cjs"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/node": "^25.0.3",
+    "@types/nodemailer": "^7.0.4",
+    "dotenv-cli": "^11.0.0",
+    "nodemon": "^3.1.11",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@sentry/node": "^10.31.0",
+    "bcryptjs": "^3.0.3",
+    "body-parser": "^2.2.1",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^7.0.11",
+    "pg": "^8.16.3",
+    "sentry": "^0.1.2"
+  }
+}

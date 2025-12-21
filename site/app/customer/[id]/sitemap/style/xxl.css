@@ -1,0 +1,102 @@
+
+@media screen and (min-width: 1200px) {
+   
+    
+
+    /* HEAD */
+    .entrepreneur-sitemap-cnt{
+        height: 100%;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+    }
+
+    .entrepreneur-sitemap-cnt section:nth-child(1){
+        height: auto;
+        width: 100%;
+
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+        background-color: #fff;
+        align-items: flex-start;
+        padding: 40px;
+        color: #000;
+    }
+
+    .entrepreneur-sitemap-cnt section:nth-child(2){
+        height: auto;
+        width: 100%;
+        border-radius: 0px;
+        display: flex;
+        flex-wrap: wrap;
+        flex-direction: row;
+        justify-content: flex-start;
+        background-color: #fff;
+        align-items: flex-start;
+        padding: 40px;
+        color: #000;
+    }
+
+    .entrepreneur-sitemap-cnt section:nth-child(3){
+        height: auto;
+        width: 100%;
+        border-radius: 0px;
+        display: flex;
+        flex-wrap: wrap;
+        flex-direction: row;
+        justify-content: flex-start;
+        background-color: #fff;
+        align-items: flex-start;
+        padding: 40px;
+        color: #000;
+    }
+
+    .entrepreneur-sitemap-cnt section:nth-child(4){
+        height: auto;
+        width: 100%;
+        border-radius: 0px;
+        display: flex;
+        flex-wrap: wrap;
+        flex-direction: row;
+        justify-content: flex-start;
+        background-color: #fff;
+        align-items: flex-start;
+        padding: 40px;
+        color: #000;
+    }
+
+    #sitemap-list-cnt{
+        width: 25%;
+        margin-bottom: 30px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+    }
+
+    .sitemap-list-head{
+        font-size: 4vh;
+        font-weight: 500;
+        width: 100%;
+        margin-bottom: 5px;
+    }
+    .sitemap-list{
+        font-size: 3.5vh;
+        font-weight: 400;
+        cursor: pointer;
+        text-align: left;
+        /* width: auto; */
+        /* display: flex;
+        justify-content: flex-start;
+        align-items: flex-start; */
+        text-decoration: underline;
+    }
+    /* HEAD */
+
+
+  
+}
+

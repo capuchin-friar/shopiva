@@ -1,0 +1,19 @@
+# Node
+node_modules/
+
+# Env
+.env
+.env.*
+
+# Build
+dist/
+build/
+
+# Media (do NOT store large media in Git)
+*.mp4
+*.mov
+*.avi
+*.mkv
+
+# OS
+.DS_Store
