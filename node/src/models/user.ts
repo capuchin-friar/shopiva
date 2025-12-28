@@ -20,8 +20,7 @@ export class model{
     payload: NewUserDocument & { src: string; deviceId: string; deviceToken: string }
     ) => {
         const { role, fname, lname, email, phone, gender, password, src, deviceId, deviceToken } = payload;
-        console.log(src)
-
+       
         const columns = src === "web"
             ? ["role","fname","lname","email","phone","gender","password","createdAt"]
             : ["role","fname","lname","email","phone","gender","password","createdAt","deviceId","deviceToken"];
