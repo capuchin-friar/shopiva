@@ -20,6 +20,8 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.0.3",
     "@types/nodemailer": "^7.0.4",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.8",
     "dotenv-cli": "^11.0.0",
     "nodemon": "^3.1.11",
     "ts-node": "^10.9.2",
@@ -35,6 +37,8 @@
     "jsonwebtoken": "^9.0.3",
     "nodemailer": "^7.0.11",
     "pg": "^8.16.3",
-    "sentry": "^0.1.2"
+    "sentry": "^0.1.2",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1"
   }
 }
