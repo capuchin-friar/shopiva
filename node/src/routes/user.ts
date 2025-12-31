@@ -10,9 +10,9 @@ UserRouter.post("/user/signin", SigninController);
 
 // Protected routes (use middleware)
 UserRouter.delete('/user/delete/:id', authenticate, DeleteUserController);
-UserRouter.put('/user/update/role/:id', authenticate, UpdateRoleController);
-UserRouter.put('/user/update/email/:id', authenticate, UpdateEmailController);
-UserRouter.put('/user/update/phone/:id', authenticate, UpdatePhoneController);
-UserRouter.put('/user/update/photo/:id', authenticate, UpdatePhotoController);
-UserRouter.put('/user/update/profile/:id', authenticate, UpdateProfileController);
-UserRouter.put('/user/update/password/:id', authenticate, UpdatePasswordController);
+UserRouter.put('/user/role/update/:id', authenticate, UpdateRoleController);
+UserRouter.put('/user/email/update/:id', authenticate, UpdateEmailController);
+UserRouter.put('/user/phone/update/:id', authenticate, UpdatePhoneController);
+UserRouter.put('/user/photo/update/:id', authenticate, UpdatePhotoController);
+UserRouter.put('/user/profile/update/:id', authenticate, UpdateProfileController);
+UserRouter.put('/user/password/update/:id', authenticate, UpdatePasswordController);

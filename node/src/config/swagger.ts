@@ -487,7 +487,7 @@ const options: swaggerJsdoc.Options = {
           }
         }
       },
-      '/user/update/role/{id}': {
+      '/user/role/update/{id}': {
         put: {
           tags: ['Users'],
           summary: 'Update user role',
@@ -536,7 +536,7 @@ const options: swaggerJsdoc.Options = {
           }
         }
       },
-      '/user/update/email/{id}': {
+      '/user/email/update/{id}': {
         put: {
           tags: ['Users'],
           summary: 'Update user email',
@@ -585,7 +585,7 @@ const options: swaggerJsdoc.Options = {
           }
         }
       },
-      '/user/update/phone/{id}': {
+      '/user/phone/update/{id}': {
         put: {
           tags: ['Users'],
           summary: 'Update user phone',
@@ -634,7 +634,7 @@ const options: swaggerJsdoc.Options = {
           }
         }
       },
-      '/user/update/photo/{id}': {
+      '/user/photo/update/{id}': {
         put: {
           tags: ['Users'],
           summary: 'Update user photo',
@@ -683,7 +683,7 @@ const options: swaggerJsdoc.Options = {
           }
         }
       },
-      '/user/update/profile/{id}': {
+      '/user/profile/update/{id}': {
         put: {
           tags: ['Users'],
           summary: 'Update user profile',
@@ -733,7 +733,7 @@ const options: swaggerJsdoc.Options = {
           }
         }
       },
-      '/user/update/password/{id}': {
+      '/user/password/update/{id}': {
         put: {
           tags: ['Users'],
           summary: 'Update user password',

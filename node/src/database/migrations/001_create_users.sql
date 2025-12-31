@@ -5,11 +5,12 @@ CREATE TABLE users (
   fname VARCHAR(100) NOT NULL,
   lname VARCHAR(100) NOT NULL,
   email VARCHAR(255) UNIQUE NOT NULL,
-  phone VARCHAR(20) UNIQUE NOT NULL,
+  phone VARCHAR(20) UNIQUE,
   gender VARCHAR(50),
   photo TEXT,
   location JSONB DEFAULT '{"city": null, "state": null, "country": null, "zipcode": null}',
   dateOfBirth DATE,
+  provider VARCHAR(255) NOT NULL,
 
   -- Authentication & Security
   password VARCHAR(255) NOT NULL,
