@@ -2,13 +2,15 @@
  * NextAuth Configuration Options
  * 
  * Configures authentication providers for the application.
- * Currently supports Google OAuth.
+ * Supports Google, Apple, and Facebook OAuth.
  * 
  * @module app/api/auth/[...nextauth]/options
  */
 
 import type { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import AppleProvider from "next-auth/providers/apple";
+import FacebookProvider from "next-auth/providers/facebook";
 
 // ============================================================================
 // NEXTAUTH OPTIONS
@@ -25,6 +27,16 @@ export const options: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.NEXT_PUBLIC_AUTH_GOOGLE_ID as string,
       clientSecret: process.env.NEXT_PUBLIC_AUTH_GOOGLE_SECRET as string,
+    }),
+    // Apple OAuth Provider
+    AppleProvider({
+      clientId: process.env.APPLE_ID as string,
+      clientSecret: process.env.APPLE_SECRET as string,
+    }),
+    // Facebook OAuth Provider
+    FacebookProvider({
+      clientId: process.env.FACEBOOK_ID as string,
+      clientSecret: process.env.FACEBOOK_SECRET as string,
     }),
   ],
   

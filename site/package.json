@@ -9,6 +9,9 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.11.3",
     "@cloudinary/react": "^1.13.0",
     "@cloudinary/url-gen": "^1.20.0",
     "@ffmpeg/ffmpeg": "^0.12.10",
@@ -60,6 +63,9 @@
     "uuidv4": "^6.2.13"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/pg": "^8.10.9",
     "eslint": "^8",
     "eslint-config-next": "14.2.13",
     "file-loader": "^6.2.0"

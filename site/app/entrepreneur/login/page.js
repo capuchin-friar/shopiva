@@ -19,6 +19,8 @@ import "react-phone-number-input/style.css";
 
 // Assets
 import gg_svg from "../../../svgs/google-color-svgrepo-com (1).svg";
+import a_svg from "../../../svgs/apple-logo-svgrepo-com.svg";
+import fb_svg from "../../../svgs/facebook-svgrepo-com (1).svg";
 import logo_img from "../../../images/462832894_122104672550563288_120709183929923776_n.jpg";
 
 // Utilities
@@ -30,10 +32,10 @@ import { setNewCookie } from "app/layout";
 // ============================================================================
 
 /** API endpoint for login */
-const LOGIN_ENDPOINT = "http://localhost:3456/entrepreneur/login";
+const LOGIN_ENDPOINT = "/api/user/signin";
 
-/** Google OAuth login endpoint */
-const GOOGLE_LOGIN_ENDPOINT = "https://shopiva-server.onrender.com/entrepreneur/login";
+/** OAuth login endpoint */
+const OAUTH_LOGIN_ENDPOINT = "/api/user/signin";
 
 // ============================================================================
 // LOGIN PAGE COMPONENT
@@ -67,19 +69,19 @@ export default function Login() {
   // ============================================================================
   
   /**
-   * Handles Google OAuth session authentication
+   * Handles OAuth session authentication (Google, Apple, Facebook)
    */
   useEffect(() => {
     if (session.status !== "authenticated") return;
 
-    fetch(GOOGLE_LOGIN_ENDPOINT, {
+    fetch(OAUTH_LOGIN_ENDPOINT, {
       method: "POST",
       headers: {
-        "Content-Type": "Application/json",
+        "Content-Type": "application/json",
       },
       body: JSON.stringify({
         email: session.data.user.email,
-        provider: "google",
+        provider: session.data.provider || "google",
       }),
     })
       .then(async (result) => {
@@ -95,7 +97,7 @@ export default function Login() {
         }
       })
       .catch((err) => {
-        console.error("Google login error:", err);
+        console.error("OAuth login error:", err);
       });
   }, [session]);
 
@@ -224,9 +226,9 @@ export default function Login() {
       fetch(LOGIN_ENDPOINT, {
         method: "POST",
         headers: {
-          "Content-Type": "Application/json",
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email, pwd, provider: "local" }),
+        body: JSON.stringify({ email, password: pwd, provider: "local" }),
       })
         .then(async (result) => {
           const response = await result.json();
@@ -256,6 +258,20 @@ export default function Login() {
    */
   const handleGoogleLogin = () => {
     signIn("google", { redirect: false });
+  };
+
+  /**
+   * Handles Apple OAuth login
+   */
+  const handleAppleLogin = () => {
+    signIn("apple", { redirect: false });
+  };
+
+  /**
+   * Handles Facebook OAuth login
+   */
+  const handleFacebookLogin = () => {
+    signIn("facebook", { redirect: false });
   };
 
   /**
@@ -289,25 +305,64 @@ export default function Login() {
             />
           </section>
 
-          {/* Google Login Button */}
-          <div style={{ display: "flex", width: "auto" }}>
+          {/* OAuth Login Buttons */}
+          <div style={{ display: "flex", width: "auto", gap: "10px" }}>
             <button
+              className="shadow-sm"
               onClick={handleGoogleLogin}
               style={{
                 padding: "2px 15px",
                 height: "40px",
-                background: "#000",
+                background: "#fff",
                 border: "none",
                 borderRadius: "5px",
               }}
             >
-              <span style={{ color: "#fff" }}>Continue with Google</span>
-              &nbsp;&nbsp;
               <span>
                 <img
                   src={gg_svg.src}
                   style={{ height: "20px", width: "20px" }}
                   alt="Google"
+                />
+              </span>
+            </button>
+
+            <button
+              className="shadow-sm"
+              onClick={handleAppleLogin}
+              style={{
+                padding: "2px 15px",
+                height: "40px",
+                background: "#fff",
+                border: "none",
+                borderRadius: "5px",
+              }}
+            >
+              <span>
+                <img
+                  src={a_svg.src}
+                  style={{ height: "25px", width: "25px" }}
+                  alt="Apple"
+                />
+              </span>
+            </button>
+
+            <button
+              className="shadow-sm"
+              onClick={handleFacebookLogin}
+              style={{
+                padding: "2px 15px",
+                height: "40px",
+                background: "#fff",
+                border: "none",
+                borderRadius: "5px",
+              }}
+            >
+              <span>
+                <img
+                  src={fb_svg.src}
+                  style={{ height: "20px", width: "20px" }}
+                  alt="Facebook"
                 />
               </span>
             </button>

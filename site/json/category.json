@@ -1,13 +1,4 @@
 {
-    "furnitures": {
-        "living_room": {},
-        "bedroom": {},
-        "office": {},
-        "outdoor": {},
-        "shelves_cabinets": {},
-        "images": "https://example.com/images/furnitures.jpg"
-    },
-
     "electronics": {
         "gadgets": {
             "smartwatches": {},
@@ -33,6 +24,66 @@
         "images": "https://example.com/images/electronics.jpg"
     },
 
+    "phones": {
+        "android": {},
+        "iphone": {},
+        "phone_accessories": {
+            "chargers": {},
+            "cables": {},
+            "cases": {},
+            "earphones": {},
+            "screen_protectors": {}
+        },
+        "images": "https://example.com/images/phones.jpg"
+    },
+
+    "computer": {
+        "laptops": {},
+        "desktops": {},
+        "computer_accessories": {
+            "keyboards": {},
+            "mice": {},
+            "external_drives": {},
+            "webcams": {}
+        },
+        "networking_devices": {},
+        "images": "https://example.com/images/computer.jpg"
+    },
+
+    "games": {
+        "video_games": {
+            "playstation": {},
+            "xbox": {},
+            "nintendo": {},
+            "pc_games": {},
+            "mobile_game_cards": {},
+            "retro_games": {}
+        },
+        "gaming_consoles": {
+            "playstation_consoles": {},
+            "xbox_consoles": {},
+            "nintendo_switch": {},
+            "handheld_consoles": {}
+        },
+        "gaming_accessories": {
+            "controllers": {},
+            "gaming_headsets": {},
+            "gaming_keyboards": {},
+            "gaming_mice": {},
+            "console_accessories": {},
+            "vr_accessories": {}
+        },
+        "board_games": {
+            "strategy_games": {},
+            "card_games": {},
+            "classic_board_games": {}
+        },
+        "educational_games": {},
+        "outdoor_games": {},
+        "kids_electronic_games": {},
+        "images": "https://example.com/images/games.jpg"
+    },
+
     "appliances": {
         "kitchen_appliances": {},
         "home_appliances": {},
@@ -41,6 +92,15 @@
             "mini_fans": ""
         },
         "images": "https://example.com/images/appliances.jpg"
+    },
+
+    "furnitures": {
+        "living_room": {},
+        "bedroom": {},
+        "office": {},
+        "outdoor": {},
+        "shelves_cabinets": {},
+        "images": "https://example.com/images/furnitures.jpg"
     },
 
     "fashion": {
@@ -132,78 +192,6 @@
         "images": "https://example.com/images/baby_essentials.jpg"
     },
 
-    "kitchen_utensils": {
-        "cookware": {},
-        "cutlery": {},
-        "storage_containers": {},
-        "baking_tools": {},
-        "kitchen_tools": {},
-        "drinkware": {
-            "water_bottles": {}
-        },
-        "images": "https://example.com/images/kitchen_utensils.jpg"
-    },
-
-    "phones": {
-        "android": {},
-        "iphone": {},
-        "phone_accessories": {
-            "chargers": {},
-            "cables": {},
-            "cases": {},
-            "earphones": {},
-            "screen_protectors": {}
-        },
-        "images": "https://example.com/images/phones.jpg"
-    },
-
-    "computer": {
-        "laptops": {},
-        "desktops": {},
-        "computer_accessories": {
-            "keyboards": {},
-            "mice": {},
-            "external_drives": {},
-            "webcams": {}
-        },
-        "networking_devices": {},
-        "images": "https://example.com/images/computer.jpg"
-    },
-
-    "games": {
-        "video_games": {
-            "playstation": {},
-            "xbox": {},
-            "nintendo": {},
-            "pc_games": {},
-            "mobile_game_cards": {},
-            "retro_games": {}
-        },
-        "gaming_consoles": {
-            "playstation_consoles": {},
-            "xbox_consoles": {},
-            "nintendo_switch": {},
-            "handheld_consoles": {}
-        },
-        "gaming_accessories": {
-            "controllers": {},
-            "gaming_headsets": {},
-            "gaming_keyboards": {},
-            "gaming_mice": {},
-            "console_accessories": {},
-            "vr_accessories": {}
-        },
-        "board_games": {
-            "strategy_games": {},
-            "card_games": {},
-            "classic_board_games": {}
-        },
-        "educational_games": {},
-        "outdoor_games": {},
-        "kids_electronic_games": {},
-        "images": "https://example.com/images/games.jpg"
-    },
-
     "gym": {
         "exercise_machines": {},
         "strength_training": {
@@ -233,6 +221,18 @@
             "rowing_machines": {}
         },
         "images": "https://example.com/images/gym.jpg"
+    },
+
+    "kitchen_utensils": {
+        "cookware": {},
+        "cutlery": {},
+        "storage_containers": {},
+        "baking_tools": {},
+        "kitchen_tools": {},
+        "drinkware": {
+            "water_bottles": {}
+        },
+        "images": "https://example.com/images/kitchen_utensils.jpg"
     },
 
     "home_living": {

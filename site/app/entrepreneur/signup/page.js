@@ -19,10 +19,12 @@ import "react-phone-number-input/style.css";
 
 // Assets
 import gg_svg from "../../../svgs/google-color-svgrepo-com (1).svg";
-import logo_img from "../../../images/462832894_122104672550563288_120709183929923776_n.jpg";
+import a_svg from "../../../svgs/apple-logo-svgrepo-com.svg";
+import fb_svg from "../../../svgs/facebook-svgrepo-com (1).svg";
+import logo_img from "../../../images/Shopiva.png";
 
 // Data
-import country from "../../../reusables/country.json";
+// import country from "../../../reusables/country.json";
 
 // Utilities
 import { entrepreneur_overlay_setup } from "../../../reusables/overlay";
@@ -33,13 +35,13 @@ import { setNewCookie } from "app/layout";
 // ============================================================================
 
 /** API endpoint for registration */
-const REGISTRATION_ENDPOINT = "http://localhost:3456/entrepreneur/registration";
+const REGISTRATION_ENDPOINT = "/api/user/signup";
 
 /** Default country code */
-const DEFAULT_COUNTRY_CODE = "+234";
+// const DEFAULT_COUNTRY_CODE = "+234";
 
 /** Default country flag */
-const DEFAULT_COUNTRY_FLAG = "https://flagcdn.com/w320/ng.png";
+// const DEFAULT_COUNTRY_FLAG = "https://flagcdn.com/w320/ng.png";
 
 // ============================================================================
 // SIGNUP PAGE COMPONENT
@@ -56,20 +58,17 @@ export default function Signup() {
   // ============================================================================
   
   const session = useSession();
-  const dispatch = useDispatch();
 
   // Form state
   const [fname, setFname] = useState("");
   const [lname, setLname] = useState("");
   const [email, setEmail] = useState("");
   const [provider, setProvider] = useState("");
-  const [referralSrc, setReferralSrc] = useState("");
-  const [countryCode, setCountryCode] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  // const [referralSrc, setReferralSrc] = useState("");
+  // const [phoneNumber, setPhoneNumber] = useState("");
   const [pwd, setPwd] = useState("");
   const [confirmPwd, setConfirmPwd] = useState("");
   const [duplicateErr, setDuplicateErr] = useState("");
-  const [countries, setCountries] = useState([]);
 
   // Validation reference
   const validation = useRef(false);
@@ -85,22 +84,9 @@ export default function Signup() {
   // EFFECTS
   // ============================================================================
   
-  // Load countries on mount
-  useEffect(() => {
-    setCountries(country);
-  }, []);
-
-  // Get referral source from URL
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const referral = urlParams.get("referral");
-    setReferralSrc(referral || "website");
-  }, []);
-
   // Handle Google OAuth session
   useEffect(() => {
     if (session.status !== "authenticated") return;
-
     fetch(REGISTRATION_ENDPOINT, {
       method: "POST",
       headers: {
@@ -110,28 +96,31 @@ export default function Signup() {
         fname: session.data.user.name.split(" ")[0],
         lname: session.data.user.name.split(" ")[1],
         email: session.data.user.email,
-        pwd: "null",
-        phone_number: "null",
+        password: "null",
+        phone: "null",
         gender: "null",
-        referral_src: "null",
-        provider: "google",
+        role: "entrepreneur",
+        src: "web",
+        deviceId: "null",
+        deviceToken: "fcm-token",
+        provider: provider,
+        // referral_src: "null",
       }),
     })
-      .then(async (result) => {
-        const response = await result.json();
-
-        if (response.bool) {
-          setNewCookie(response.cookie, 1);
-          window.location.href = "/entrepreneur/pre-sale";
-          entrepreneur_overlay_setup(false, "One Moment Please...");
-        } else {
-          handleRegistrationError(response.data.mssg);
-          entrepreneur_overlay_setup(false, "Try Again...");
-        }
-      })
-      .catch((err) => {
-        console.error("Google registration error:", err);
-      });
+    .then(async (result) => {
+      const response = await result.json();
+      if (response.bool) {
+        setNewCookie(response.cookie, 1);
+        window.location.href = "/entrepreneur/pre-sale";
+        entrepreneur_overlay_setup(false, "One Moment Please...");
+      } else {
+        handleRegistrationError(response.data.mssg);
+        entrepreneur_overlay_setup(false, "Try Again...");
+      }
+    })
+    .catch((err) => {
+      console.error("Google registration error:", err);
+    });
   }, [session]);
 
   // ============================================================================
@@ -330,15 +319,15 @@ export default function Signup() {
       fetch(REGISTRATION_ENDPOINT, {
         method: "POST",
         headers: {
-          "Content-Type": "Application/json",
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
           fname,
           lname,
           email,
-          pwd,
-          phone_number: phoneNumber,
-          referral_src: referralSrc,
+          password: pwd,
+          role: "entrepreneur",
+          src: "web",
           provider,
         }),
       })
@@ -372,6 +361,22 @@ export default function Signup() {
   };
 
   /**
+   * Handles Apple OAuth signup
+   */
+  const handleAppleSignup = () => {
+    setProvider("apple");
+    signIn("apple", { redirect: false });
+  };
+
+  /**
+   * Handles Facebook OAuth signup
+   */
+  const handleFacebookSignup = () => {
+    setProvider("facebook");
+    signIn("facebook", { redirect: false });
+  };
+
+  /**
    * Navigates to login page
    */
   const handleLoginNavigation = () => {
@@ -390,6 +395,7 @@ export default function Signup() {
           <section
             style={{
               marginLeft: "0px",
+              marginBottom: "10px",
               flexDirection: "row",
               display: "flex",
               alignItems: "flex-start",
@@ -404,23 +410,59 @@ export default function Signup() {
 
           {/* Google Signup Button */}
           <div style={{ display: "flex", width: "auto" }}>
-            <button
+            <button className="shadow-sm"
               onClick={handleGoogleSignup}
               style={{
                 padding: "2px 15px",
                 height: "40px",
-                background: "#000",
+                background: "#fff",
                 border: "none",
                 borderRadius: "5px",
               }}
             >
-              <span style={{ color: "#fff" }}>Continue with Google</span>
-              &nbsp;&nbsp;
               <span>
                 <img
                   src={gg_svg.src}
                   style={{ height: "20px", width: "20px" }}
                   alt="Google"
+                />
+              </span>
+            </button>
+            
+            <button className="shadow-sm"
+              onClick={handleAppleSignup}
+              style={{
+                padding: "2px 15px",
+                height: "40px",
+                background: "#fff",
+                border: "none",
+                borderRadius: "5px",
+              }}
+            >
+              <span>
+                <img
+                  src={a_svg.src}
+                  style={{ height: "25px", width: "25px" }}
+                  alt="Apple"
+                />
+              </span>
+            </button>
+
+            <button className="shadow-sm"
+              onClick={handleFacebookSignup}
+              style={{
+                padding: "2px 15px",
+                height: "40px",
+                background: "#fff",
+                border: "none",
+                borderRadius: "5px",
+              }}
+            >
+              <span>
+                <img
+                  src={fb_svg.src}
+                  style={{ height: "20px", width: "20px" }}
+                  alt="Facebook"
                 />
               </span>
             </button>
@@ -482,7 +524,7 @@ export default function Signup() {
             </div>
 
             {/* Phone Field */}
-            <div
+            {/* <div
               className="input-cnt"
               style={{ display: "flex", flexDirection: "column" }}
             >
@@ -558,7 +600,7 @@ export default function Signup() {
                   />
                 </span>
               </div>
-            </div>
+            </div> */}
 
             {/* Password Field */}
             <div
