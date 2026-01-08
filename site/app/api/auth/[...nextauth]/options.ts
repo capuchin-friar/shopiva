@@ -12,6 +12,19 @@ import GoogleProvider from "next-auth/providers/google";
 import AppleProvider from "next-auth/providers/apple";
 import FacebookProvider from "next-auth/providers/facebook";
 
+// Extend the Session type to include provider
+declare module "next-auth" {
+  interface Session {
+    provider?: string;
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    provider?: string;
+  }
+}
+
 // ============================================================================
 // NEXTAUTH OPTIONS
 // ============================================================================
@@ -40,9 +53,18 @@ export const options: NextAuthOptions = {
     }),
   ],
   
-  // Additional options can be added here:
-  // - callbacks: Custom callback functions
-  // - pages: Custom authentication pages
-  // - session: Session configuration
-  // - jwt: JWT configuration
+  callbacks: {
+    // Add provider to JWT token
+    async jwt({ token, account }) {
+      if (account) {
+        token.provider = account.provider;
+      }
+      return token;
+    },
+    // Add provider to session from JWT token
+    async session({ session, token }) {
+      session.provider = token.provider as string;
+      return session;
+    },
+  },
 };

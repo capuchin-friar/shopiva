@@ -25,9 +25,9 @@ import shop_img2 from "../../../images/Online-Shop_e8.webp";
 import shop_img1 from "../../../images/Online-Shop_n7.webp";
 
 // SVG Icons
-import BasketSvg from "../../../svgs/basket.svg";
+import InventorySvg from "../../../svgs/list.svg";
 import PhoneSvg from "../../../svgs/phone.svg";
-import BikeSvg from "../../../svgs/bike.svg";
+import EarnSvg from "../../../svgs/earn.svg";
 
 // ============================================================================
 // RENDER HELPERS
@@ -84,23 +84,26 @@ const FEATURE_CARDS = [
 const HOW_IT_WORKS_STEPS = [
   {
     icon: PhoneSvg,
-    title: "Download The App",
+    title: "Get the App",
     summary:
-      "Easily download our user-friendly app from your device's app store to get started with seamless ordering.",
+      "Download ShopKiva and complete quick account and identity verification to open your vendor dashboard.",
   },
+
   {
-    icon: BasketSvg,
-    title: "Place An Order",
+    icon: InventorySvg,
+    title: "Add Your Offers",
     summary:
-      "Browse through our wide selection of items, add them to your cart, and complete your order with just a few taps.",
+      "Upload new products, set prices, stock, and location so nearby buyers can find your business instantly.",
   },
+
   {
-    icon: BikeSvg,
-    title: "Get It Instantly",
+    icon: EarnSvg,
+    title: "Fulfill & Earn",
     summary:
-      "Sit back and relax as your delivery reaches straight to your door in no time.",
+      "Receive buyer orders, deliver or ship through escrow protection, and get paid immediately after confirmation.",
   },
 ];
+
 
 
 /**
@@ -134,7 +137,7 @@ export default function Dashboard() {
   // ============================================================================
   // EFFECTS
   // ============================================================================
-  
+
   /**
    * Handles header background change on scroll
    */
@@ -142,11 +145,11 @@ export default function Dashboard() {
     const handleScroll = () => {
       const mainElem = document.querySelector("main");
       const headerElem = document.querySelector(".header");
-      
+
       if (!mainElem || !headerElem) return;
-      
+
       const topSpace = mainElem.getBoundingClientRect().top;
-      
+
       if (topSpace <= 60) {
         headerElem.style.background = "#fff";
         headerElem.classList.add("shadow-sm");
@@ -157,7 +160,7 @@ export default function Dashboard() {
     };
 
     document.body.addEventListener("scroll", handleScroll);
-    
+
     return () => {
       document.body.removeEventListener("scroll", handleScroll);
     };
@@ -166,7 +169,7 @@ export default function Dashboard() {
   // ============================================================================
   // RENDER HELPERS
   // ============================================================================
-  
+
   /**
    * Renders a feature card
    */
@@ -207,7 +210,7 @@ export default function Dashboard() {
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
-        color: "#fff",
+        color: "#00926e",
       }}
     >
       <div
@@ -226,8 +229,8 @@ export default function Dashboard() {
           style={{
             width: "fit-content",
             fontWeight: "bold",
-            color: "#fff",
-            fontSize: "5vh",
+            color: "#00926e",
+            fontSize: "3.5vh",
           }}
         >
           {benefit.title}
@@ -235,7 +238,7 @@ export default function Dashboard() {
       </div>
 
       <div style={{ pointerEvents: "none" }}>
-        <p style={{ color: "#fff", fontSize: "17px", padding: "0px 10px" }}>
+        <p style={{ color: "#00926e", fontSize: "17px", padding: "0px 10px" }}>
           {benefit.description}
         </p>
       </div>
@@ -254,7 +257,7 @@ export default function Dashboard() {
   // ============================================================================
   // RENDER
   // ============================================================================
-  
+
   return (
     <>
       {/* Main Content Section */}
@@ -319,57 +322,57 @@ export default function Dashboard() {
         <br />
 
         {/* Global Sales Section */}
-        <div className="globe-sale-cnt">
-            <section id="about" className="shadow-sm">
-              <h4>Sell To Buyers From Anywhere</h4>
-              {/* How It Works Section */}
-              <div className="about-card-cnt">
-                {HOW_IT_WORKS_STEPS.map(renderHowItWorksStep)}
-              </div>
-            </section>
-        </div>
-
-        <br />
-        <br />
+        <section id="about">
+          <h1>Sell To Buyers From Anywhere</h1>
+          {/* How It Works Section */}
+          <div className="about-card-cnt">
+            {HOW_IT_WORKS_STEPS.map(renderHowItWorksStep)}
+          </div>
+        </section>
 
         {/* Crypto Payments Section */}
-        <div className="crypto-bg" style={{ width: "100%" }}>
-          <section className="crypto-cnt">
-            <br />
-            <br />
+          <section className="payment-cnt">
+
             <h2
               id="headline"
               style={{
                 fontWeight: "800",
                 zIndex: "2000",
-                color: "#fff",
-                textAlign: "left",
+                color: "#00926e",
+                textAlign: "center",
                 width: "100%",
+                // margin: "0",
                 textTransform: "capitalize",
-                fontSize: "4.5vh",
+                fontSize: "5vh",
               }}
             >
-              Receive Payments Seamlessly,
-              <br />
-              With Flexible Options
-              <br />
-              Including Crypto or Cash.
+              Receive Payments Seamlessly
+              <br />and Securely With Flexible Cash Options.
             </h2>
 
+            <br />
+            <br />
+
             <ul
-              className="crypto-list-cnt"
+              className="payment-list-cnt"
               style={{ background: "transparent", padding: "0" }}
             >
               {CRYPTO_BENEFITS.map(renderCryptoBenefit)}
             </ul>
           </section>
-        </div>
+          
+
+          <br />
+          <br />
+          <br />
+          <br />
+    
       </div>
 
       {/* Conclusion Section */}
       <div
         className="dashboard-conclusion"
-        style={{ overflow: "hidden", marginTop: "-60px" }}
+        style={{ overflow: "hidden", marginTop: "-60px", borderRadius: "0px" }}
       >
         <div>
           <section
@@ -394,7 +397,7 @@ export default function Dashboard() {
 
           <br />
 
-          {/* Getting Started Steps */}
+
           <div
             className="tutorial-cnt"
             style={{

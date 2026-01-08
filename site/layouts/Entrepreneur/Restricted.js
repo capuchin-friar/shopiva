@@ -13,7 +13,7 @@
 // IMPORTS
 // ============================================================================
 
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -46,8 +46,8 @@ const PUBLIC_PAGES = ["login", "signup", "password-recovery"];
 
 /** API endpoint for authorization */
 const AUTH_ENDPOINT = process.env.NEXT_PUBLIC_API_URL 
-  ? `${process.env.NEXT_PUBLIC_API_URL}/entrepreneur/authorization`
-  : "http://localhost:3456/entrepreneur/authorization";
+  ? `${process.env.NEXT_PUBLIC_API_URL}/user/authorization`
+  : "http://localhost:8080/user/authorization";
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -134,6 +134,9 @@ export default function EntrepreneurRestrictedLayout({ children }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   
+  // Ref to prevent duplicate auth requests
+  const authInProgress = useRef(false);
+  
   // Redux state
   const { floater_src } = useSelector((state) => state.floater_src);
   const { entrepreneur_id } = useSelector((state) => state.entrepreneur_id);
@@ -217,6 +220,11 @@ export default function EntrepreneurRestrictedLayout({ children }) {
       return;
     }
 
+    // Prevent duplicate auth requests (React Strict Mode)
+    if (authInProgress.current) {
+      return;
+    }
+
     const authCookie = getCookie("entrepreneur_secret");
 
     // No cookie, redirect to login
@@ -225,16 +233,16 @@ export default function EntrepreneurRestrictedLayout({ children }) {
       return;
     }
 
+    // Mark auth as in progress
+    authInProgress.current = true;
+
     // Verify cookie with server
-    const controller = new AbortController();
-    
     fetch(AUTH_ENDPOINT, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: authCookie,
+        Authorization: `Bearer ${authCookie}`,
       },
-      signal: controller.signal,
     })
       .then(async (result) => {
         if (!result.ok) {
@@ -242,6 +250,7 @@ export default function EntrepreneurRestrictedLayout({ children }) {
         }
         
         const response = await result.json();
+        console.log("Auth response:", response);
 
         if (response.bool) {
           dispatch(set_entrepreneur_id_to(response.id));
@@ -257,19 +266,13 @@ export default function EntrepreneurRestrictedLayout({ children }) {
         }
       })
       .catch((error) => {
-        if (error.name !== "AbortError") {
-          console.error("Authentication error:", error);
-          router.push("/entrepreneur/login");
-        }
+        console.error("Authentication error:", error);
+        router.push("/entrepreneur/login");
       })
       .finally(() => {
         setIsLoading(false);
+        authInProgress.current = false;
       });
-
-    // Cleanup - abort fetch on unmount
-    return () => {
-      controller.abort();
-    };
   }, [dispatch, pathname, router, entrepreneur_id]);
 
   // ============================================================================

@@ -48,7 +48,7 @@ export async function setNewCookie(data, role) {
   // Determine cookie name based on user role
   const cookieName = role === 0 ? "customer_secret" : "entrepreneur_secret";
   
-  // Set cookie with expiration
+  // Set cookie with expiration  
   const result = cookieStore.set(cookieName, data, {
     expires: expires.setTime(expires.getTime() + COOKIE_EXPIRATION_MS),
   });

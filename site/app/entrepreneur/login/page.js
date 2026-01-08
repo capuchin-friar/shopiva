@@ -21,7 +21,7 @@ import "react-phone-number-input/style.css";
 import gg_svg from "../../../svgs/google-color-svgrepo-com (1).svg";
 import a_svg from "../../../svgs/apple-logo-svgrepo-com.svg";
 import fb_svg from "../../../svgs/facebook-svgrepo-com (1).svg";
-import logo_img from "../../../images/462832894_122104672550563288_120709183929923776_n.jpg";
+import logo_img from "../../../images/Shopiva.png";
 
 // Utilities
 import { entrepreneur_overlay_setup } from "../../../reusables/overlay";
@@ -63,6 +63,9 @@ export default function Login() {
     email: false,
     pwd: false,
   });
+  
+  // Prevent duplicate OAuth login requests
+  const oauthLoginInProgress = useRef(false);
 
   // ============================================================================
   // EFFECTS
@@ -73,6 +76,9 @@ export default function Login() {
    */
   useEffect(() => {
     if (session.status !== "authenticated") return;
+    if (oauthLoginInProgress.current) return; // Prevent duplicate requests
+    
+    oauthLoginInProgress.current = true;
 
     fetch(OAUTH_LOGIN_ENDPOINT, {
       method: "POST",
@@ -81,24 +87,25 @@ export default function Login() {
       },
       body: JSON.stringify({
         email: session.data.user.email,
-        provider: session.data.provider || "google",
+        provider: session.data.provider
       }),
     })
-      .then(async (result) => {
-        const response = await result.json();
+    .then(async (result) => {
+      const response = await result.json();
 
-        if (response.bool) {
-          setNewCookie(response.cookie, 1);
-          window.location.href = "/entrepreneur";
-          entrepreneur_overlay_setup(false, "Try Again...");
-        } else {
-          handleLoginError(response.data);
-          entrepreneur_overlay_setup(false, "Try Again...");
-        }
-      })
-      .catch((err) => {
-        console.error("OAuth login error:", err);
-      });
+      if (response.bool) {
+        setNewCookie(response.cookie, 1);
+        window.location.href = "/entrepreneur";
+      } else {
+        oauthLoginInProgress.current = false; // Reset on error
+        handleLoginError(response.data);
+        entrepreneur_overlay_setup(false, "Try Again...");
+      }
+    })
+    .catch((err) => {
+      oauthLoginInProgress.current = false; // Reset on error
+      console.error("OAuth login error:", err);
+    });
   }, [session]);
 
   // ============================================================================
@@ -234,10 +241,9 @@ export default function Login() {
           const response = await result.json();
 
           if (response.bool) {
-            e.target.disabled = false;
             setNewCookie(response.cookie, 1);
             window.location.href = "/entrepreneur";
-            entrepreneur_overlay_setup(false, "Try Again...");
+            return; // Stop execution - page is navigating away
           } else {
             handleLoginError(response.data);
             e.target.disabled = false;

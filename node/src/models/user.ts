@@ -19,15 +19,15 @@ export class model{
     static createUserDoc = withErrorHandling(async (
     payload: NewUserDocument & { src: string; deviceId: string; deviceToken: string }
     ) => {
-        const { role, fname, lname, email, phone, gender, password, src, deviceId, deviceToken } = payload;
+        const { role, fname, lname, email, provider, password, src, deviceId, deviceToken } = payload;
        
         const columns = src === "web"
-            ? ["role","fname","lname","email","phone","gender","password","createdAt"]
-            : ["role","fname","lname","email","phone","gender","password","createdAt","deviceId","deviceToken"];
+            ? ["role","fname","lname","email","provider","password","createdAt"]
+            : ["role","fname","lname","email","provider","password","createdAt","deviceId","deviceToken"];
 
         const values = src === "web"
-            ? [role,fname,lname,email,phone,gender,password,new Date()]
-            : [role,fname,lname,email,phone,gender,password,new Date(),JSON.stringify([deviceId]),JSON.stringify([deviceToken])];
+            ? [role,fname,lname,email,provider,password,new Date()]
+            : [role,fname,lname,email,provider,password,new Date(),JSON.stringify([deviceId]),JSON.stringify([deviceToken])];
 
         const placeholders = values.map((_, i) => `$${i+1}`).join(",");
 
@@ -43,7 +43,7 @@ export class model{
     static findUserByEmail = withErrorHandling(async (email: string): Promise <User[]> =>{
 
         const {
-            rows
+            rows 
         } = await  (await db()).query(
             `
                 SELECT * FROM users WHERE email = $1

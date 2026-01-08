@@ -25,7 +25,7 @@ import "../../app/entrepreneur/[id]/styles/xxl.css";
 import menu_img from "../../svgs/menu-alt-2-svgrepo-com.svg";
 import close_img from "../../svgs/close-square-svgrepo-com.svg";
 import logo_img from "../../images/Shopiva.png";
-import bitcoin_svg from "../../svgs/bitcoin-btc-crypto-svgrepo-com.svg";
+import bitcoin_svg from "../../svgs/coin-vector-svgrepo-com.svg";
 import ui_svg from "../../svgs/interface-ui-check-box-checkbox-todo-list-svgrepo-com.svg";
 import globe_svg from "../../svgs/global-svgrepo-com.svg";
 import connect_svg from "../../svgs/target-audience-svgrepo-com.svg";
@@ -60,20 +60,21 @@ const HEADLINE_INTERVAL = 5000;
 const FEATURE_HIGHLIGHTS = [
   {
     icon: connect_svg,
-    title: "Built For Vendors And Entrepreneurs",
+    title: "Designed For Smart Vendors",
   },
   {
     icon: globe_svg,
-    title: "Sell To Buyers From Anywhere",
+    title: "Reach Buyers Everywhere Quickly",
   },
   {
     icon: bitcoin_svg,
-    title: "Payments In Crypto And Cash",
+    title: "Payments In Naira Only",
   },
   {
     icon: ui_svg,
-    title: "Interface Tailored For Simplicity",
-  },
+    title: "Simple Dashboard Easy Control",
+  }
+  
 ];
 
 // ============================================================================

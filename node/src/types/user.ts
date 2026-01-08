@@ -1,10 +1,12 @@
+
 export interface NewUserDocument{
     fname: string,
     lname: string,
     email: string,
-    phone: number,
+    provider: "local" | "google" | "facebook" | "apple"
+    phone?: number,
     password: string,
-    gender: number,
+    gender?: number,
     role: string
 }
 

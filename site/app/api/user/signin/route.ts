@@ -11,7 +11,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { UserModel } from "../../lib/models/user";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+const JWT_SECRET = process.env.JWT_SECRET;
 
 export async function POST(request: NextRequest) {
   try {
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
 
       // Remove password from response
       const { password: _, ...userWithoutPassword } = user;
-
+      console.log("token:", token)
       return NextResponse.json({
         bool: true,
         message: "Login successful",

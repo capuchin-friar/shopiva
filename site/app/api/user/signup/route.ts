@@ -12,7 +12,7 @@ import jwt from "jsonwebtoken";
 import { UserModel } from "../../lib/models/user";
 import type { NewUserDocument } from "../../lib/types/user";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
+const JWT_SECRET = process.env.JWT_SECRET;
 const SALT_ROUNDS = 10;
 
 export async function POST(request: NextRequest) {
@@ -22,9 +22,9 @@ export async function POST(request: NextRequest) {
       fname,
       lname,
       email,
-      phone,
+      // phone,
       password,
-      gender,
+      // gender,
       role = "customer",
       src = "web",
       deviceId = "null",

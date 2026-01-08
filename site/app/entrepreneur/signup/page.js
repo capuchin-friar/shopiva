@@ -87,6 +87,7 @@ export default function Signup() {
   // Handle Google OAuth session
   useEffect(() => {
     if (session.status !== "authenticated") return;
+
     fetch(REGISTRATION_ENDPOINT, {
       method: "POST",
       headers: {
@@ -103,7 +104,7 @@ export default function Signup() {
         src: "web",
         deviceId: "null",
         deviceToken: "fcm-token",
-        provider: provider,
+        provider: session.data.provider,
         // referral_src: "null",
       }),
     })

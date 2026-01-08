@@ -16,7 +16,7 @@
 // ============================================================================
 
 import { usePathname } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Provider } from "react-redux";
 import { SessionProvider } from "next-auth/react";
 import store from "../redux/store";
@@ -81,13 +81,10 @@ const isFreeLayout = (pathname) => {
  */
 export default function App({ session, children }) {
   const pathname = usePathname();
-  const [role, setRole] = useState(USER_ROLES.CUSTOMER);
-
-  // Detect user role based on URL path
-  useEffect(() => {
-    const isEntrepreneur = pathname.split("/")[1] === "entrepreneur";
-    setRole(isEntrepreneur ? USER_ROLES.ENTREPRENEUR : USER_ROLES.CUSTOMER);
-  }, [pathname]);
+  
+  // Determine role synchronously to avoid flash of wrong layout
+  const isEntrepreneur = pathname.split("/")[1] === "entrepreneur";
+  const role = isEntrepreneur ? USER_ROLES.ENTREPRENEUR : USER_ROLES.CUSTOMER;
 
   return (
     <SessionProvider session={session}>

@@ -7,13 +7,14 @@
  */
 
 export interface NewUserDocument {
-  fname: string;
-  lname: string;
-  email: string;
-  phone?: string;
-  password: string;
-  gender?: string;
-  role: string;
+  fname: string,
+  lname: string,
+  email: string,
+  provider: "local" | "google" | "facebook" | "apple"
+  // phone: number,
+  password: string,
+  gender?: number,
+  role: string
 }
 
 export interface AuthData {

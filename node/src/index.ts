@@ -1,5 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
+import cors from "cors";
 import swaggerUi from "swagger-ui-express";
 import { UserRouter } from "./routes/user.js";
 import bodyParser from "body-parser";
@@ -12,6 +13,10 @@ dotenv.config();
 const app = express();
 
 // Middleware (must come BEFORE routes)
+app.use(cors({
+  origin: ["http://localhost:3000", "http://localhost:3001"],
+  credentials: true,
+}));
 app.use(json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -36,3 +41,5 @@ app.listen(process.env.PORT, () => {
     console.log(`listening to port ${process.env.PORT}`);
     console.log(`Swagger docs available at http://localhost:${process.env.PORT}/api-docs`);
 });
+
+

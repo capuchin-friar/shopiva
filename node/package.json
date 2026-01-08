@@ -29,8 +29,10 @@
   },
   "dependencies": {
     "@sentry/node": "^10.31.0",
+    "@types/cors": "^2.8.19",
     "bcryptjs": "^3.0.3",
     "body-parser": "^2.2.1",
+    "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "https": "^1.0.0",
