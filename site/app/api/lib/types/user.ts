@@ -11,9 +11,9 @@ export interface NewUserDocument {
   lname: string,
   email: string,
   provider: "local" | "google" | "facebook" | "apple"
-  // phone: number,
+  phone?: string | null,
   password: string,
-  gender?: number,
+  gender?: string | null,
   role: string
 }
 

@@ -102,17 +102,11 @@ export function PaystackButton({
   disabled = false,
   children,
 }) {
-  // Validate required props
-  if (!email || !amount) {
-    console.error("PaystackButton: email and amount are required");
-    return null;
-  }
-
-  // Payment configuration
+  // Payment configuration - use defaults if email/amount missing to keep hooks order consistent
   const config = {
     reference: reference || generateReference(),
-    email,
-    amount: nairaToKobo(amount),
+    email: email || "",
+    amount: nairaToKobo(amount || 0),
     publicKey: PAYSTACK_PUBLIC_KEY,
     currency,
     metadata: {
@@ -161,7 +155,7 @@ export function PaystackButton({
    * Triggers the payment
    */
   const handlePayment = () => {
-    if (disabled) return;
+    if (disabled || !email || !amount) return;
     initializePayment(handleSuccess, handleClose);
   };
 
@@ -172,13 +166,19 @@ export function PaystackButton({
     color: "#fff",
     border: "none",
     borderRadius: "8px",
-    cursor: disabled ? "not-allowed" : "pointer",
+    cursor: (disabled || !email || !amount) ? "not-allowed" : "pointer",
     fontSize: "16px",
     fontWeight: "500",
-    opacity: disabled ? 0.6 : 1,
+    opacity: (disabled || !email || !amount) ? 0.6 : 1,
     transition: "all 0.2s ease",
     ...style,
   };
+
+  // Validate required props - return null after hooks are called
+  if (!email || !amount) {
+    console.error("PaystackButton: email and amount are required");
+    return null;
+  }
 
   return (
     <button
