@@ -2,6 +2,32 @@
     #headline{
         font-size: 9vh;
     }
+    #tagline-cnt {
+        z-index: 500;
+        position: absolute;
+        top: 200px;
+        left: 30px;
+        color: #fff;
+        height: auto;
+        width: 100%;
+        padding: 10px;
+        border-radius: 10px;
+        text-align: center;
+    }
+    #tagline{
+        z-index: 500;
+        position: absolute;
+        bottom: 10px;
+        left: 30px;
+        color: #fff;
+        height: auto;
+        width: 100%;
+        text-align: center;
+        padding: 10px;
+        border-radius: 10px;
+        display: flex;
+        justify-content: center;
+    }
     #interval-text{
         font-size: 5vh;
     }

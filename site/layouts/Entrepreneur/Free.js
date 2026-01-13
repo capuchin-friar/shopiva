@@ -248,20 +248,7 @@ export default function EntrepreneurFreeLayout({ children }) {
       </video>
 
       {/* Headline Overlay */}
-      <div
-        style={{
-          zIndex: "500",
-          position: "absolute",
-          top: "200px",
-          left: "30px",
-          color: "#fff",
-          height: "auto",
-          width: "100%",
-          padding: "10px",
-          borderRadius: "10px",
-          textAlign: "center",
-        }}
-      >
+      <div id="tagline-cnt">
         <h4
           id="interval-text"
           style={{
@@ -276,22 +263,7 @@ export default function EntrepreneurFreeLayout({ children }) {
       </div>
 
       {/* Tagline */}
-      <div
-        style={{
-          zIndex: "500",
-          position: "absolute",
-          bottom: "10px",
-          left: "30px",
-          color: "#fff",
-          height: "auto",
-          width: "100%",
-          textAlign: "center",
-          padding: "10px",
-          borderRadius: "10px",
-          display: "flex",
-          justifyContent: "center",
-        }}
-      >
+      <div id="tagline">
         <h4
           style={{
             fontSize: "2vh",
