@@ -238,7 +238,7 @@ export default function EntrepreneurFreeLayout({ children }) {
           objectFit: "cover",
           zIndex: "1000",
         }}
-        src="/packaging.mp4"
+        src="https://media-23.b-cdn.net/packaging.mp4"
         autoPlay
         loop
         muted
