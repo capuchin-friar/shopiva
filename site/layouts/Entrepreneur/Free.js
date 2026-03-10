@@ -203,9 +203,9 @@ export default function EntrepreneurFreeLayout({ children }) {
           Resources
         </li>
 
-        <li onClick={() => window.open("/entrepreneur/ng/pricing")}>
+        {/* <li onClick={() => window.open("/entrepreneur/ng/pricing")}>
           Pricing
-        </li>
+        </li> */}
       </ul>
     </section>
   );
@@ -406,10 +406,11 @@ export default function EntrepreneurFreeLayout({ children }) {
         {/* Auth Buttons */}
         <section>
           <ul>
-            {/* {loggedIn && (
-              <li onClick={() => window.open("/entrepreneur/login")}>Log in</li>
-            )} */}
-            <li onClick={() => window.open("/entrepreneur/login")}>Start Free Trial</li>
+            {loggedIn && (
+              <li onClick={() => window.open("/entrepreneur/login")}>Continue Selling</li>
+            )}
+            <li onClick={() => window.open("/entrepreneur/login")}>Start Selling</li>
+            {/* <li onClick={() => window.open("/entrepreneur/login")}>Start Free Trial</li> */}
           </ul>
         </section>
 
@@ -480,7 +481,7 @@ export default function EntrepreneurFreeLayout({ children }) {
           </div>
 
           {/* Support Links */}
-          <div>
+          {/* <div>
             <h6>Support</h6>
             <ul>
               <li
@@ -502,10 +503,10 @@ export default function EntrepreneurFreeLayout({ children }) {
                 Shopiva Community
               </li>
             </ul>
-          </div>
+          </div> */}
 
           {/* Developer Links */}
-          <div>
+          {/* <div>
             <h6>Developers</h6>
             <ul>
               <li
@@ -521,7 +522,7 @@ export default function EntrepreneurFreeLayout({ children }) {
                 API Documentation
               </li>
             </ul>
-          </div>
+          </div> */}
 
           {/* Product Links */}
           <div>

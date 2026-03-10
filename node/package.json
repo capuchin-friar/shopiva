@@ -13,7 +13,8 @@
     "dev": "tsc && node scripts/copy-tsx-files.js && pm2-runtime start ecosystem.config.cjs --env development --watch",
     "local": "nodemon",
     "stop": "pm2 stop ecosystem.config.cjs",
-    "restart": "pm2 restart ecosystem.config.cjs"
+    "restart": "pm2 restart ecosystem.config.cjs",
+    "migrate": "tsc src/database/migrate.ts --outDir dist/database --module nodenext --target esnext --moduleResolution nodenext --esModuleInterop --skipLibCheck && npx dotenv-cli -e .env -- node dist/database/migrate.js"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",

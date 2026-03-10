@@ -150,7 +150,7 @@ export default function Login() {
       );
     } else {
       addErrMssg(
-        [{ mssg: "Password is not correct..." }],
+        [{ mssg: errorType }],
         document.querySelector(".pwd")?.parentElement
       );
     }

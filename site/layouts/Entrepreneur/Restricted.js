@@ -46,8 +46,8 @@ const PUBLIC_PAGES = ["login", "signup", "password-recovery"];
 
 /** API endpoint for authorization */
 const AUTH_ENDPOINT = process.env.NEXT_PUBLIC_API_URL 
-  ? `${process.env.NEXT_PUBLIC_API_URL}/user/authorization`
-  : "http://localhost:8080/user/authorization";
+  ? `${process.env.NEXT_PUBLIC_API_URL}/api/user/authorization`
+  : "http://localhost:3000/api/user/authorization";
 
 // ============================================================================
 // HELPER FUNCTIONS

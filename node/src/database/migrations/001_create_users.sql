@@ -35,7 +35,7 @@ CREATE TABLE users (
 
   -- Device & Notifications
   deviceId VARCHAR(255),
-  deviceToken JSONB VARCHAR '[]',
+  deviceToken JSONB DEFAULT '[]',
   notificationPreferences JSONB DEFAULT '{
     "email": {"enabled": true, "marketing": false, "updates": true},
     "sms": {"enabled": true, "critical": true},

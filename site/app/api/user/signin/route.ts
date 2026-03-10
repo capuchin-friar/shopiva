@@ -66,6 +66,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Local authentication - verify password
+    if(user.password === "oauth_google" || user.password === "oauth_apple" || user.password === "oauth_facebook") {
+      return NextResponse.json({
+        bool: false,
+        data: `Please use the OAuth-${user.password.replace("oauth_", "")} login button to continue`,
+      }, { status: 401 });
+    }
+
+    // Local authentication - verify password
     const passwordMatch = await bcrypt.compare(password, user.password);
 
     if (!passwordMatch) {

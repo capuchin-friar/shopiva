@@ -4,7 +4,7 @@ CREATE TABLE shop_reviews (
   -- Relations
   shop_id BIGINT NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
   reviewer_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  order_id BIGINT REFERENCES orders(id) ON DELETE SET NULL,
+  order_id BIGINT, -- REFERENCES orders(id) ON DELETE SET NULL, -- Uncomment when orders table is created
 
   -- Review content
   rating SMALLINT NOT NULL CHECK (rating BETWEEN 1 AND 5),

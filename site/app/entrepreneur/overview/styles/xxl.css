@@ -1,0 +1,104 @@
+@media screen and (min-width: 1200px) {
+
+    .add_btn  button{
+        padding: 5px;
+        font-size: small;
+        border-radius: 5px;
+    }
+
+    .overview_cnt{
+        height: 100%;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .overview_head{
+        display: flex;
+        width: 100%;
+        height: 80px;
+        justify-content: space-between;
+
+    }
+
+    .overview_summary_cnt{
+        height: 100px;
+        width: 100%;
+        overflow: auto;
+        margin: 10px 0px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-direction: row;
+    }
+
+    .summary_card{
+        height: 100%;
+        width: calc(25% - 10px);
+        padding: 10px 10px 0px 10px;
+        display: flex;
+        border-radius: 5px;
+        background-color: rgb(255, 255, 255);
+        flex-direction: column;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .summary_card_top, .summary_card_btm{
+        width: 100%;
+        display: flex;
+        flex-direction: row;
+        justify-content: space-between;
+    }
+
+    .summary_comment, .summary_value{
+        width: fit-content;
+    }
+
+    .overview_management{
+        margin: 20px 0px 0px 0px;
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .order_summary_cnt{
+        width: calc(70% - 20px);
+        height: fit-content;
+    }
+
+    .order_summary_head{
+        display: flex;
+        background-color: #fff;
+        height: 45px;
+        align-items: center;
+        padding: 0px 10px;
+        color: #000;
+        border-radius: 5px 5px 0px 0px;
+        justify-content: space-between;
+    }
+
+    .order_summary_btn button{
+        background-color: #000;
+        color: #fff;
+        font-size: small;
+        padding: 5px;
+        border-radius: 5px;
+    }
+
+    .product_summary_cnt{
+        width: 30%;
+        height: fit-content;
+    }
+
+    .product_summary_head{
+        display: flex;
+        background-color: #fff;
+        height: 45px;
+        align-items: center;
+        padding: 0px 10px;
+        color: #000;
+        border-radius: 5px 5px 0px 0px;
+        justify-content: space-between;
+    }
+
+}
