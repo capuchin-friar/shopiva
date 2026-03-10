@@ -222,9 +222,9 @@ export default function Dashboard() {
           alignItems: "flex-start",
         }}
       >
-        <p style={{ color: "#fff", fontWeight: "bold", fontSize: "large" }}>
+        {/* <p style={{ color: "#fff", fontWeight: "bold", fontSize: "large" }}>
           {benefit.tagline}
-        </p>
+        </p> */}
         <h6
           style={{
             width: "fit-content",
@@ -336,7 +336,7 @@ export default function Dashboard() {
             <h2
               id="headline"
               style={{
-                fontWeight: "800",
+                // fontWeight: "800",
                 zIndex: "2000",
                 color: "#00926e",
                 textAlign: "center",
