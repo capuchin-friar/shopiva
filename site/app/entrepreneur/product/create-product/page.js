@@ -48,8 +48,10 @@ export default function CreateProduct() {
   }
 
   function close_floater() {
-    set_category_active(!category_active)
+    set_category_active(false)
   }
+
+  
 
   return (
     <>
@@ -60,6 +62,7 @@ export default function CreateProduct() {
         :
         ''
       }
+      <h6 style={{color: '#000'}}>Product Details</h6>
       <div className="product-cnt">
 
         {/* <h3>Add Products</h3> */}
@@ -68,7 +71,6 @@ export default function CreateProduct() {
 
         
           <div className='product-details'>
-            <h6 style={{color: '#727272'}}>Product details</h6>
 
             <Title updateTitle={updateTitle} />
             <Description updateDescription={updateDescription} />
