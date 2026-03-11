@@ -56,6 +56,11 @@
   margin: 0;
 }
 
+input,select,textarea,option{
+  background-color: #efefef;
+  color: #000;
+}
+
 html,
 body {
   width: 100vw;

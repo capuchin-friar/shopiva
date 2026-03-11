@@ -159,7 +159,7 @@ export default function CreateProduct() {
         :
         ''
       }
-      <h6 style={{color: '#000'}}>Product Details</h6>
+      {/* <h6 style={{color: '#000'}}>Product Details</h6> */}
       <div className="product-cnt">
 
         {/* <h3>Add Products</h3> */}
@@ -215,6 +215,11 @@ export default function CreateProduct() {
           }
           <br />
 
+          <div className='product-variants'>
+            <Variant />
+          </div>
+          <br />
+
           <div className='product-pricing'>
             <Price />
           </div>
@@ -230,9 +235,6 @@ export default function CreateProduct() {
           </div>
           <br />
 
-          <div className='product-variants'>
-            <Variant />
-          </div>
         </section>
 
         <section>
@@ -276,41 +278,47 @@ export default function CreateProduct() {
               <input  style={{width: '100%', border: '1px solid #727272'}} type="text" name="" id="" />
             </div>
 
-            <br />
+            {/* <br />
 
             <div className="input-cnt" style={{flexDirection: 'column', justifyContent: 'flex-start', alignItems: 'flex-start'}}>
               <label htmlFor="" style={{color: '#727272'}}>
                 <small>Vendor</small>
               </label>
               <input  style={{width: '100%', border: '1px solid #727272'}} type="text" name="" id="" />
-            </div>
+            </div> */}
 
           </div>
 
           <br />
 
-          <div className="product-publication">
-            <h6 style={{color: '#727272'}}>Product Publishing</h6>
+          <div className="product-publication" style={{height: "fit-content"}}>
+            <h6 style={{color: '#727272', marginBottom: "20px"}}>Delivery Methods</h6>
 
             {/* <br /> */}
 
-            <div className="input-cnt" style={{flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'flex-end'}}>
+            <div className="input-cnt" style={{flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'flex-start', height: "fit-content", marginBottom: "20px"}}>
               <input style={{width: '15px', border: '1px solid #727272', height: '15px'}} placeholder='Product price' type='checkbox' name="" id="" />
               &nbsp;
-              <label style={{margin: '-4px 0 0 0', height: '15px', color: '#727272'}} htmlFor=""><small>Online store</small></label>
+              <label style={{margin: '-4px 0 0 0', height: 'fit-content', lineHeight: "20px", color: '#727272'}} htmlFor=""><small>Allow customers to pick up orders from your location</small></label>
             </div>
 
-            <br />
-
-            <div className="input-cnt" style={{flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'flex-end'}}>
+            <div className="input-cnt" style={{flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'flex-start', height: "fit-content"}}>
               <input style={{width: '15px', border: '1px solid #727272', height: '15px'}} placeholder='Product price' type='checkbox' name="" id="" />
               &nbsp;
-              <label style={{margin: '-4px 0 0 0', height: '15px', color: '#727272'}} htmlFor=""><small>Point Of Sale</small></label>
+              <label style={{margin: '-4px 0 0 0', height: 'fit-content', lineHeight: "20px", color: '#727272'}} htmlFor=""><small>Deliver orders to the customer's address</small></label>
+            </div>
+
+            {/* <br />
+
+            <div className="input-cnt" style={{flexDirection: 'row', justifyContent: 'flex-start', alignItems: 'center'}}>
+              <input style={{width: '15px', border: '1px solid #727272', height: '15px'}} placeholder='Product price' type='checkbox' name="" id="" />
+              &nbsp;
+              <label style={{margin: '-8px 0 0 0', height: '15px', color: '#727272'}} htmlFor=""><small>Point Of Sale</small></label>
             </div>
             <br />
             <small style={{color: '#727272', fontSize: 'small'}}>Point of Sale has not been set up. Finish the remaining steps to start selling in person.</small>
 
-
+ */}
 
           </div>
         </section>

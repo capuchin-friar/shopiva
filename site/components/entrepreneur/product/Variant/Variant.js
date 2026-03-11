@@ -8,7 +8,7 @@ export default function Variant() {
         <div className="product-variant">
             <h6 style={{color: '#727272'}}>Variant</h6>
 
-            <br />
+            {/* <br /> */}
 
            <button className='variant-btn' style={{color: '#727272', background: '#fff', padding: '5px', height: 'auto', fontSize: 'small', borderRadius: '5px'}}>
                 <span>

@@ -71,6 +71,43 @@ input{
     color: #727272;
 }
 
+/* Input with unit suffix (kg, cm) */
+.product-shipping .input-with-suffix {
+    display: inline-flex;
+    align-items: center;
+    width: 100%;
+    max-width: 100%;
+    border: 1px solid #727272;
+    border-radius: 5px;
+    background-color: #efefef;
+}
+.product-shipping .input-with-suffix input {
+    border: none;
+    border-radius: 5px 0 0 5px;
+    flex: 1;
+    min-width: 0;
+}
+.product-shipping .input-with-suffix .input-suffix {
+    flex-shrink: 0;
+    padding: 0 10px;
+    font-size: small;
+    color: #727272;
+    background: transparent;
+    pointer-events: none;
+}
+.product-shipping .dimension-field {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 0;
+}
+.product-shipping .dimension-field .input-with-suffix {
+    width: 100%;
+}
+.product-shipping .dimension-field .input-with-suffix input {
+    width: 100%;
+}
+
 select{
     border-radius: 5px;
     width: 100%;
