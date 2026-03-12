@@ -61,7 +61,7 @@ const NAV_ITEMS = {
     hasSubmenu: true,
     submenu: [
       { link: "product/manage-product", label: "Manage Products" },
-      { link: "product/create-product", label: "Create Products" },
+      { link: "product/create-product", label: "Add Products" },
       { link: "product/product-reviews", label: "Products Reviews" },
     ],
   },

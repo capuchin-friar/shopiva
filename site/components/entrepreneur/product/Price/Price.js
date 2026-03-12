@@ -52,10 +52,10 @@ export default function Price() {
 
   return (
     <>
-        <div className="product-price">
+        <div className="product-price" style={{height: "fit-content"}}>
             <h6 style={{color: '#727272'}}>Pricing</h6>
-
-            <br />
+            <hr />
+            {/* <br /> */}
 
             <div className='price-input-cnt'>
                 <div className="input-cnt">
@@ -70,7 +70,7 @@ export default function Price() {
                     />
                     <div className="err-mssg"></div>
                 </div>
-                <div className="input-cnt">
+                {/* <div className="input-cnt">
                     <label htmlFor="">Compare-at price</label>
                     <input 
                       placeholder='Product price' 
@@ -81,7 +81,7 @@ export default function Price() {
                       onChange={handleCompareAtPriceChange}
                     />
                     <div className="err-mssg"></div>
-                </div>
+                </div> */}
             </div>
 
             {/* <br /> */}
