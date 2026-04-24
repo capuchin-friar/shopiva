@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Dropdown } from 'react-native-element-dropdown';
 import Video from 'react-native-video';
 import mvp_data from '../data/mvp_category.json';
@@ -31,26 +31,33 @@ export default function HomeScreen() {
     navigation.navigate('vendors', { category });
   }
 
+
   return (
     <View style={styles.root}>
 
-      <Video
-        source={CUSTOMER_VIDEO}
-        style={StyleSheet.absoluteFill}
-        resizeMode="cover"
-        repeat
-        muted
-        paused={false}
-        ignoreSilentSwitch="ignore"
-        playInBackground={false}
-        playWhenInactive={false}
-        useTextureView={false}
-        shutterColor="transparent"
-        onError={(e) => {
-          console.warn('Home background video error', e?.nativeEvent ?? e);
-        }}
-      />
+      <View style={{
+        height: Dimensions.get("screen").height,
+        width: Dimensions.get("screen").width,
+        position: "absolute",
+        top: 0,
+        left: 0,
+        // backgroundColor: "#000"
+      }}>
+
+        <Video
+          source={CUSTOMER_VIDEO}
+          style={[{
+            width: '100%',
+            height: '100%',
+          }]}
+          resizeMode="cover"
+          // repeat
+          muted
+          paused={false}
+        />
+      </View>
       <View style={styles.scrim} pointerEvents="none" />
+      
      
       <View style={styles.content}>
         <View>
@@ -98,7 +105,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#000',
+    // backgroundColor: '#000',
   },
   scrim: {
     ...StyleSheet.absoluteFillObject,
