@@ -160,7 +160,7 @@ export default function TransactionsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 28 }]}
       >
-        <Text style={styles.pageIntro}>Track your sales, payouts and refunds in one place.</Text>
+        {/* <Text style={styles.pageIntro}>Track your sales, payouts and refunds in one place.</Text> */}
 
         {/* <Pressable
           style={({ pressed }) => [styles.shopFilterRow, pressed && styles.pressedOpacity]}

@@ -2,11 +2,29 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 import OrdersListScreen from '../pages/OrdersList';
 import OrderDetailScreen from '../pages/OrderDetail';
-import { StyleSheet, Image, Platform, View } from 'react-native';
-import { HomeStackCartIconButton } from '../components/HomeStackCartButton';
-const SHOPIVA_LOGO = require('../assets/Shopiva.png');
+import { StyleSheet, Platform, Text, TouchableOpacity } from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
 
 const OrderStack = createNativeStackNavigator();
+
+/** Pops the parent activities stack (hub) — avoids nesting a second native-stack header on the flow screen. */
+function OrdersListHeaderLeft({ navigation }) {
+  return (
+    <TouchableOpacity
+      style={styles.ordersListBackRow}
+      onPress={() => {
+        const parent = navigation.getParent();
+        if (parent?.canGoBack()) parent.goBack();
+      }}
+      hitSlop={12}
+      accessibilityRole="button"
+      accessibilityLabel="Back to activities"
+    >
+      <Icon name="chevron-back" size={24} color="#111111" />
+      <Text style={styles.ordersListBackLabel}>Activities</Text>
+    </TouchableOpacity>
+  );
+}
 
 export function OrderStackScreen() {
   return (
@@ -14,13 +32,13 @@ export function OrderStackScreen() {
       <OrderStack.Screen
         name="order-list"
         component={OrdersListScreen}
-        options={{
+        options={({ navigation }) => ({
           title: 'Orders',
-          headerShown: false,
-          headerBackVisible: false,
+          headerShown: true,
           headerShadowVisible: false,
           headerStyle: styles.homeHeaderBar,
-        }}
+          headerLeft: () => <OrdersListHeaderLeft navigation={navigation} />,
+        })}
       />
       <OrderStack.Screen
         name="order-detail"
@@ -154,6 +172,17 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowRadius: 0,
     borderBottomWidth: 0,
+  },
+  ordersListBackRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: Platform.OS === 'ios' ? 4 : 0,
+  },
+  ordersListBackLabel: {
+    marginLeft: 2,
+    fontSize: 17,
+    fontWeight: '400',
+    color: '#111111',
   },
 
   homeHeaderRight: {

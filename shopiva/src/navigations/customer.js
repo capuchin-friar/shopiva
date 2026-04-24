@@ -32,8 +32,8 @@ export default function CustomerTab() {
 
             if (route.name === 'Home') {
               iconName = focused ? 'home' : 'home-outline';
-            } else if (route.name === 'Orders') {
-              iconName = focused ? 'receipt' : 'receipt-outline';
+            } else if (route.name === 'Activities') {
+              iconName = focused ? 'pulse' : 'pulse-outline';
             } else if (route.name === 'Chat') {
               iconName = focused ? 'chatbubble' : 'chatbubble-outline';
             } else if (route.name === 'Transactions') {
@@ -52,7 +52,7 @@ export default function CustomerTab() {
         })}
       >
         <Tab.Screen name="Home" component={HomeStackScreen} />
-        <Tab.Screen name="Orders" component={CustomerOrdersStackScreen} />
+        <Tab.Screen name="Activities" component={CustomerOrdersStackScreen} />
         <Tab.Screen name="Chat" component={ChatStackScreen} />
         <Tab.Screen name="Transactions" component={TransactionsScreen} />
         <Tab.Screen name="Profile" component={ProfileStackScreen} />

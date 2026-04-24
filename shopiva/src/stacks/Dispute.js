@@ -1,11 +1,10 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
-import { StyleSheet, Image, View } from 'react-native';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
 import DisputesListScreen from '../pages/DisputesList';
 import DisputeDetailScreen from '../pages/DisputeDetail';
 import { HomeStackCartIconButton } from '../components/HomeStackCartButton';
-
-const SHOPIVA_LOGO = require('../assets/Shopiva.png');
 
 const styles = StyleSheet.create({
   homeHeaderBar: {
@@ -23,15 +22,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  homeHeaderLogoCnt: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
+  disputesListBackRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    marginLeft: Platform.OS === 'ios' ? 4 : 0,
   },
-  homeHeaderLogo: {
-    width: '100%',
-    height: '100%',
+  disputesListBackLabel: {
+    marginLeft: 2,
+    fontSize: 17,
+    fontWeight: '400',
+    color: '#111111',
   },
 });
 
@@ -47,27 +47,23 @@ function DisputeListHeaderRight() {
   );
 }
 
-function DisputeListHeaderLeft() {
+function DisputesListHeaderLeft({ navigation }) {
   return (
-    <View style={styles.homeHeaderLogoCnt}>
-      <Image
-        source={SHOPIVA_LOGO}
-        style={styles.homeHeaderLogo}
-        resizeMode="contain"
-        accessibilityIgnoresInvertColors
-      />
-    </View>
+    <TouchableOpacity
+      style={styles.disputesListBackRow}
+      onPress={() => {
+        const parent = navigation.getParent();
+        if (parent?.canGoBack()) parent.goBack();
+      }}
+      hitSlop={12}
+      accessibilityRole="button"
+      accessibilityLabel="Back to activities"
+    >
+      <Icon name="chevron-back" size={24} color="#111111" />
+      <Text style={styles.disputesListBackLabel}>Activities</Text>
+    </TouchableOpacity>
   );
 }
-
-const DISPUTE_LIST_OPTIONS = {
-  headerShown: false,
-  headerBackVisible: false,
-  headerShadowVisible: false,
-  headerStyle: styles.homeHeaderBar,
-  headerRight: () => <DisputeListHeaderRight />,
-  headerLeft: () => <DisputeListHeaderLeft />,
-};
 
 const DISPUTE_DETAIL_OPTIONS = {
   title: 'Dispute details',
@@ -85,7 +81,14 @@ export function DisputeStackScreen() {
       <DisputeStack.Screen
         name="dispute-list"
         component={DisputesListScreen}
-        options={DISPUTE_LIST_OPTIONS}
+        options={({ navigation }) => ({
+          title: 'Disputes',
+          headerShown: true,
+          headerShadowVisible: false,
+          headerStyle: styles.homeHeaderBar,
+          headerLeft: () => <DisputesListHeaderLeft navigation={navigation} />,
+          headerRight: () => <DisputeListHeaderRight />,
+        })}
       />
       <DisputeStack.Screen
         name="dispute-detail"

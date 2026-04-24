@@ -214,7 +214,7 @@ export default function DisputesListScreen() {
   }
 
   return (
-    <View style={[styles.root, { paddingTop: 15}]}>
+    <View style={[styles.root, {paddingTop: 15}]}>
       <FlatList
         data={data}
         keyExtractor={(item) => String(item.id)}

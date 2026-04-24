@@ -18,11 +18,10 @@ export default function CustomerOrdersHubScreen({ navigation }) {
   }, [navigation]);
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top + 8 }]}>
-      <Text style={styles.title}>Orders</Text>
-      <Text style={styles.sub}>View your purchases or open the dispute center.</Text>
+    <View style={[styles.root, { paddingTop: 15 }]}>
+      {/* <Text style={styles.title}>Orders</Text>
+      <Text style={styles.sub}>View your purchases or open the dispute center.</Text> */}
 
-      <Text style={styles.sectionLabel}>Go to</Text>
       <ScrollView
         contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
@@ -84,7 +83,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    borderRadius: 5,
     padding: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -93,7 +92,7 @@ const styles = StyleSheet.create({
   optionIcon: {
     width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
