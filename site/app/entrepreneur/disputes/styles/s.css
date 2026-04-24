@@ -1,0 +1,309 @@
+@media screen and (max-width: 480px) {
+  div {
+    height: unset;
+    width: unset;
+  }
+
+  .disputes-narrow {
+    display: none !important;
+  }
+
+  .disputes-page {
+    display: block;
+    width: 100%;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .disputes-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    height: 70px;
+    background-color: #fff;
+    margin-bottom: 8px;
+  }
+
+  .disputes-title {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #0f172a;
+    letter-spacing: -0.02em;
+  }
+
+  .disputes-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .disputes-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+
+  .disputes-btn--muted {
+    background: #f1f5f9;
+    border-color: #e2e8f0;
+    color: #334155;
+  }
+
+  .disputes-btn--muted:hover {
+    background: #e8eef5;
+  }
+
+  .disputes-btn--primary {
+    background: #0d9488;
+    border-color: #0f766e;
+    color: #fff;
+  }
+
+  .disputes-btn--primary:hover {
+    background: #0f766e;
+  }
+
+  .disputes-tabs {
+    display: flex;
+    align-items: flex-end;
+    gap: 0;
+    border-bottom: 1px solid #e5e7eb;
+    margin-bottom: 0;
+  }
+
+  .disputes-tab {
+    position: relative;
+    padding: 12px 18px 14px;
+    margin: 0;
+    background: none;
+    border: none;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: color 0.15s ease;
+  }
+
+  .disputes-tab:hover {
+    color: #64748b;
+  }
+
+  .disputes-tab--active {
+    color: #0f172a;
+    font-weight: 700;
+  }
+
+  .disputes-tab--active::after {
+    content: "";
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: -1px;
+    height: 2px;
+    background: #0f172a;
+    border-radius: 2px 2px 0 0;
+  }
+
+  .disputes-card {
+    margin-top: 20px;
+    background: #fff;
+    border: 1px solid #e8eaed;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+    overflow: hidden;
+  }
+
+  .disputes-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .disputes-table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 1120px;
+    font-size: 0.875rem;
+    text-align: left;
+  }
+
+  .disputes-table thead {
+    background: #f8fafc;
+  }
+
+  .disputes-table th {
+    padding: 12px 14px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #64748b;
+    border-bottom: 1px solid #e5e7eb;
+    white-space: nowrap;
+    vertical-align: middle;
+  }
+
+  .disputes-table td {
+    padding: 14px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+    color: #1e293b;
+  }
+
+  .disputes-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  .disputes-td-id {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #0f172a;
+  }
+
+  .disputes-td-id a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .disputes-td-id a:hover {
+    color: #0d9488;
+    text-decoration: underline;
+  }
+
+  .disputes-td-strong {
+    font-weight: 600;
+    color: #0f172a;
+  }
+
+  .disputes-td-order {
+    font-weight: 500;
+    color: #334155;
+  }
+
+  .disputes-td-reason {
+    max-width: 280px;
+    white-space: normal;
+    line-height: 1.45;
+  }
+
+  .disputes-td-action {
+    color: #475569;
+    max-width: 220px;
+  }
+
+  .disputes-td-created {
+    white-space: nowrap;
+    color: #64748b;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .disputes-pill {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .disputes-pill--info {
+    background: #eff6ff;
+    color: #1d4ed8;
+  }
+
+  .disputes-pill--warning {
+    background: #fffbeb;
+    color: #b45309;
+  }
+
+  .disputes-pill--success {
+    background: #ecfdf5;
+    color: #047857;
+  }
+
+  .disputes-pill--neutral {
+    background: #f1f5f9;
+    color: #475569;
+  }
+
+  .disputes-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 14px 16px;
+    border-top: 1px solid #e5e7eb;
+    background: #fafafa;
+  }
+
+  .disputes-footer-summary {
+    margin: 0;
+    font-size: 0.875rem;
+    color: #64748b;
+  }
+
+  .disputes-footer-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .disputes-per-page select {
+    padding: 6px 28px 6px 10px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    font-size: 0.875rem;
+    color: #334155;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .disputes-pager {
+    display: flex;
+    gap: 8px;
+  }
+
+  .disputes-pager-btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #334155;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .disputes-pager-btn:hover:not(:disabled) {
+    background: #f8fafc;
+  }
+
+  .disputes-pager-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}

@@ -1,0 +1,6 @@
+{
+    "watch": ["src"],
+    "ext": "ts,json",
+    "exec": "npx dotenv -c '.env' -- node --import ./src/instrument.js --loader ts-node/esm src/index.ts",
+    "ignore": ["node_modules", "dist"]
+}

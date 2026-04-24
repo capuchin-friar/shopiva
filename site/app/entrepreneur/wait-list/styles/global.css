@@ -1,0 +1,94 @@
+/* Base wait-list styles (all screen sizes) */
+.wait-list-form-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.wait-list-cnt .input-cnt {
+    display: flex;
+    width: 100%;
+    flex-direction: column;
+}
+
+.wait-list-cnt .input-cnt input {
+    width: 100%;
+}
+
+.wait-list-cnt .wait-list-err {
+    color: #c00;
+    font-size: 0.85rem;
+    margin-top: 4px;
+    display: block;
+}
+
+.wait-list-cnt .wait-list-phone-wrap {
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    border: 1px solid #ccc;
+    border-radius: 2.5px;
+    background: #fff;
+}
+
+.wait-list-cnt .wait-list-phone-wrap .wait-list-phone-code {
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #333;
+    background: #f5f5f5;
+    border-right: 1px solid #ccc;
+    border-radius: 2.5px 0 0 2.5px;
+}
+
+.wait-list-cnt .wait-list-phone-wrap .wait-list-phone-input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    border-radius: 0 2.5px 2.5px 0;
+    padding: 10px 12px;
+    font-size: 1rem;
+    background: #fff;
+}
+
+.wait-list-cnt .wait-list-phone-wrap .wait-list-phone-input:focus {
+    outline: none;
+}
+
+.wait-list-cnt .wait-list-phone-wrap:focus-within {
+    border-color: #005c45;
+}
+
+.wait-list-cnt .wait-list-phone-hint,
+.wait-list-cnt .wait-list-phone-ok {
+    font-size: 0.85rem;
+    margin-top: 4px;
+    display: block;
+}
+
+.wait-list-cnt .wait-list-phone-hint {
+    color: #666;
+}
+
+.wait-list-cnt .wait-list-phone-ok {
+    color: #005c45;
+}
+
+.wait-list-cnt .input-cnt button {
+    border: none;
+    cursor: pointer;
+    border-radius: 2.5px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: #005c45;
+    color: #fff;
+    font-size: 1rem;
+}
+
+.wait-list-cnt .input-cnt button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}

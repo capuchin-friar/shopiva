@@ -1,0 +1,44 @@
+/* Desktop: min-width 1201px */
+@media screen and (min-width: 1201px) {
+  .shop-cnt {
+    width: 100%;
+    display: flex;
+    align-items: stretch;
+    min-height: 100vh;
+  }
+  .shop-cnt .left {
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 35px;
+    background-color: #005c45;
+    position: relative;
+  }
+  .shop-cnt .right {
+    width: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px;
+    background-color: #fff;
+  }
+  .shop-cnt .left img {
+    position: absolute;
+    top: 25px;
+    left: 25px;
+  }
+  .shop-cnt .shop-header {
+    padding: 0 35px;
+    color: #fff;
+    width: 65%;
+    font-weight: bold;
+  }
+  .shop-cnt .shop-body {
+    padding: 0 35px;
+    width: 70%;
+    color: #fff;
+    font-weight: 500;
+  }
+}

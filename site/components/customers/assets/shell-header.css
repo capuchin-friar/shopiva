@@ -1,0 +1,57 @@
+.customer-shell-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 52px;
+  width: 100%;
+  padding: 0 14px;
+  background: #fff;
+  border-bottom: 1px solid #e5e5e5;
+  z-index: 50;
+}
+
+/* Map home: https://…/customer — transparent bar over video */
+.customer-shell-header.customer-shell-header--home {
+  background: transparent;
+  border-bottom-color: transparent;
+}
+
+.customer-shell-header__logo {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #00926e;
+  text-decoration: none;
+}
+
+.customer-shell-header__tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.customer-shell-header__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  color: #00926e;
+  text-decoration: none;
+}
+
+.customer-shell-header__icon:hover {
+  color: #007a5c;
+  background: rgba(0, 146, 110, 0.1);
+}
+
+.customer-shell-header.customer-shell-header--home .customer-shell-header__icon:hover {
+  color: #007a5c;
+  background: rgba(0, 146, 110, 0.12);
+}
+
+.customer-shell-header__svg {
+  display: block;
+  flex-shrink: 0;
+}

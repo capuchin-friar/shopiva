@@ -1,0 +1,937 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Dimensions,
+  Image,
+  ImageBackground,
+  Modal,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import mvpCategoryData from '../json/mvp_category.json';
+import { getStorefrontProducts, getStorefrontShop } from '../api/storefront';
+import { formatNaira } from '../utils/formatNaira';
+
+const { width: WINDOW_W, height: WINDOW_H } = Dimensions.get('window');
+const BROWN = '#3D2E22';
+const BROWN_SOFT = 'rgba(92, 67, 50, 0.78)';
+const PAD = 16;
+const GRID_GAP = 12;
+
+const GENDERS = ['Male', 'Female', 'Unisex'];
+
+/** @type {{ gender: string | null; subCategory: string | null; type: string | null; sortPrice: 'none' | 'asc' | 'desc' }} */
+const DEFAULT_FILTERS = {
+  gender: null,
+  subCategory: null,
+  type: null,
+  sortPrice: 'none',
+};
+
+const GENDER_OPTIONS = [
+  { label: 'Any', value: null },
+  ...GENDERS.map((g) => ({ label: g, value: g })),
+];
+const SORT_OPTIONS = [
+  { label: 'Default', value: 'none' },
+  { label: 'Price: low to high', value: 'asc' },
+  { label: 'Price: high to low', value: 'desc' },
+];
+
+/**
+ * @param {object[]} products
+ * @param {{ gender: string | null; subCategory: string | null; type: string | null; sortPrice: 'none' | 'asc' | 'desc' }} f
+ */
+function applyProductFilters(products, f) {
+  let list = products.filter((p) => {
+    if (f.gender && p.gender !== f.gender) return false;
+    if (f.subCategory && p.subCategory !== f.subCategory) return false;
+    if (f.type && f.subCategory && p.type !== f.type) return false;
+    return true;
+  });
+  list = [...list];
+  if (f.sortPrice === 'asc') {
+    list.sort((a, b) => a.priceUsd - b.priceUsd);
+  } else if (f.sortPrice === 'desc') {
+    list.sort((a, b) => b.priceUsd - a.priceUsd);
+  }
+  return list;
+}
+
+/**
+ * Title-case words for chip labels (JSON keys stay lowercase).
+ * @param {string} raw
+ */
+function formatCategoryLabel(raw) {
+  if (!raw || typeof raw !== 'string') return '';
+  return raw
+    .trim()
+    .split(/\s+/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join(' ');
+}
+
+/**
+ * Builds sub-categories, types allowed per sub-category, and valid (sub, type) pairs
+ * from `src/json/mvp_category.json`.
+ *
+ * @param {Record<string, unknown>} data
+ * @param {string} categoryKey
+ * @returns {{ subCategories: string[]; typesBySubCategory: Map<string, string[]>; subTypePairs: { sub: string; type: string }[] }}
+ */
+function buildMvpCategoryFilters(data, categoryKey) {
+  const key = String(categoryKey || '').trim() || 'fashion';
+  const segments = data[key];
+  const subCats = new Set();
+  /** @type {Map<string, Set<string>>} */
+  const typeSets = new Map();
+  if (!Array.isArray(segments)) {
+    return { subCategories: [], typesBySubCategory: new Map(), subTypePairs: [] };
+  }
+  for (const block of segments) {
+    if (!block || typeof block !== 'object') continue;
+    for (const [subKey, subVal] of Object.entries(block)) {
+      subCats.add(subKey);
+      if (!typeSets.has(subKey)) typeSets.set(subKey, new Set());
+      if (subVal && typeof subVal === 'object') {
+        for (const typeKey of Object.keys(subVal)) {
+          typeSets.get(subKey).add(typeKey);
+        }
+      }
+    }
+  }
+  const typesBySubCategory = new Map();
+  for (const [sub, set] of typeSets) {
+    typesBySubCategory.set(sub, [...set].sort((a, b) => a.localeCompare(b)));
+  }
+  const subCategories = [...subCats].sort((a, b) => a.localeCompare(b));
+  const subTypePairs = [];
+  for (const sub of subCategories) {
+    for (const type of typesBySubCategory.get(sub) || []) {
+      subTypePairs.push({ sub, type });
+    }
+  }
+  return { subCategories, typesBySubCategory, subTypePairs };
+}
+
+/**
+ * @param {Record<string, unknown>} p
+ * @param {number} index
+ */
+function mapStorefrontProductToTile(p, index) {
+  const raw = p.raw && typeof p.raw === 'object' ? /** @type {Record<string, unknown>} */ (p.raw) : {};
+  const id = String(p.id ?? raw.id ?? index);
+  const title = String(p.title ?? raw.name ?? 'Product').trim() || 'Product';
+  const thumb = String(p.thumbnail ?? '').trim();
+  const imgs = Array.isArray(raw.images) ? raw.images : [];
+  const firstImg = typeof imgs[0] === 'string' ? imgs[0].trim() : '';
+  const uri = thumb || firstImg || '';
+  const price = Number(p.price) || 0;
+  const currency = String(p.currency ?? 'NGN').toUpperCase();
+  const subRaw = String(raw.subcategory ?? '').trim().toLowerCase();
+  const catRaw = String(raw.category ?? '').trim().toLowerCase();
+  const subCategory = subRaw || catRaw || 'general';
+  const tags = Array.isArray(raw.tags) ? raw.tags.map((t) => String(t).toLowerCase()) : [];
+  const type = tags[0] || subCategory;
+  let gender = 'Unisex';
+  const brand = String(raw.brand ?? '').toLowerCase();
+  if (brand.includes('female') || tags.some((t) => t.includes('female'))) gender = 'Female';
+  else if (brand.includes('male') || tags.some((t) => t.includes('male'))) gender = 'Male';
+
+  return {
+    key: id,
+    title,
+    uri,
+    priceUsd: price,
+    currency,
+    gender,
+    subCategory,
+    type,
+  };
+}
+
+/**
+ * @param {{ priceUsd?: number; currency?: string }} p
+ */
+function formatProductTilePrice(p) {
+  const cur = String(p.currency || 'NGN').toUpperCase();
+  const n = Number(p.priceUsd) || 0;
+  if (cur === 'NGN') return formatNaira(n);
+  return `US$${n.toFixed(2)}`;
+}
+
+/**
+ * @param {{ title: string; options: { label: string; value: string | null }[]; value: string | null; onChange: (v: string | null) => void; embedded?: boolean }} p
+ */
+function FilterChipSection({ title, options, value, onChange, embedded }) {
+  const chips = (
+    <View style={styles.filterChipsWrap}>
+      {options.map((opt) => {
+        const selected = value === opt.value;
+        return (
+          <TouchableOpacity
+            key={String(opt.value ?? 'any')}
+            style={[styles.filterChip, selected && styles.filterChipSelected]}
+            onPress={() => onChange(opt.value)}
+            activeOpacity={0.85}
+          >
+            <Text style={[styles.filterChipText, selected && styles.filterChipTextSelected]}>{opt.label}</Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+  if (embedded) {
+    return chips;
+  }
+  return (
+    <View style={styles.filterSection}>
+      {title ? <Text style={styles.filterSectionTitle}>{title}</Text> : null}
+      {chips}
+    </View>
+  );
+}
+
+function ProductTile({ product, width, navigation, vendor, category }) {
+  return (
+    <TouchableOpacity
+      style={[styles.tile, { width }]}
+      activeOpacity={0.92}
+      onPress={() =>
+        navigation.navigate('product', {
+          vendor,
+          category: category ?? 'fashion',
+          productId: String(product.key),
+          product: {
+            id: product.key,
+            key: product.key,
+            title: product.title,
+            uri: product.uri,
+            priceUsd: product.priceUsd,
+            currency: product.currency,
+            gender: product.gender,
+            subCategory: product.subCategory,
+            type: product.type,
+          },
+        })
+      }
+    >
+      <View style={styles.tileImageWrap}>
+        {product.uri ? (
+          <Image source={{ uri: product.uri }} style={styles.tileImage} resizeMode="cover" />
+        ) : (
+          <View style={[styles.tileImage, styles.tileImagePh]}>
+            <Icon name="image-outline" size={32} color="rgba(255,255,255,0.45)" />
+          </View>
+        )}
+        {/* MVP: wishlist heart on grid tile — disabled
+        <TouchableOpacity
+          style={styles.tileHeart}
+          activeOpacity={0.85}
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          onPress={() => {}}
+        >
+          <Icon name="heart-outline" size={17} color="#000000" />
+        </TouchableOpacity>
+        */}
+      </View>
+      <Text style={styles.tileTitle} numberOfLines={2}>
+        {product.title}
+      </Text>
+      <Text style={styles.tilePrice}>{formatProductTilePrice(product)}</Text>
+    </TouchableOpacity>
+  );
+}
+
+/**
+ * @param {{ route: { params?: { vendor?: { id: number; name?: string; slug?: string }; category?: string } }; navigation: import('@react-navigation/native').NavigationProp<Record<string, object | undefined>> }} props
+ */
+export default function VendorShopScreen({ route, navigation }) {
+  const vendor = route.params?.vendor;
+  const category = route.params?.category ?? 'fashion';
+  const shopId = vendor?.id ?? 0;
+  const shopName = vendor?.name?.trim() || 'Shop';
+  const insets = useSafeAreaInsets();
+
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [following, setFollowing] = useState(false);
+  const [filters, setFilters] = useState(() => ({ ...DEFAULT_FILTERS }));
+  const [modalFilters, setModalFilters] = useState(() => ({ ...DEFAULT_FILTERS }));
+  const [shopMeta, setShopMeta] = useState(/** @type {Record<string, unknown>} */ ({}));
+  const [apiProducts, setApiProducts] = useState(/** @type {ReturnType<typeof mapStorefrontProductToTile>[]} */ ([]));
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [productsError, setProductsError] = useState('');
+  const slug = String(vendor?.slug ?? '').trim();
+
+  const { subCategories, typesBySubCategory, subTypePairs } = useMemo(
+    () => buildMvpCategoryFilters(mvpCategoryData, category),
+    [category],
+  );
+
+  const subCategoryOptions = useMemo(
+    () => [{ label: 'Any', value: null }, ...subCategories.map((s) => ({ label: formatCategoryLabel(s), value: s }))],
+    [subCategories],
+  );
+
+  const modalTypeOptions = useMemo(() => {
+    const sub = modalFilters.subCategory;
+    if (!sub) {
+      return [{ label: 'Any', value: null }];
+    }
+    const arr = typesBySubCategory.get(sub) ?? [];
+    return [{ label: 'Any', value: null }, ...arr.map((t) => ({ label: formatCategoryLabel(t), value: t }))];
+  }, [modalFilters.subCategory, typesBySubCategory]);
+
+  useEffect(() => {
+    setFilters({ ...DEFAULT_FILTERS });
+    setModalFilters({ ...DEFAULT_FILTERS });
+  }, [category]);
+
+  useEffect(() => {
+    if (!slug) {
+      setProductsLoading(false);
+      setProductsError('This shop is missing a link (slug).');
+      setApiProducts([]);
+      setShopMeta({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setProductsLoading(true);
+      setProductsError('');
+      try {
+        const [shopRes, prodRes] = await Promise.all([
+          getStorefrontShop(slug).catch(() => ({ shop: {} })),
+          getStorefrontProducts(slug),
+        ]);
+        if (cancelled) return;
+        const shop = shopRes.shop && typeof shopRes.shop === 'object' ? shopRes.shop : {};
+        setShopMeta(/** @type {Record<string, unknown>} */ (shop));
+        const list = Array.isArray(prodRes.products) ? prodRes.products : [];
+        setApiProducts(list.map(mapStorefrontProductToTile));
+      } catch (e) {
+        if (!cancelled) {
+          setProductsError(e instanceof Error ? e.message : String(e));
+          setApiProducts([]);
+        }
+      } finally {
+        if (!cancelled) setProductsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+
+  const products = apiProducts;
+  const displayedProducts = useMemo(() => applyProductFilters(products, filters), [products, filters]);
+  const heroUri = useMemo(() => {
+    const banner = typeof shopMeta.banner === 'string' ? shopMeta.banner.trim() : '';
+    const logo = typeof shopMeta.logo === 'string' ? shopMeta.logo.trim() : '';
+    if (banner) return banner;
+    if (logo) return logo;
+    return '';
+  }, [shopMeta]);
+
+  const colW = (WINDOW_W - PAD * 2 - GRID_GAP) / 2;
+
+  const topPad = insets.top + 8;
+
+  const onFollow = useCallback(() => {
+    setFollowing((f) => !f);
+  }, []);
+
+  const openFilterModal = useCallback(() => {
+    const m = { ...filters };
+    if (m.type && !m.subCategory) m.type = null;
+    if (m.type && m.subCategory) {
+      const allowed = typesBySubCategory.get(m.subCategory) ?? [];
+      if (!allowed.includes(m.type)) m.type = null;
+    }
+    setModalFilters(m);
+    setFilterOpen(true);
+  }, [filters, typesBySubCategory]);
+
+  const applyModalFilters = useCallback(() => {
+    let next = { ...modalFilters };
+    if (next.type && !next.subCategory) next.type = null;
+    if (next.type && next.subCategory) {
+      const allowed = typesBySubCategory.get(next.subCategory) ?? [];
+      if (!allowed.includes(next.type)) next.type = null;
+    }
+    setFilters(next);
+    setFilterOpen(false);
+  }, [modalFilters, typesBySubCategory]);
+
+  const resetModalFilters = useCallback(() => {
+    setModalFilters({ ...DEFAULT_FILTERS });
+  }, []);
+
+  const clearAllFiltersAndClose = useCallback(() => {
+    setFilters({ ...DEFAULT_FILTERS });
+    setModalFilters({ ...DEFAULT_FILTERS });
+    setFilterOpen(false);
+  }, []);
+
+  if (!vendor) {
+    return (
+      <View style={[styles.fallback, { paddingTop: insets.top + 24 }]}>
+        <Text style={styles.fallbackText}>Missing vendor.</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.fallbackBtn}>
+          <Text style={styles.fallbackBtnText}>Go back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" backgroundColor={BROWN} translucent />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 88 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.hero}>
+          {heroUri ? (
+            <ImageBackground source={{ uri: heroUri }} style={styles.heroImage} resizeMode="cover">
+              <View style={styles.heroTint} />
+              <View style={styles.heroBrownFade} />
+              <View style={[styles.heroTopBar, { paddingTop: topPad }]}>
+                <View style={styles.heroTopLeft}>
+                  <TouchableOpacity style={styles.circleBrown} onPress={() => navigation.goBack()} activeOpacity={0.85}>
+                    <Icon name="arrow-back" size={22} color="#000000" />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.circleBrown, styles.heroIconGap]} activeOpacity={0.85}>
+                    <Icon name="search-outline" size={20} color="#000000" />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.heroTopRight}>
+                  <TouchableOpacity style={styles.followPill} onPress={onFollow} activeOpacity={0.88}>
+                    <Text style={styles.followPillText}>{following ? 'Following' : 'Follow'}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.circleBrown, styles.heroIconGap]}
+                    onPress={() => navigation.navigate('cart')}
+                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel="Open cart"
+                  >
+                    <Icon name="cart-outline" size={20} color="#000000" />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.circleBrown, styles.heroIconGap]} activeOpacity={0.85}>
+                    <Icon name="share-outline" size={20} color="#000000" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <View style={styles.heroBrandBlock}>
+                <Text style={styles.brandWordmark} numberOfLines={1}>
+                  {shopName}
+                </Text>
+              </View>
+            </ImageBackground>
+          ) : (
+            <View style={[styles.heroImage, styles.heroSolid]}>
+              <View style={styles.heroTint} />
+              <View style={styles.heroBrownFade} />
+              <View style={[styles.heroTopBar, { paddingTop: topPad }]}>
+                <View style={styles.heroTopLeft}>
+                  <TouchableOpacity style={styles.circleBrown} onPress={() => navigation.goBack()} activeOpacity={0.85}>
+                    <Icon name="arrow-back" size={22} color="#000000" />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.circleBrown, styles.heroIconGap]} activeOpacity={0.85}>
+                    <Icon name="search-outline" size={20} color="#000000" />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.heroTopRight}>
+                  {/* <TouchableOpacity style={styles.followPill} onPress={onFollow} activeOpacity={0.88}>
+                    <Text style={styles.followPillText}>{following ? 'Following' : 'Follow'}</Text>
+                  </TouchableOpacity> */}
+                  <TouchableOpacity
+                    style={[styles.circleBrown, styles.heroIconGap]}
+                    onPress={() => navigation.navigate('cart')}
+                    activeOpacity={0.85}
+                    accessibilityRole="button"
+                    accessibilityLabel="Open cart"
+                  >
+                    <Icon name="cart-outline" size={20} color="#000000" />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.circleBrown, styles.heroIconGap]} activeOpacity={0.85}>
+                    <Icon name="share-outline" size={20} color="#000000" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <View style={styles.heroBrandBlock}>
+                <Text style={styles.brandWordmark} numberOfLines={1}>
+                  {shopName}
+                </Text>
+              </View>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.productsSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>All products</Text>
+            <TouchableOpacity style={styles.filterFab} onPress={openFilterModal} activeOpacity={0.88}>
+              <Icon name="options-outline" size={20} color="#000000" />
+            </TouchableOpacity>
+          </View>
+
+          {productsLoading ? (
+            <View style={styles.productsLoading}>
+              <ActivityIndicator size="large" color="#FFFFFF" />
+              <Text style={styles.productsLoadingText}>Loading products…</Text>
+            </View>
+          ) : productsError ? (
+            <Text style={styles.emptyFilter}>{productsError}</Text>
+          ) : displayedProducts.length === 0 ? (
+            <Text style={styles.emptyFilter}>No products match these filters.</Text>
+          ) : (
+            <View style={styles.grid}>
+              {displayedProducts.map((p) => (
+                <ProductTile
+                  key={p.key}
+                  product={p}
+                  width={colW}
+                  navigation={navigation}
+                  vendor={vendor}
+                  category={category}
+                />
+              ))}
+            </View>
+          )}
+        </View>
+      </ScrollView>
+
+      <Modal visible={filterOpen} transparent animationType="fade" onRequestClose={() => setFilterOpen(false)}>
+        <View style={styles.filterModalRoot}>
+          <TouchableOpacity style={styles.filterBackdrop} activeOpacity={1} onPress={() => setFilterOpen(false)} />
+          <View style={[styles.filterSheet, { maxHeight: WINDOW_H * 0.88 }]}>
+            <Text style={styles.filterSheetTitle}>Filter products</Text>
+            <Text style={styles.filterSheetHint}>
+              Pick a sub-category first, then choose a type for that group. Tap Apply to update the grid.
+            </Text>
+            <ScrollView
+              style={styles.filterScroll}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              <FilterChipSection
+                title="Gender"
+                options={GENDER_OPTIONS}
+                value={modalFilters.gender}
+                onChange={(v) => setModalFilters((s) => ({ ...s, gender: v }))}
+              />
+              <FilterChipSection
+                title="Sub-category"
+                options={subCategoryOptions}
+                value={modalFilters.subCategory}
+                onChange={(v) => setModalFilters((s) => ({ ...s, subCategory: v, type: null }))}
+              />
+              <View style={styles.filterSection}>
+                <Text style={styles.filterSectionTitle}>Type</Text>
+                {!modalFilters.subCategory ? (
+                  <Text style={styles.filterTypeHint}>Select a sub-category to see types for that group.</Text>
+                ) : (
+                  <FilterChipSection
+                    title=""
+                    embedded
+                    options={modalTypeOptions}
+                    value={modalFilters.type}
+                    onChange={(v) => setModalFilters((s) => ({ ...s, type: v }))}
+                  />
+                )}
+              </View>
+              <FilterChipSection
+                title="Sort"
+                options={SORT_OPTIONS}
+                value={modalFilters.sortPrice}
+                onChange={(v) =>
+                  setModalFilters((s) => ({
+                    ...s,
+                    sortPrice: v === 'asc' || v === 'desc' || v === 'none' ? v : 'none',
+                  }))
+                }
+              />
+            </ScrollView>
+            <View style={styles.filterFooterRow}>
+              <TouchableOpacity style={styles.filterResetBtn} onPress={resetModalFilters} activeOpacity={0.88}>
+                <Text style={styles.filterResetText}>Reset</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.filterClearBtn} onPress={clearAllFiltersAndClose} activeOpacity={0.88}>
+                <Text style={styles.filterClearText}>Clear all</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity style={styles.filterSheetBtn} onPress={applyModalFilters} activeOpacity={0.9}>
+              <Text style={styles.filterSheetBtnText}>Apply filters</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: BROWN,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  hero: {
+    width: '100%',
+    minHeight: 300,
+  },
+  heroImage: {
+    width: '100%',
+    minHeight: 300,
+    justifyContent: 'space-between',
+  },
+  heroSolid: {
+    backgroundColor: '#2a211c',
+  },
+  heroTint: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(25, 18, 14, 0.42)',
+  },
+  heroBrownFade: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: '52%',
+    backgroundColor: BROWN,
+    opacity: 0.94,
+  },
+  heroTopBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: PAD,
+    zIndex: 2,
+  },
+  heroTopLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  heroTopRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  circleBrown: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(0,0,0,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroIconGap: {
+    marginLeft: 10,
+  },
+  followPill: {
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 22,
+    backgroundColor: BROWN_SOFT,
+  },
+  followPillText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  heroBrandBlock: {
+    paddingHorizontal: PAD,
+    paddingBottom: 28,
+    paddingTop: 8,
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  brandWordmark: {
+    color: '#FFFFFF',
+    fontSize: 32,
+    fontWeight: '700',
+    fontStyle: 'italic',
+    letterSpacing: 0.5,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0,0,0,0.35)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  heroRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  heroRatingNum: {
+    color: 'rgba(255,255,255,0.95)',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  heroStar: {
+    marginLeft: 6,
+  },
+  heroRatingParen: {
+    color: 'rgba(255,255,255,0.88)',
+    fontSize: 16,
+    marginLeft: 6,
+  },
+  productsSection: {
+    backgroundColor: BROWN,
+    paddingHorizontal: PAD,
+    paddingTop: 8,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    marginTop: 4,
+  },
+  sectionTitle: {
+    color: '#FFFFFF',
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  filterFab: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+  },
+  tile: {
+    marginBottom: GRID_GAP + 8,
+  },
+  tileImageWrap: {
+    borderRadius: 20,
+    overflow: 'hidden',
+    aspectRatio: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  tileImage: {
+    width: '100%',
+    height: '100%',
+  },
+  tileImagePh: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  /* MVP: wishlist overlay on product tile — disabled (see commented TouchableOpacity above)
+  tileHeart: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: 'rgba(0,0,0,0.38)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  */
+  tileTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 10,
+    lineHeight: 19,
+  },
+  tileMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  starRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  tileReviews: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 13,
+    marginLeft: 6,
+  },
+  tilePrice: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: 6,
+  },
+  fallback: {
+    flex: 1,
+    backgroundColor: BROWN,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  fallbackText: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 16,
+    marginBottom: 16,
+  },
+  fallbackBtn: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  fallbackBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '600',
+  },
+  filterModalRoot: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  filterBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  filterSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 24,
+    zIndex: 2,
+    elevation: 12,
+  },
+  filterSheetTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111',
+    marginBottom: 6,
+  },
+  filterSheetHint: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 14,
+    lineHeight: 18,
+  },
+  filterScroll: {
+    maxHeight: WINDOW_H * 0.48,
+    marginBottom: 12,
+  },
+  filterSection: {
+    marginBottom: 18,
+  },
+  filterSectionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#222',
+    marginBottom: 10,
+  },
+  filterTypeHint: {
+    fontSize: 13,
+    color: '#888',
+    lineHeight: 18,
+    marginTop: -4,
+    marginBottom: 4,
+  },
+  filterChipsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 20,
+    backgroundColor: '#F2F2F2',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  filterChipSelected: {
+    backgroundColor: 'rgba(0, 146, 110, 0.12)',
+    borderColor: '#00926e',
+  },
+  filterChipText: {
+    fontSize: 14,
+    color: '#444',
+    fontWeight: '500',
+  },
+  filterChipTextSelected: {
+    color: '#00926e',
+    fontWeight: '700',
+  },
+  filterFooterRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 12,
+  },
+  filterResetBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#F2F2F2',
+    alignItems: 'center',
+  },
+  filterResetText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+  },
+  filterClearBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: '#FFF0F0',
+    alignItems: 'center',
+  },
+  filterClearText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#B71C1C',
+  },
+  filterSheetBtn: {
+    backgroundColor: '#00926e',
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  filterSheetBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+    fontSize: 16,
+  },
+  emptyFilter: {
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 15,
+    textAlign: 'center',
+    paddingVertical: 28,
+    paddingHorizontal: 16,
+  },
+  productsLoading: {
+    paddingVertical: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  productsLoadingText: {
+    marginTop: 12,
+    color: 'rgba(255,255,255,0.85)',
+    fontSize: 14,
+  },
+});

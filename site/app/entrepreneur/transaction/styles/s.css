@@ -1,0 +1,36 @@
+@media (max-width: 480px) {
+  div{
+    height: unset;
+    width: unset;
+  }
+  .transactions-page {
+    padding: 0px;
+    height: 100vh;
+    overflow: auto;
+  }
+
+  .transactions-overview {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    overflow-x: auto;
+    overflow-y: hidden;
+
+  }
+
+  .trx-card {
+    padding: 12px;
+    width: 250px;
+    flex-shrink: 0;
+  }
+
+  .trx-card h4 {
+    font-size: 19px;
+  }
+
+  .transactions-table th,
+  .transactions-table td {
+    padding: 10px;
+    font-size: 13px;
+  }
+}

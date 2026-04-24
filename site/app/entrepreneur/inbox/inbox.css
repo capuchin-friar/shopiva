@@ -1,0 +1,59 @@
+.entrepreneur-inbox-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+.entrepreneur-inbox-back {
+  margin: 0 0 16px;
+  font-size: 0.9375rem;
+}
+
+.entrepreneur-inbox-back a {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.entrepreneur-inbox-back a:hover {
+  text-decoration: underline;
+}
+
+.entrepreneur-inbox-title {
+  margin: 0 0 8px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.entrepreneur-inbox-sub {
+  margin: 0 0 24px;
+  font-size: 0.9375rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.entrepreneur-inbox-sub strong {
+  color: #334155;
+  font-weight: 600;
+}
+
+.entrepreneur-inbox-placeholder {
+  padding: 28px 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #f8fafc;
+}
+
+.entrepreneur-inbox-placeholder p {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: #475569;
+  line-height: 1.55;
+}
+
+.entrepreneur-inbox-loading {
+  padding: 24px 16px;
+  margin: 0;
+  color: #64748b;
+}

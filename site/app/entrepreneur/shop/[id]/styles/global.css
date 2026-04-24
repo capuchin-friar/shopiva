@@ -1,0 +1,163 @@
+/* Base shop create styles (all screen sizes) */
+/* Scroll is on .right (mobile/tablet) or .shop-form-scroll (large screens) — see s/m/l/xxl.css */
+
+.shop-cnt .input-cnt {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+}
+
+.shop-cnt .input-cnt label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 6px;
+  display: block;
+  letter-spacing: 0.01em;
+}
+
+.shop-cnt .input-cnt input,
+.shop-cnt .input-cnt textarea,
+.shop-cnt .input-cnt select {
+  width: 100%;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 1rem;
+  font-family: inherit;
+  color: #111827;
+  background-color: #fff;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 12px;
+  padding-right: 40px;
+}
+
+.shop-cnt .input-cnt input,
+.shop-cnt .input-cnt textarea {
+  background-image: none;
+  padding-right: 14px;
+}
+
+.shop-cnt .input-cnt input,
+.shop-cnt .input-cnt select {
+  min-height: 48px;
+  box-sizing: border-box;
+}
+
+.shop-cnt .input-cnt input:hover,
+.shop-cnt .input-cnt textarea:hover,
+.shop-cnt .input-cnt select:hover {
+  border-color: #9ca3af;
+}
+
+.shop-cnt .input-cnt input:focus,
+.shop-cnt .input-cnt textarea:focus,
+.shop-cnt .input-cnt select:focus {
+  outline: none;
+  border-color: #005c45;
+  box-shadow: 0 0 0 3px rgba(0, 92, 69, 0.15);
+}
+
+.shop-cnt .input-cnt input::placeholder,
+.shop-cnt .input-cnt textarea::placeholder {
+  color: #9ca3af;
+}
+
+.shop-cnt .input-cnt input[aria-invalid="true"],
+.shop-cnt .input-cnt textarea[aria-invalid="true"] {
+  border-color: #dc2626;
+}
+
+.shop-cnt .input-cnt input[aria-invalid="true"]:focus,
+.shop-cnt .input-cnt textarea[aria-invalid="true"]:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
+.shop-cnt .input-cnt textarea {
+  min-height: 100px;
+  resize: vertical;
+  padding-right: 14px;
+}
+
+.shop-cnt .shop-err {
+  color: #c00;
+  font-size: 0.85rem;
+  margin-top: 4px;
+  display: block;
+}
+
+.shop-cnt .input-cnt button {
+  border: none;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #005c45;
+  color: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  height: 50px;
+  transition: background-color 0.2s ease, opacity 0.2s ease;
+}
+
+.shop-cnt .input-cnt button:hover:not(:disabled) {
+  background-color: #004638;
+}
+
+.shop-cnt .input-cnt button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.shop-cnt .shop-hint {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.shop-cnt .shop-location-btn {
+  padding: 12px 18px;
+  border: 1.5px solid #005c45;
+  border-radius: 8px;
+  background: #fff;
+  color: #005c45;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  max-width: 240px;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.shop-cnt .shop-location-btn:hover:not(:disabled) {
+  background: #005c45;
+  color: #fff;
+}
+
+.shop-cnt .shop-location-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.shop-cnt .shop-location-summary {
+  margin-top: 10px;
+  padding: 12px 14px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #166534;
+}
+
+.shop-cnt .shop-location-check {
+  color: #005c45;
+  margin-right: 6px;
+  font-weight: bold;
+}

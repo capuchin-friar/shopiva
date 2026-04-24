@@ -1,0 +1,47 @@
+/* Tablet: 481px - 760px */
+@media screen and (min-width: 481px) and (max-width: 760px) {
+  .shop-cnt {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+  }
+  .shop-cnt .left {
+    min-height: 45vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    width: 100%;
+    padding: 20px;
+    background-color: #005c45;
+    position: relative;
+  }
+  .shop-cnt .right {
+    min-height: 55vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding: 20px;
+    background-color: #fff;
+  }
+  .shop-cnt .left img {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+  }
+  .shop-cnt .shop-header {
+    padding: 0 15px;
+    color: #fff;
+    width: 95%;
+    font-weight: bold;
+  }
+  .shop-cnt .shop-body {
+    padding: 10px;
+    width: 100%;
+    color: #fff;
+    font-weight: 500;
+    text-align: center;
+  }
+}

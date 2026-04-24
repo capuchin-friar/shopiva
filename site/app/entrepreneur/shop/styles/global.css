@@ -1,0 +1,94 @@
+/* Base shop create styles (all screen sizes) */
+.shop-cnt .input-cnt {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+}
+
+.shop-cnt .input-cnt input,
+.shop-cnt .input-cnt textarea {
+  width: 100%;
+  border: 1px solid #ccc;
+  border-radius: 2.5px;
+  padding: 10px 12px;
+  font-size: 1rem;
+}
+
+.shop-cnt .input-cnt input:focus,
+.shop-cnt .input-cnt textarea:focus {
+  outline: none;
+  border-color: #005c45;
+}
+
+.shop-cnt .input-cnt textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.shop-cnt .shop-err {
+  color: #c00;
+  font-size: 0.85rem;
+  margin-top: 4px;
+  display: block;
+}
+
+.shop-cnt .input-cnt button {
+  border: none;
+  cursor: pointer;
+  border-radius: 2.5px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #005c45;
+  color: #fff;
+  font-size: 1rem;
+  height: 50px;
+}
+
+.shop-cnt .input-cnt button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.shop-cnt .shop-hint {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 4px;
+}
+
+.shop-cnt .shop-location-btn {
+  padding: 10px 16px;
+  border: 1px solid #005c45;
+  border-radius: 2.5px;
+  background: #fff;
+  color: #005c45;
+  font-size: 1rem;
+  cursor: pointer;
+  width: 100%;
+  max-width: 240px;
+}
+
+.shop-cnt .shop-location-btn:hover:not(:disabled) {
+  background: #005c45;
+  color: #fff;
+}
+
+.shop-cnt .shop-location-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.shop-cnt .shop-location-summary {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: #f0f9f6;
+  border-radius: 2.5px;
+  font-size: 0.9rem;
+  color: #333;
+}
+
+.shop-cnt .shop-location-check {
+  color: #005c45;
+  margin-right: 6px;
+  font-weight: bold;
+}

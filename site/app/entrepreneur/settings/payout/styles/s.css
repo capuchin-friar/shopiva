@@ -1,0 +1,131 @@
+@media (max-width: 480px) {
+
+    div{
+        height: unset;
+        width: unset;
+    }
+  .payout-page {
+    padding: 12px;
+    height: 100vh;
+    overflow: auto;
+  }
+
+  .payout-header {
+    height: fit-content;
+  }
+
+  .payout-header h5 {
+    font-size: 20px;
+
+  }
+
+  .payout-header p {
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .payout-shop-row {
+    width: 100%;
+    height: fit-content;
+  }
+
+  .payout-empty-state,
+  .payout-summary-card,
+  .payout-form {
+    padding: 14px;
+    border-radius: 10px;
+  }
+
+  .payout-form {
+    padding: 14px;
+    height: fit-content;
+    border-radius: 10px;
+  }
+
+  .payout-empty-state h6 {
+    font-size: 20px;
+  }
+
+  .payout-empty-state p {
+    font-size: 14px;
+    line-height: 1.45;
+  }
+
+  .payout-empty-action {
+    font-size: 18px;
+    margin-top: 14px;
+  }
+
+  .payout-summary-card h6 {
+    font-size: 18px;
+    margin-bottom: 12px;
+  }
+
+  .payout-summary-grid {
+    height: fit-content;
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: space-between;
+}
+
+.payout-summary-grid p{
+    height: fit-content;
+    margin: 20px 10px;
+}
+
+  .payout-summary-actions {
+    margin-top: 14px;
+    height: fit-content;
+    display: flex;
+    flex-direction: row;
+    /* flex-wrap: wrap; */
+    justify-content: space-between;
+    flex-direction: column;
+  }
+
+  .payout-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+ 
+  .payout-field input,
+  .payout-shop-row select {
+    height: 40px;
+    min-height: 40px;
+    font-size: 14px;
+  }
+
+  .payout-field input#account_number {
+    height: 48px !important;
+    min-height: 48px !important;
+    line-height: 48px;
+  }
+
+  .payout-select__control {
+    min-height: 42px !important;
+  }
+
+  .payout-save-btn,
+  .payout-cancel-btn,
+  .payout-verify-btn {
+    width: 100%;
+    margin-left: 0;
+    padding: 11px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  
+
+  .payout-cancel-btn {
+    margin-top: 10px;
+  }
+
+  input[type="number"]{
+    height: 40px;
+  }
+
+}

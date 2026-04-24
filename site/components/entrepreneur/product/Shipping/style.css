@@ -1,0 +1,115 @@
+
+.product-shipping{
+    height: fit-content;
+    width: 100%;
+    height: fit-content;
+    background-color: #fff;
+    padding: 10px;
+    border-radius: 10px;
+    margin: 10px 0px 10px 0px;
+}
+
+.product-shipping .shipping-input-cnt{
+    display: flex;
+    justify-content: space-between;
+    flex-direction: row;
+
+}
+
+.product-shipping .shipping-input-cnt .input-cnt{
+    height: fit-content;
+    width: 95%;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    height: fit-content;
+}
+
+.product-shipping .shipping-input-cnt .input-cnt input{
+    outline: none;
+    width: 100%;
+    height: 40px;
+    border: 1px solid #727272;
+    border-radius: 5px;
+    padding: 10px;
+    font-size: small;
+    font-weight: 400;
+    color: #727272;
+    resize: none;
+}
+
+.product-shipping .shipping-input-cnt .input-cnt label{
+    color: #727272;
+    padding-left: 2.5px;
+    font-weight: 400;
+}
+
+
+.tools-cnt{
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    flex-direction: row;
+}
+
+button{
+    background-color: #fff;
+    margin: 0px 10px;
+}
+
+.editor{
+    height: 200px;
+    overflow: auto;
+    width: 100%;
+    background-color: #fcfcfc;
+    padding: 10px;
+    outline: none;
+}
+
+input{
+    border: 1px solid #727272;
+    color: #727272;
+}
+
+/* Input with unit suffix (kg, cm) */
+.product-shipping .input-with-suffix {
+    display: inline-flex;
+    align-items: center;
+    width: 100%;
+    max-width: 100%;
+    border: 1px solid #727272;
+    border-radius: 5px;
+    background-color: #efefef;
+}
+.product-shipping .input-with-suffix input {
+    border: none;
+    border-radius: 5px 0 0 5px;
+    flex: 1;
+    min-width: 0;
+}
+.product-shipping .input-with-suffix .input-suffix {
+    flex-shrink: 0;
+    padding: 0 10px;
+    font-size: small;
+    color: #727272;
+    background: transparent;
+    pointer-events: none;
+}
+.product-shipping .dimension-field {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 0;
+}
+.product-shipping .dimension-field .input-with-suffix {
+    width: 100%;
+}
+.product-shipping .dimension-field .input-with-suffix input {
+    width: 100%;
+}
+
+select{
+    border-radius: 5px;
+    width: 100%;
+    height: 40px;
+}

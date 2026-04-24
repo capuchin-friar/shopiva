@@ -1,0 +1,35 @@
+
+.product-title{
+    height: fit-content;
+    width: 100%;
+    height: fit-content;
+    margin: 10px 0px 20px 0px;
+}
+
+.product-title .input-cnt{
+    height: fit-content;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+
+    height: fit-content;
+}
+
+.product-title .input-cnt textarea{
+    outline: none;
+    height: 60px;
+    width: 100%;
+    border-radius: 5px;
+    padding: 10px;
+    font-size: medium;
+    color: #727272;
+    font-weight: 500;
+    resize: none;
+}
+
+.product-title .input-cnt label{
+    padding-left: 2.5px;
+    font-size: small;
+    font-weight: 400;
+    color: #727272;
+}

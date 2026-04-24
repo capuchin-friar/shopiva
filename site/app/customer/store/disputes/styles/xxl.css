@@ -1,0 +1,124 @@
+@media screen and (min-width: 1200px) {
+  .ord-mheader {
+    display: none;
+  }
+
+  .ord-main {
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 28px 24px 48px;
+  }
+
+  .ord-title--desktop {
+    display: block;
+    margin: 0 0 8px;
+    font-size: 1.7rem;
+    letter-spacing: -0.02em;
+  }
+
+  .dsp-subtitle {
+    margin: 0 0 20px;
+    font-size: 0.9375rem;
+    color: var(--ord-muted);
+    line-height: 1.45;
+  }
+
+  .ord-badge--open {
+    background: #b45309;
+  }
+
+  .ord-badge--closed {
+    background: #6b7280;
+  }
+
+  .dsp-card-field {
+    display: flex;
+    flex-direction: column;
+    text-align: center;
+    gap: 4px;
+    margin-bottom: 12px;
+  }
+
+  .dsp-card-field__label {
+    font-size: 0.72rem;
+    color: var(--ord-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+  }
+
+  .dsp-card-field__value {
+    font-size: 0.92rem;
+    line-height: 1.4;
+    color: var(--ord-text);
+    font-weight: 500;
+  }
+
+  .dsp-card-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 38px;
+    min-width: 122px;
+    padding: 0 16px;
+    border-radius: 7px;
+    background: #00926e;
+    color: #fff;
+    font-size: 0.84rem;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .dsp-card-cta:hover {
+    background: #007f60;
+  }
+
+  .ord-list {
+    gap: 12px;
+  }
+
+  .ord-card {
+    padding: 10px 16px;
+    /* gap: 14px; */
+    /* height: 150px; */
+    display: flex;
+    background-color: #fff;
+    flex-direction: row;
+    justify-content: space-between;
+    border-radius: 10px;
+  }
+
+  .ord-card__thumb-wrap {
+    flex: 0 0 112px;
+    width: 112px;
+    height: 112px;
+  }
+
+  .ord-card__body {
+    /* height: 100%; */
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+
+  }
+
+  .ord-card__primary {
+    display: flex;
+    width: 60%;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: flex-start;
+    /* min-width: 140px; */
+  }
+
+  .ord-card__secondary {
+    display: flex;
+    width: 40%;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    /* height: 100%; */
+  }
+}

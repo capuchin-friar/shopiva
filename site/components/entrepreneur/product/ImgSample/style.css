@@ -1,0 +1,64 @@
+.product-img-sample{
+    height: fit-content;
+    width: 100%;
+}
+
+.product-img-sample .input-cnt{
+    height: 200px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid dotted;
+
+    /* height: fit-content; */
+}
+
+.product-img-sample .input-cnt .empty-media-cnt{
+    height: 140px;
+    width: 100%;
+    display: flex;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px dotted #000;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    /* height: fit-content; */
+    background-color: #fff;
+}
+
+.product-img-sample .input-cnt section div{
+    height: 100%;
+    width: 140px;
+    display: flex;
+    border-radius: 5px;
+    flex-direction: row;
+    /* height: fit-content; */
+    background-color: #ededed;
+}
+
+.product-img-sample .input-cnt section div label{
+    display: flex;
+    width: 100%;
+    text-align: center;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+}
+
+.product-img-sample .input-cnt section ul{
+    height: 100%;
+    width: calc(100% - 140px);
+    display: flex;
+    border-radius: 5px;
+    flex-direction: row;
+    /* height: fit-content; */
+    background-color: #fff;
+}
+
+.product-img-sample .input-cnt label{
+    padding-left: 2.5px;
+    font-weight: 400;
+    font-size: small;
+    color: #727272;
+}

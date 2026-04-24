@@ -1,0 +1,605 @@
+/**
+ * SHOP MODEL
+ * 
+ * Handles all database operations related to shop:
+ * - Shop creation and authentication
+ * - Shop information updates (name, title, description, location)
+ * - Shop data retrieval and validation
+ * 
+ * @see types/user.ts for type definitions
+ * @see middleware/auth.ts for authentication middleware
+ */
+
+import { db } from "../../config/database.js"
+import type { NewPayoutAccount, NewShopDocument, ShopDocument, ShopPolicies } from "../../types/business.js";
+import { withErrorHandling } from "../../utils/errHandler.js"
+
+export class shop{
+
+    static createShop = withErrorHandling( async (payload: NewShopDocument) => {
+        const {
+            ownerId, name, description, logo, category, slug, vendortype, location
+        } = payload;
+        const locationJson = location != null ? JSON.stringify(location) : JSON.stringify({
+            address: null, city: null, state: null, country: null, zipcode: null, coordinates: null
+        });
+        const {
+            rows,
+            rowCount
+        } = await (await db()).query(
+            `
+                INSERT INTO shops(ownerId, name, slug, description, logo, category, vendortype, location, createdAt, updatedAt)
+                VALUES($1, $2, $3, $4, $5, $6, $7, $8::jsonb, NOW(), NOW())
+                RETURNING id, name, slug, status, createdat AS "createdAt"
+            `,
+            [ownerId, name, slug, description ?? null, logo ?? null, category ?? null, vendortype ?? null, locationJson]
+        );
+
+        return rowCount ? rows?.[0] : null;
+    });
+
+    static getShopBySlug = withErrorHandling( async (slug: string) => {
+        const { rows } = await (await db()).query(
+            `SELECT 1 FROM shops WHERE slug = $1 LIMIT 1`,
+            [slug]
+        );
+        return rows;
+    });
+
+    static getShopByName = withErrorHandling( async (name: string) => {
+        const { rows } = await (await db()).query(
+            `SELECT 1 FROM shops WHERE LOWER(TRIM(name)) = LOWER(TRIM($1)) LIMIT 1`,
+            [name]
+        );
+        return rows;
+    });
+
+    static deleteShop = withErrorHandling( async (shopId: number) => {
+        const id = shopId;
+        const {
+            rowCount
+        } = await (await db()).query(
+            `
+               DELETE FROM shops WHERE id = ${id}
+            `,
+        );
+
+        return rowCount;
+    });
+
+    static updateShop = withErrorHandling( async (payload: ShopDocument) => {
+        const {
+            ownerId,
+            shopId,
+            name,
+            slug,
+            description,
+            logo,
+            banner,
+            category,
+            tags,
+            contactEmail,
+            contactPhone,
+          
+            // Vendor Type
+            vendorType,
+          
+            // Location & Social
+            location,
+            socialLinks,
+          
+            // Status & Verification
+            isActive,
+            isVerified,
+            status,
+            verificationDocuments,
+          
+        } = payload;
+
+        const {
+            rows
+        } = await (await db()).query(
+            `
+               UPDATE shops SET 
+                name = $1,
+                slug = $2,
+                description = $3,
+                logo = $4,
+                banner = $5,
+                category = $6,
+                tags = $7,
+                contactEmail = $8,
+                contactPhone = $9,
+                vendorType = $10,
+                location = $11,
+                socialLinks = $12,
+                isActive = $13,
+                isVerified = $14,
+                status = $15,
+                verificationDocuments = $16,
+                updatedAt = NOW()
+               WHERE id = $17
+               RETURNING *
+            `,
+            [
+                name,
+                slug,
+                description,
+                logo,
+                banner,
+                category,
+                tags,
+                contactEmail,
+                contactPhone,
+                vendorType,
+                JSON.stringify(location),
+                JSON.stringify(socialLinks),
+                isActive,
+                isVerified,
+                status,
+                JSON.stringify(verificationDocuments),
+                shopId
+            ]
+        );
+
+        return rows;
+    });
+
+    static  createPolicy = withErrorHandling( async (payload: ShopPolicies) => {
+        const {
+            shopId, deliveryPolicy, refundPolicy, customPolicies
+        } = payload;
+        console.log(shopId)
+        const { rowCount } = await (await db()).query(
+            `
+            INSERT INTO shop_policies (
+              shopid,
+              deliverypolicy,
+              refundpolicy,
+              custompolicies,
+              createdAt,
+              updatedAt
+            )
+            VALUES ($1, $2, $3, $4, NOW(), NOW())
+            `,
+            [
+              shopId,
+              JSON.stringify(deliveryPolicy),
+              JSON.stringify(refundPolicy),
+              JSON.stringify(customPolicies)
+            ]
+        );
+          
+
+        return rowCount;
+    })
+
+    static  updatePolicy = withErrorHandling( async (payload: ShopPolicies) => {
+        const {
+            policyId, deliveryPolicy, refundPolicy, customPolicies
+        } = payload;
+
+        const { rows } = await (await db()).query(
+            `
+              UPDATE shop_policies
+              SET
+                deliveryPolicy = $1,
+                refundPolicy   = $2,
+                customPolicies = $3,
+                updatedAt      = NOW()
+              WHERE id = $4
+              RETURNING *
+            `,
+            [
+              JSON.stringify(deliveryPolicy),
+              JSON.stringify(refundPolicy),
+              JSON.stringify(customPolicies),
+              policyId
+            ]
+        );
+          
+
+        return rows;
+    })
+
+    static getShopById = withErrorHandling(async (shopId: number) => {
+
+        const {
+            rows
+        } =  await (await db()).query(
+            `
+                SELECT * FROM shops WHERE id = $1
+            `, [shopId]
+        );
+
+        return rows;
+    })
+
+    /** Public storefront: active shop row by URL slug. */
+    static getStorefrontBySlug = withErrorHandling(async (slug: string) => {
+        const { rows } = await (await db()).query(
+            `SELECT * FROM shops WHERE slug = $1 AND isactive = true LIMIT 1`,
+            [slug]
+        );
+        return rows[0] ?? null;
+    });
+
+    /** One row from shop_policies for dashboard / vendor UI (delivery, refund, custom JSON). */
+    static getShopPoliciesByShopId = withErrorHandling(async (shopId: number) => {
+        const { rows } = await (await db()).query<{
+            deliverypolicy: unknown;
+            refundpolicy: unknown;
+            custompolicies: unknown;
+        }>(
+            `SELECT deliverypolicy, refundpolicy, custompolicies FROM shop_policies WHERE shopid = $1 LIMIT 1`,
+            [shopId]
+        );
+        return rows;
+    });
+
+    static getShopsByOwnerId = withErrorHandling(async (ownerId: string | number) => {
+        const {
+            rows
+        } = await (await db()).query(
+            `SELECT * FROM shops WHERE ownerid = $1 ORDER BY id`,
+            [String(ownerId)]
+        );
+        return rows;
+    });
+
+    static appendPolicyClause = withErrorHandling(
+      async (params: {
+        shopId: number;
+        target: "delivery" | "refund" | "custom";
+        title: string;
+        content: string;
+      }) => {
+        const clause = { title: params.title, content: params.content };
+        const defaultDelivery = {
+          restrictions: null,
+          processingTime: null,
+          shippingMethods: [],
+          domesticShipping: { regions: [], available: true },
+          trackingProvided: true,
+          interstateShipping: { available: false, countries: [] },
+        };
+        const defaultRefund = {
+          refundMethod: "original_payment",
+          returnWindow: 30,
+          restockingFee: 0,
+          returnConditions: null,
+          damagedItemsPolicy: null,
+          refundProcessingTime: null,
+        };
+
+        const parseJson = (v: unknown) => {
+          if (v == null) return null;
+          if (typeof v === "object") return v as Record<string, unknown>;
+          if (typeof v === "string") {
+            try {
+              return JSON.parse(v) as Record<string, unknown>;
+            } catch {
+              return {};
+            }
+          }
+          return {};
+        };
+
+        const { rows } = await (await db()).query<{
+          id: number;
+          deliverypolicy: unknown;
+          refundpolicy: unknown;
+          custompolicies: unknown;
+        }>(
+          `SELECT id, deliverypolicy, refundpolicy, custompolicies FROM shop_policies WHERE shopid = $1 LIMIT 1`,
+          [params.shopId]
+        );
+
+        let deliverypolicy: Record<string, unknown> = { ...defaultDelivery };
+        let refundpolicy: Record<string, unknown> = { ...defaultRefund };
+        let custompolicies: unknown[] = [];
+
+        if (!rows?.length) {
+          if (params.target === "delivery") {
+            deliverypolicy = { ...defaultDelivery, clauses: [clause] };
+          } else if (params.target === "refund") {
+            refundpolicy = { ...defaultRefund, clauses: [clause] };
+          } else {
+            custompolicies = [clause];
+          }
+          await (await db()).query(
+            `INSERT INTO shop_policies (shopid, deliverypolicy, refundpolicy, custompolicies, createdat, updatedat)
+             VALUES ($1, $2::jsonb, $3::jsonb, $4::jsonb, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+            [
+              params.shopId,
+              JSON.stringify(deliverypolicy),
+              JSON.stringify(refundpolicy),
+              JSON.stringify(custompolicies),
+            ]
+          );
+          return { inserted: true };
+        }
+
+        const row = rows[0]!;
+        deliverypolicy = { ...defaultDelivery, ...(parseJson(row.deliverypolicy) ?? {}) };
+        refundpolicy = { ...defaultRefund, ...(parseJson(row.refundpolicy) ?? {}) };
+        const existingCustom = row.custompolicies;
+        if (Array.isArray(existingCustom)) {
+          custompolicies = [...existingCustom] as unknown[];
+        } else if (typeof existingCustom === "string") {
+          try {
+            const p = JSON.parse(existingCustom);
+            custompolicies = Array.isArray(p) ? [...p] : [];
+          } catch {
+            custompolicies = [];
+          }
+        } else {
+          custompolicies = [];
+        }
+
+        if (params.target === "custom") {
+          custompolicies = [...custompolicies, clause];
+        } else if (params.target === "delivery") {
+          const clauses = Array.isArray(deliverypolicy.clauses)
+            ? [...(deliverypolicy.clauses as unknown[])]
+            : [];
+          deliverypolicy.clauses = [...clauses, clause];
+        } else {
+          const clauses = Array.isArray(refundpolicy.clauses)
+            ? [...(refundpolicy.clauses as unknown[])]
+            : [];
+          refundpolicy.clauses = [...clauses, clause];
+        }
+
+        await (await db()).query(
+          `UPDATE shop_policies
+           SET deliverypolicy = $1::jsonb,
+               refundpolicy = $2::jsonb,
+               custompolicies = $3::jsonb,
+               updatedat = CURRENT_TIMESTAMP
+           WHERE shopid = $4`,
+          [
+            JSON.stringify(deliverypolicy),
+            JSON.stringify(refundpolicy),
+            JSON.stringify(custompolicies),
+            params.shopId,
+          ]
+        );
+        return { updated: true };
+      }
+    );
+
+    static getShopReviewsById = withErrorHandling(async (shopId: number) => {
+
+        const {
+            rows
+        } =  await (await db()).query(
+            `
+                SELECT * FROM shop_reviews WHERE shop_id = $1
+            `, [shopId]
+        );
+
+        return rows;
+    })
+
+    static getShopMetricsById = withErrorHandling(async (shopId: number) => {
+
+        const {
+            rows
+        } =  await (await db()).query(
+            `
+                SELECT * FROM shop_review_metrics WHERE shop_id = $1
+            `, [shopId]
+        );
+
+        return rows;
+    })
+
+    static createPayoutAccount = withErrorHandling(async (payload: NewPayoutAccount) => {
+        const {
+            shopId,
+            bank_name,
+            bank_code,
+            account_name,
+            account_number,
+            provider_recipient_id,
+            provider_account_id,
+            verification_method,
+            status
+        } = payload;
+        const {
+            rowCount
+        } = await (await db()).query(
+            `
+                INSERT INTO shop_payout_accounts(shop_id, provider, country_code, currency, bank_name, bank_code, account_name, account_number_last4, provider_recipient_id, provider_account_id, status, verification_method, created_at, updated_at)
+
+                VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
+            `,
+            [
+                shopId,
+                'paystack',
+                'NG',
+                'NGN',
+                bank_name,
+                bank_code,
+                account_name,
+                account_number,
+                provider_recipient_id,
+                provider_account_id,
+                status,
+                verification_method
+            ]
+        );
+
+        return rowCount;
+    })
+
+    static updatePayoutAccount = withErrorHandling(async (payload: NewPayoutAccount) => {
+        
+        const {
+            shopId,
+            bank_name,
+            bank_code,
+            account_name,
+            account_number,
+            provider_recipient_id,
+            provider_account_id,
+            verification_method,
+            status
+        } = payload;
+    
+        const { rows } = await (await db()).query(
+            `
+            UPDATE shop_payout_accounts
+            SET
+                bank_name = $1,
+                bank_code = $2,
+                account_name = $3,
+                account_number_last4 = $4,
+                provider_recipient_id = $5,
+                provider_account_id = $6,
+                status = $7,
+                verification_method = $8,
+                updated_at = NOW()
+            WHERE shop_id = $9
+            RETURNING *
+            `,
+            [
+                bank_name,
+                bank_code,
+                account_name,
+                account_number,
+                provider_recipient_id,
+                provider_account_id,
+                status,
+                verification_method,
+                shopId
+            ]
+        );
+    
+        return rows;
+    });
+
+    static getPayoutAccountByShopId = withErrorHandling(async (shopId: string | number) => {
+        const { rows } = await (await db()).query(
+            `
+            SELECT
+                id,
+                shop_id,
+                provider,
+                country_code,
+                currency,
+                bank_name,
+                bank_code,
+                account_name,
+                account_number_last4,
+                provider_recipient_id,
+                provider_account_id,
+                status,
+                verification_method,
+                created_at,
+                updated_at
+            FROM shop_payout_accounts
+            WHERE shop_id = $1
+            ORDER BY is_primary DESC, id DESC
+            LIMIT 1
+            `,
+            [String(shopId)]
+        );
+
+        return rows?.[0] ?? null;
+    });
+
+    static deletePayoutAccountByShopId = withErrorHandling(async (shopId: string | number) => {
+        const { rowCount } = await (await db()).query(
+            `DELETE FROM shop_payout_accounts WHERE shop_id = $1`,
+            [String(shopId)]
+        );
+        return rowCount ?? 0;
+    });
+
+    static getTransactionOverviewByShopId = withErrorHandling(async (shopId: string | number) => {
+        const { rows } = await (await db()).query(
+            `
+            SELECT
+              COALESCE(sa.available_balance, 0) AS available_balance,
+              COALESCE(sa.pending_balance, 0) AS pending_escrow,
+              COALESCE(sa.currency, 'NGN') AS currency,
+              COALESCE((
+                SELECT SUM(l.amount)
+                FROM shop_account_ledger l
+                INNER JOIN shop_accounts sa2 ON sa2.id = l.shop_account_id
+                WHERE sa2.shop_id = $1
+                  AND l.direction = 'credit'
+                  AND l.source_type IN ('order_payment', 'escrow_release')
+              ), 0) AS total_earnings,
+              COALESCE((
+                SELECT SUM(l.amount)
+                FROM shop_account_ledger l
+                INNER JOIN shop_accounts sa2 ON sa2.id = l.shop_account_id
+                WHERE sa2.shop_id = $1
+                  AND l.direction = 'debit'
+                  AND l.source_type = 'payout'
+              ), 0) AS total_withdrawal
+            FROM shop_accounts sa
+            WHERE sa.shop_id = $1
+            LIMIT 1
+            `,
+            [String(shopId)]
+        );
+        return rows?.[0] ?? null;
+    });
+
+    static getTransactionsByShopId = withErrorHandling(async (shopId: string | number, limit = 100) => {
+        const { rows } = await (await db()).query(
+            `
+            SELECT
+              l.created_at,
+              l.source_type,
+              l.source_id,
+              l.amount,
+              l.direction
+            FROM shop_account_ledger l
+            INNER JOIN shop_accounts sa ON sa.id = l.shop_account_id
+            WHERE sa.shop_id = $1
+            ORDER BY l.created_at DESC
+            LIMIT $2
+            `,
+            [String(shopId), Number(limit)]
+        );
+        return rows;
+    });
+
+    /**
+     * Active shops matching any of the given category strings (for public map discovery).
+     * Location JSON is parsed in the service layer.
+     */
+    static listShopsForMapByCategory = withErrorHandling(async (categoryVariants: string[]) => {
+        if (!categoryVariants.length) return [];
+        const { rows } = await (await db()).query(
+            `
+            SELECT
+              s.id,
+              s.name,
+              s.slug,
+              s.location
+            FROM shops s
+            WHERE EXISTS (
+                SELECT 1
+                FROM UNNEST($1::text[]) AS u(v)
+                WHERE regexp_replace(lower(trim(COALESCE(s.category, ''))), '[^a-z0-9]+', '_', 'g') =
+                      regexp_replace(lower(trim(v)), '[^a-z0-9]+', '_', 'g')
+                   OR regexp_replace(lower(trim(COALESCE(s.category, ''))), '[^a-z0-9]+', '_', 'g') LIKE
+                      ('%' || regexp_replace(lower(trim(v)), '[^a-z0-9]+', '_', 'g') || '%')
+              )
+              AND COALESCE(s.isactive, true) = true
+              AND s.status IN ('active', 'pending_approval')
+            ORDER BY s.name ASC
+            `,
+            [categoryVariants]
+        );
+        return rows;
+    });
+
+}
+

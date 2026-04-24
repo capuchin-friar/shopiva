@@ -1,0 +1,77 @@
+/* Shared auth form styles (login, signup, password recovery) */
+.enetrepreneur-signup-form {
+  background: linear-gradient(135deg, #00ccff, #4caf50);
+  height: 100vh;
+  width: 100%;
+  display: flex;
+  padding: 10px;
+  align-items: center;
+  justify-content: center;
+}
+
+.enetrepreneur-signup-form .form-cnt {
+  height: auto;
+  width: 400px;
+  padding: 20px 20px 20px 20px;
+  border-radius: 10px;
+  background-color: #fff;
+}
+
+.enetrepreneur-signup-form label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.enetrepreneur-signup-form input {
+  background: #f7f7f7;
+  height: 40px;
+  width: 100%;
+}
+
+.enetrepreneur-signup-form .input-cnt {
+  margin: 10px 0px;
+}
+
+.enetrepreneur-signup-form .form-cnt .other-reg-forms {
+  height: 50px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.enetrepreneur-signup-form .form-cnt .other-reg-forms button,
+.enetrepreneur-signup-form .form-cnt .other-reg-forms a {
+  height: 40px;
+  min-width: 40px;
+  display: flex;
+  align-items: center;
+  padding: 10px;
+  border-radius: 5px;
+  margin: 0px 5px;
+  border: 1px solid #000;
+}
+
+.enetrepreneur-signup-form .form-cnt .other-reg-forms button:last-child {
+  margin: 0px 0px 0px 5px;
+}
+
+.enetrepreneur-signup-form .form-cnt .other-reg-forms button:first-child {
+  width: calc(100% - 0px);
+}
+
+.enetrepreneur-signup-form button {
+  width: 100%;
+  height: 50px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 20px 0px 10px 0px;
+}
+
+.err-mssg {
+  color: #c00;
+  font-size: 14px;
+  margin: 4px 0;
+}

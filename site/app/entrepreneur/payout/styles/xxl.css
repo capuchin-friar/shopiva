@@ -1,0 +1,115 @@
+.payout-page {
+  padding: 16px;
+}
+
+.payout-header h5 {
+  margin: 0 0 4px;
+}
+
+.payout-header p {
+  margin: 0 0 14px;
+  color: #5f5f5f;
+  font-size: 14px;
+}
+
+.payout-shop-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 360px;
+  margin-bottom: 16px;
+}
+
+.payout-shop-row select {
+  height: 40px;
+  border: 1px solid #d4d4d4;
+  border-radius: 8px;
+  background: #fff;
+  padding: 0 10px;
+}
+
+.payout-form {
+  background: #fff;
+  border: 1px solid #ececec;
+  border-radius: 12px;
+  padding: 16px;
+  max-width: 800px;
+}
+
+.payout-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.payout-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.payout-field label {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.payout-field input {
+  height: 40px;
+  border: 1px solid #d6d6d6;
+  border-radius: 8px;
+  padding: 0 10px;
+}
+
+.payout-field select {
+  height: 40px;
+  border: 1px solid #d6d6d6;
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #fff;
+}
+
+.payout-select__control {
+  min-height: 40px !important;
+  border-color: #d6d6d6 !important;
+  border-radius: 8px !important;
+}
+
+.payout-field input:disabled {
+  background: #f4f4f4;
+  color: #666;
+}
+
+.payout-save-btn {
+  margin-top: 14px;
+  background: #101010;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.payout-save-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.payout-error {
+  color: #b00020;
+  margin: 10px 0;
+}
+
+.payout-success {
+  color: #0f7a2a;
+  margin: 10px 0;
+}
+
+.payout-verified {
+  color: #0f7a2a;
+}
+
+@media (max-width: 700px) {
+  .payout-grid {
+    grid-template-columns: 1fr;
+  }
+}
