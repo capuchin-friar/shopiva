@@ -30,7 +30,7 @@ export default function VendorTabs() {
     <ProfileProvider>
       <Tab.Navigator
         screenOptions={({ route }) => ({
-          tabBarIcon: ({ focused, size }) => {
+          tabBarIcon: ({ focused, size, color }) => {
             let iconName = 'ellipse-outline';
             if (route.name === 'Home') iconName = focused ? 'home' : 'home-outline';
             else if (route.name === 'Activities') iconName = focused ? 'pulse' : 'pulse-outline';
@@ -40,9 +40,9 @@ export default function VendorTabs() {
             else if (route.name === 'Products') iconName = focused ? 'pricetags' : 'pricetags-outline';
             else if (route.name === 'Transactions') iconName = focused ? 'wallet' : 'wallet-outline';
             else if (route.name === 'Inventory') iconName = focused ? 'cube' : 'cube-outline';
-            return <Ionicons name={iconName} size={size} color="#000000" />;
+            return <Ionicons name={iconName} size={size} color={color} />;
           },
-          tabBarActiveTintColor: '#000000',
+          tabBarActiveTintColor: '#00926E',
           tabBarInactiveTintColor: '#000000',
           headerShown: false,
           tabBarStyle: {

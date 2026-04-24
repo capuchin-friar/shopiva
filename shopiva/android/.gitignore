@@ -1,0 +1,19 @@
+# Gradle
+.gradle/
+build/
+**/build/
+local.properties
+*.iml
+.idea/
+.cxx/
+
+# Android Studio
+captures/
+.externalNativeBuild/
+
+# Keystore (do not commit release keys; debug is often ok but keep local)
+# *.jks
+# *.keystore
+
+# macOS
+.DS_Store

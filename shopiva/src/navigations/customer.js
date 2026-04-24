@@ -27,7 +27,7 @@ export default function CustomerTab() {
     <ProfileProvider>
       <Tab.Navigator
         screenOptions={({ route }) => ({
-          tabBarIcon: ({ focused, size }) => {
+          tabBarIcon: ({ focused, size, color }) => {
             let iconName = 'ellipse-outline';
 
             if (route.name === 'Home') {
@@ -41,9 +41,9 @@ export default function CustomerTab() {
             } else if (route.name === 'Profile') {
               iconName = focused ? 'person-circle' : 'person-circle-outline';
             }
-            return <Ionicons name={iconName} size={size} color="#000000" />;
+            return <Ionicons name={iconName} size={size} color={color} />;
           },
-          tabBarActiveTintColor: '#000000',
+          tabBarActiveTintColor: '#00926E',
           tabBarInactiveTintColor: '#000000',
           headerShown: false,
           tabBarStyle: {
