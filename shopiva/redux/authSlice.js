@@ -20,9 +20,51 @@ import { setUnauthorized401Suppressed } from '../src/auth/unauthorized';
  * @param {object | null | undefined} user
  * @returns {AppRole}
  */
-function defaultRoleFromUser(user) {
-  void user;
+function normalizeAppRole(value) {
+  const role = String(value ?? '').trim().toLowerCase();
+  if (
+    role === 'vendor' ||
+    role === 'entrepreneur' ||
+    role === 'seller' ||
+    role === 'merchant' ||
+    role === 'shop_owner'
+  ) {
+    return 'vendor';
+  }
   return 'customer';
+}
+
+/**
+ * @param {object | null | undefined} user
+ * @returns {boolean}
+ */
+function userHasVendorRole(user) {
+  if (!user || typeof user !== 'object') return false;
+  const u = /** @type {Record<string, unknown>} */ (user);
+  const roleCandidates = [
+    u.role,
+    u.userRole,
+    u.accountType,
+    u.type,
+    u.roleRaw,
+    u?.raw && typeof u.raw === 'object' ? /** @type {Record<string, unknown>} */ (u.raw).role : undefined,
+  ];
+  for (const candidate of roleCandidates) {
+    if (normalizeAppRole(candidate) === 'vendor') return true;
+  }
+  const roles = u.roles;
+  if (Array.isArray(roles)) {
+    return roles.some((r) => normalizeAppRole(r) === 'vendor');
+  }
+  return false;
+}
+
+/**
+ * @param {object | null | undefined} user
+ * @returns {AppRole}
+ */
+function defaultRoleFromUser(user) {
+  return userHasVendorRole(user) ? 'vendor' : 'customer';
 }
 
 const initialState = {
@@ -47,10 +89,15 @@ const authSlice = createSlice({
       const { mergedUser, preferredRole, authenticated, forceHome, fromSignup } = action.payload;
       const route = forceHome ? 'home' : resolvePostAuthRoute(mergedUser, { fromSignup });
       state.initialAppRoute = route;
+      const vendorEligible = userHasVendorRole(mergedUser);
       const nextRole =
-        preferredRole === 'vendor' || preferredRole === 'customer'
-          ? preferredRole
-          : defaultRoleFromUser(mergedUser);
+        preferredRole === 'customer'
+          ? 'customer'
+          : preferredRole === 'vendor'
+            ? vendorEligible
+              ? 'vendor'
+              : 'customer'
+            : defaultRoleFromUser(mergedUser);
       state.activeRole = nextRole;
       state.isAuthenticated = authenticated;
       state.isGuest = false;
@@ -268,7 +315,13 @@ export const enterGuestModeThunk = createAsyncThunk('auth/enterGuest', async (_,
 });
 
 export const setActiveRoleThunk = createAsyncThunk('auth/setActiveRole', async (role, { dispatch }) => {
-  const next = role === 'vendor' ? 'vendor' : 'customer';
+  let next = 'customer';
+  if (role === 'vendor') {
+    const storedUser = await getStoredUser();
+    if (userHasVendorRole(storedUser)) {
+      next = 'vendor';
+    }
+  }
   dispatch(setActiveRoleSync(next));
   await saveActiveRole(next);
 });

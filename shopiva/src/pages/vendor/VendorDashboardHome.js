@@ -5,6 +5,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProfile } from '../../context/ProfileContext';
 import { fetchOwnerShops, fetchShopOrders } from '../../api/shop';
+import { getStorefrontProduct, getStorefrontProducts } from '../../api/storefront';
 import { mapOrderRowToListItem } from '../../utils/buyerUi';
 import { formatNaira } from '../../utils/formatNaira';
 
@@ -22,6 +23,101 @@ function shopIdOf(row) {
   const v = row.id ?? row.shopid ?? row.shop_id;
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/** @param {Record<string, unknown>} row */
+function shopSlugOf(row) {
+  const slug = row.slug ?? row.shop_slug ?? row.shopSlug ?? row.store_slug;
+  const s = String(slug ?? '').trim();
+  return s || '';
+}
+
+/** @param {Record<string, unknown>} row */
+function shopCreatedAtMsOf(row) {
+  const v = row.created_at ?? row.createdAt ?? row.created ?? row.date_created ?? row.created_on;
+  if (v == null) return Number.POSITIVE_INFINITY;
+  const ms = Number(new Date(String(v)));
+  return Number.isFinite(ms) ? ms : Number.POSITIVE_INFINITY;
+}
+
+/**
+ * MVP: choose only the first-created shop for dashboard metrics.
+ * @param {Record<string, unknown>[]} shops
+ * @returns {Record<string, unknown> | null}
+ */
+function pickFirstCreatedShop(shops) {
+  if (!Array.isArray(shops) || shops.length === 0) return null;
+  return shops
+    .slice()
+    .sort((a, b) => {
+      const aa = shopCreatedAtMsOf(/** @type {Record<string, unknown>} */ (a));
+      const bb = shopCreatedAtMsOf(/** @type {Record<string, unknown>} */ (b));
+      if (aa !== bb) return aa - bb;
+      return shopIdOf(/** @type {Record<string, unknown>} */ (a)) - shopIdOf(/** @type {Record<string, unknown>} */ (b));
+    })[0] || null;
+}
+
+/** @param {Record<string, unknown>} row */
+function orderCustomerKey(row) {
+  const candidates = [
+    row.customer_id,
+    row.buyer_id,
+    row.user_id,
+    row.client_id,
+    row.email,
+    row.phone,
+  ];
+  for (const candidate of candidates) {
+    const key = String(candidate ?? '').trim();
+    if (key) return key;
+  }
+  return '';
+}
+
+/** @param {Record<string, unknown>} inv */
+function inventoryStockOf(inv) {
+  const v = inv.stock ?? inv.quantity ?? inv.qty ?? inv.on_hand ?? inv.available;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** @param {Record<string, unknown>} inv */
+function inventoryLowThresholdOf(inv) {
+  const v = inv.low_stock ?? inv.reorder_level ?? inv.min_stock ?? inv.lowStock;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 5;
+}
+
+/**
+ * Counts low inventory items for a single shop (MVP behavior).
+ * @param {Record<string, unknown> | null} shop
+ */
+async function countLowInventoryAlerts(shop) {
+  if (!shop) return 0;
+  const slug = shopSlugOf(shop);
+  if (!slug) return 0;
+
+  const { products } = await getStorefrontProducts(slug);
+  const list = Array.isArray(products) ? products : [];
+  const checks = list.map(async (p) => {
+    const pRow = /** @type {Record<string, unknown>} */ (p);
+    const pid = pRow.id;
+    if (pid == null) return 0;
+    try {
+      const detail = await getStorefrontProduct(pid);
+      const invRows = Array.isArray(detail.inventory) ? detail.inventory : [];
+      return invRows.reduce((acc, inv) => {
+        const invRow = /** @type {Record<string, unknown>} */ (inv);
+        const stock = inventoryStockOf(invRow);
+        const lowAt = inventoryLowThresholdOf(invRow);
+        return acc + (stock <= lowAt ? 1 : 0);
+      }, 0);
+    } catch {
+      return 0;
+    }
+  });
+  const values = await Promise.all(checks);
+  return values.reduce((a, b) => a + b, 0);
 }
 
 function MetricCard({ title, value, footer, footerTone = 'muted', children }) {
@@ -75,6 +171,10 @@ export default function VendorDashboardHome() {
 
   const [orders, setOrders] = useState(/** @type {ReturnType<typeof mapOrderRowToListItem>[]} */ ([]));
   const [ordersTotalCount, setOrdersTotalCount] = useState(0);
+  const [shopsCount, setShopsCount] = useState(0);
+  const [newCustomersCount, setNewCustomersCount] = useState(0);
+  const [lowInventoryCount, setLowInventoryCount] = useState(0);
+  const [totalSales, setTotalSales] = useState(0);
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [ordersError, setOrdersError] = useState('');
 
@@ -82,6 +182,10 @@ export default function VendorDashboardHome() {
     if (!Number.isFinite(userId) || userId <= 0) {
       setOrders([]);
       setOrdersTotalCount(0);
+      setShopsCount(0);
+      setNewCustomersCount(0);
+      setLowInventoryCount(0);
+      setTotalSales(0);
       setOrdersLoading(false);
       setOrdersError('');
       return;
@@ -90,22 +194,53 @@ export default function VendorDashboardHome() {
     setOrdersError('');
     try {
       const shops = await fetchOwnerShops(userId);
-      const shopId = shops.length ? shopIdOf(/** @type {Record<string, unknown>} */ (shops[0])) : 0;
+      setShopsCount(shops.length);
+      const firstShop = pickFirstCreatedShop(
+        shops.map((s) => /** @type {Record<string, unknown>} */ (s)),
+      );
+      const shopId = firstShop ? shopIdOf(firstShop) : 0;
       if (!shopId) {
         setOrders([]);
         setOrdersTotalCount(0);
+        setNewCustomersCount(0);
+        setLowInventoryCount(0);
+        setTotalSales(0);
         return;
       }
       const rows = await fetchShopOrders(shopId, userId);
       const allRows = Array.isArray(rows) ? rows : [];
-      setOrdersTotalCount(allRows.length);
+      const allItems = allRows.map((r) => mapOrderRowToListItem(/** @type {Record<string, unknown>} */ (r)));
+      setOrdersTotalCount(allItems.length);
+      setTotalSales(allItems.reduce((sum, row) => sum + (Number(row.valueRupees) || 0), 0));
+      const customerKeys = new Set(
+        allRows
+          .map((r) => orderCustomerKey(/** @type {Record<string, unknown>} */ (r)))
+          .filter(Boolean),
+      );
+      setNewCustomersCount(customerKeys.size);
+
+      // Do not block orders rendering if inventory APIs fail.
+      void countLowInventoryAlerts(firstShop)
+        .then((count) => setLowInventoryCount(count))
+        .catch(() => setLowInventoryCount(0));
+
       const list = allRows
+        .slice()
+        .sort((a, b) => {
+          const aa = Number(new Date(String((/** @type {Record<string, unknown>} */ (a)).date ?? 0)));
+          const bb = Number(new Date(String((/** @type {Record<string, unknown>} */ (b)).date ?? 0)));
+          return bb - aa;
+        })
         .slice(0, MAX_DASHBOARD_ORDERS)
         .map((r) => mapOrderRowToListItem(/** @type {Record<string, unknown>} */ (r)));
       setOrders(list);
     } catch (e) {
       setOrders([]);
       setOrdersTotalCount(0);
+      setShopsCount(0);
+      setNewCustomersCount(0);
+      setLowInventoryCount(0);
+      setTotalSales(0);
       setOrdersError(e instanceof Error ? e.message : String(e));
     } finally {
       setOrdersLoading(false);
@@ -158,32 +293,32 @@ export default function VendorDashboardHome() {
         </View> */}
 
         <View style={styles.metricsGrid}>
-          <MetricCard title="Total Sales" value="$12,540" footerTone="up">
-            <View style={styles.trendRow}>
-              <Icon name="trending-up" size={14} color={UP} />
-              <Text style={styles.metricFooterUp}> +12.8% this month</Text>
-            </View>
-          </MetricCard>
-          <MetricCard title="Completed Orders" value="152" footerTone="up">
-            <View style={styles.trendRow}>
-              <Icon name="trending-up" size={14} color={UP} />
-              <Text style={styles.metricFooterUp}> +21.5% this month</Text>
-            </View>
-          </MetricCard>
-          <MetricCard title="Earnings" value="$3,250" footer="Withdrawable balance" />
+          <MetricCard
+            title="Total Sales"
+            value={formatNaira(totalSales)}
+            footer={`${ordersTotalCount} order(s) loaded`}
+          />
+          <MetricCard
+            title="Total Orders"
+            value={String(ordersTotalCount)}
+            footerTone="up"
+            footer={ordersTotalCount > 0 ? 'Orders in first-created shop' : 'No orders yet'}
+          />
+          <MetricCard
+            title="New Customers"
+            value={String(newCustomersCount)}
+            footer={newCustomersCount > 0 ? 'Unique buyers in loaded orders' : 'No customer data yet'}
+          />
           <View style={styles.metricCard}>
-            <TouchableOpacity style={styles.metricMenu} hitSlop={12} accessibilityLabel="Card options">
-              <Icon name="ellipsis-vertical" size={18} color={MUTED} />
-            </TouchableOpacity>
-            <Text style={styles.metricTitle}>Customer reviews</Text>
-            <Text style={styles.metricValue}>4.8/5</Text>
-            <Text style={styles.metricFooter}>Average rating</Text>
-            <View style={styles.starsRow}>
-              {[1, 2, 3, 4].map((i) => (
-                <Icon key={i} name="star" size={16} color={BRAND} style={styles.star} />
-              ))}
-              <Icon name="star-outline" size={16} color={BRAND} style={styles.star} />
-            </View>
+            <Text style={styles.metricTitle}>Low Inventory Alert</Text>
+            <Text style={styles.metricValue}>{String(lowInventoryCount)}</Text>
+            <Text style={styles.metricFooter}>
+              {shopsCount > 0
+                ? lowInventoryCount > 0
+                  ? 'Items at or below threshold'
+                  : 'No low-stock items found'
+                : 'Set up your first shop in settings'}
+            </Text>
           </View>
         </View>
 

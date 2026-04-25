@@ -120,9 +120,7 @@ export default function ProductScreen({ route, navigation }) {
 
   const title = product?.title || 'Product';
   const priceAmount = typeof product?.priceUsd === 'number' ? product.priceUsd : 0;
-  const priceCurrency = String(product?.currency ?? 'NGN').toUpperCase();
-  const priceLabel =
-    priceCurrency === 'NGN' ? formatNaira(priceAmount) : `US$${priceAmount.toFixed(2)}`;
+  const priceLabel = formatNaira(priceAmount);
 
   const galleryUrls = useMemo(() => {
     const d = fetched || {};

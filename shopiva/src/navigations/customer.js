@@ -7,7 +7,7 @@ import { ProfileStackScreen } from '../stacks/Profile';
 import { ChatStackScreen } from '../stacks/Chat';
 import { CustomerOrdersStackScreen } from '../stacks/CustomerOrders';
 import { ProfileProvider } from '../context/ProfileContext';
-import TransactionsScreen from '../pages/TransactionsScreen';
+import { TransactionStackScreen } from '../stacks/Transaction';
 
 const Tab = createBottomTabNavigator();
 
@@ -54,7 +54,7 @@ export default function CustomerTab() {
         <Tab.Screen name="Home" component={HomeStackScreen} />
         <Tab.Screen name="Activities" component={CustomerOrdersStackScreen} />
         <Tab.Screen name="Chat" component={ChatStackScreen} />
-        <Tab.Screen name="Transactions" component={TransactionsScreen} />
+        <Tab.Screen name="Transactions" component={TransactionStackScreen} />
         <Tab.Screen name="Profile" component={ProfileStackScreen} />
       </Tab.Navigator>
     </ProfileProvider>

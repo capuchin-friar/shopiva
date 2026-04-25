@@ -106,7 +106,7 @@ android {
         }
     }
 
-    // Avoid duplicate libc++ from React Native + androidx.media3 (react-native-video) at merge time
+    // react-native-video (Media3) + RN can both ship libc++_shared.so — pick one per ABI for packaging.
     packaging {
         jniLibs {
             pickFirsts += [

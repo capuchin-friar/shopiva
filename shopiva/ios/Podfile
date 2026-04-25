@@ -8,12 +8,10 @@ require Pod::Executable.execute_command('node', ['-p',
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
 
-# react-native-video: iOS native code is pulled in via autolinking (`use_native_modules!` below).
-# Run `cd ios && pod install` after dependency changes.
+# Run `cd ios && pod install` after native dependency changes.
 #
-# With RN 0.85, default `RCT_REMOVE_LEGACY_ARCH=1` can strip legacy view configs and surface
-# "View config not found for component RCTVideo" in some setups; keep legacy view managers on until
-# you standardize on a Fabric-only video path.
+# Background video uses react-native-video (Fabric-capable on RN 0.85). Legacy-only view managers
+# (e.g. react-native-vlc-media-player) will not register under the New Architecture.
 ENV['RCT_REMOVE_LEGACY_ARCH'] = '0'
 
 linkage = ENV['USE_FRAMEWORKS']

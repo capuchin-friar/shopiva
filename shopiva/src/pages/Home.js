@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Dropdown } from 'react-native-element-dropdown';
 import Video from 'react-native-video';
 import mvp_data from '../data/mvp_category.json';
 import { useNavigation } from '@react-navigation/native';
 /** Metro bundles this as a numeric asset id — pass to `source` directly. */
 const CUSTOMER_VIDEO = require('../assets/customer.mp4');
+
 export default function HomeScreen() {
   const [category, setCategory] = useState(null);
   const [categoryGateError, setCategoryGateError] = useState('');
@@ -35,30 +36,24 @@ export default function HomeScreen() {
   return (
     <View style={styles.root}>
 
-      <View style={{
-        height: Dimensions.get("screen").height,
-        width: Dimensions.get("screen").width,
-        position: "absolute",
-        top: 0,
-        left: 0,
-        // backgroundColor: "#000"
-      }}>
-
+      <View style={StyleSheet.absoluteFill} collapsable={false}>
         <Video
           source={CUSTOMER_VIDEO}
-          style={[{
-            width: '100%',
-            height: '100%',
-          }]}
+          style={StyleSheet.absoluteFill}
           resizeMode="cover"
-          // repeat
+          repeat
           muted
           paused={false}
+          playInBackground={false}
+          useTextureView={Platform.OS === 'android'}
+          hideShutterView={Platform.OS === 'android'}
+          onError={(e) => console.log('Video error:', e)}
+          onLoad={() => console.log('Video loaded')}
         />
       </View>
+
       <View style={styles.scrim} pointerEvents="none" />
-      
-     
+
       <View style={styles.content}>
         <View>
           <Text style={styles.title}>
@@ -105,10 +100,10 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    // backgroundColor: '#000',
+    backgroundColor: '#000',
   },
   scrim: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
   content: {

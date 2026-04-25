@@ -204,14 +204,14 @@ export default function VendorInventoryScreen() {
                         </Text>
                       </View>
                     </Pressable>
-                    <TouchableOpacity
+                    {/* <TouchableOpacity
                       style={styles.cardMenuBtn}
                       onPress={() => onRowMenu(row)}
                       hitSlop={10}
                       accessibilityLabel="Inventory actions"
                     >
                       <Icon name="ellipsis-horizontal" size={22} color="#6B7280" />
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
                   </View>
 
                   <Pressable

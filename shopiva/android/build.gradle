@@ -7,8 +7,7 @@ buildscript {
         ndkVersion = "27.1.12297006"
         kotlinVersion = "2.1.20"
 
-        // react-native-video / Media3 (ExoPlayer): read by node_modules/react-native-video/android/build.gradle via safeExtGet
-        // https://docs.thewidlarzgroup.com/react-native-video/docs/v6/installation
+        // react-native-video / Media3 (ExoPlayer): read by node_modules/react-native-video/android/build.gradle
         useExoplayerIMA = false
         useExoplayerRtsp = false
         useExoplayerSmoothStreaming = true

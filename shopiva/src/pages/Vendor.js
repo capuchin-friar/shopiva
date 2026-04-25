@@ -160,10 +160,8 @@ function mapStorefrontProductToTile(p, index) {
  * @param {{ priceUsd?: number; currency?: string }} p
  */
 function formatProductTilePrice(p) {
-  const cur = String(p.currency || 'NGN').toUpperCase();
   const n = Number(p.priceUsd) || 0;
-  if (cur === 'NGN') return formatNaira(n);
-  return `US$${n.toFixed(2)}`;
+  return formatNaira(n);
 }
 
 /**

@@ -470,8 +470,7 @@ export default function VendorScreen({ route, navigation }) {
                 const imgs = Array.isArray(raw.images) ? raw.images : [];
                 const uri = thumb || (typeof imgs[0] === 'string' ? imgs[0].trim() : '');
                 const price = Number(p?.price) || 0;
-                const cur = String(p?.currency ?? 'NGN').toUpperCase();
-                const priceLabel = cur === 'NGN' ? formatNaira(price) : `US$${price.toFixed(2)}`;
+                const priceLabel = formatNaira(price);
                 return { key: id, uri, priceLabel };
               });
               setSlugPreviews((prev) => ({ ...prev, [slug]: { loading: false, items } }));
