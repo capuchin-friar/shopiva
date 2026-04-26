@@ -29,4 +29,4 @@ COPY --from=builder /app/src/database/migrations ./src/database/migrations
 
 EXPOSE 8080
 
-CMD ["node", "dist/index.ts"]
+CMD ["node", "dist/index.js"]
