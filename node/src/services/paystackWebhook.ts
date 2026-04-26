@@ -36,6 +36,22 @@ function pickNumber(v: unknown): number | null {
   return null;
 }
 
+/** `paystack_transactions.amount` is BIGINT; coerce Paystack subunit amounts to integers. */
+function pickAmountKobo(v: unknown): number | null {
+  const n = pickNumber(v);
+  if (n === null) return null;
+  const t = Math.trunc(n);
+  return Number.isFinite(t) ? t : null;
+}
+
+/** Only pass values PostgreSQL accepts for `TIMESTAMPTZ` (avoids invalid string → 500). */
+function pickPaidAtForPg(v: unknown): string | null {
+  if (typeof v !== "string" || !v.trim()) return null;
+  const ms = Date.parse(v.trim());
+  if (Number.isNaN(ms)) return null;
+  return new Date(ms).toISOString();
+}
+
 function extractCustomerEmail(data: Record<string, unknown>): string | null {
   const customer = data.customer;
   if (customer && typeof customer === "object" && customer !== null && "email" in customer) {
@@ -85,7 +101,7 @@ export async function persistPaystackWebhook(rawBody: Buffer, payload: PaystackW
     paystack_charge_id: chargeId,
     reference,
     event,
-    amount: pickNumber((data as { amount?: unknown }).amount),
+    amount: pickAmountKobo((data as { amount?: unknown }).amount),
     currency: pickString((data as { currency?: unknown }).currency),
     status: pickString((data as { status?: unknown }).status),
     channel: pickString((data as { channel?: unknown }).channel),
@@ -94,7 +110,7 @@ export async function persistPaystackWebhook(rawBody: Buffer, payload: PaystackW
       data.metadata && typeof data.metadata === "object" && data.metadata !== null && !Array.isArray(data.metadata)
         ? (data.metadata as Record<string, unknown>)
         : {},
-    paid_at: pickString((data as { paid_at?: unknown }).paid_at),
+    paid_at: pickPaidAtForPg((data as { paid_at?: unknown }).paid_at),
     raw_payload: payload as unknown as Record<string, unknown>,
   };
 

@@ -35,7 +35,18 @@ export async function PaystackWebhookController(req: Request, res: Response) {
     res.status(200).json(result);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error("paystack webhook persist error:", msg);
+    const root = err instanceof Error && err.cause !== undefined ? err.cause : err;
+    const pg = root as { code?: string; detail?: string; constraint?: string; table?: string };
+    if (pg.code) {
+      console.error("paystack webhook persist error:", msg, {
+        code: pg.code,
+        detail: pg.detail,
+        constraint: pg.constraint,
+        table: pg.table,
+      });
+    } else {
+      console.error("paystack webhook persist error:", msg);
+    }
     res.status(500).json({ error: msg });
   }
 }

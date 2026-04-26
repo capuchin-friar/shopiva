@@ -8,6 +8,11 @@ import { withErrorHandling } from "../utils/errHandler.js";
 
 type SqlExecutor = Pool | PoolClient;
 
+/** Stable JSON for `::jsonb` params (handles `BigInt` etc. that break `pg` object serialization). */
+function jsonbParam(value: Record<string, unknown>): string {
+  return JSON.stringify(value, (_k, v) => (typeof v === "bigint" ? v.toString() : v));
+}
+
 export type PaystackTransactionRow = {
   id: number;
   paystack_charge_id: number | null;
@@ -61,6 +66,9 @@ export class paystack_transaction {
 
     const runner: SqlExecutor = executor ?? (await db());
 
+    const metadataJson = jsonbParam(metadata);
+    const rawPayloadJson = jsonbParam(raw_payload);
+
     const { rows } = await runner.query<PaystackTransactionRow>(
       `INSERT INTO paystack_transactions (
         paystack_charge_id, reference, event, amount, currency, status, channel,
@@ -88,9 +96,9 @@ export class paystack_transaction {
         status,
         channel,
         customer_email,
-        metadata,
+        metadataJson,
         paid_at,
-        raw_payload,
+        rawPayloadJson,
       ]
     );
     const row = rows[0];
