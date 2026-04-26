@@ -52,8 +52,8 @@ export default function CustomerTab() {
         })}
       >
         <Tab.Screen name="Home" component={HomeStackScreen} />
-        <Tab.Screen name="Activities" component={CustomerOrdersStackScreen} />
         <Tab.Screen name="Chat" component={ChatStackScreen} />
+        <Tab.Screen name="Activities" component={CustomerOrdersStackScreen} />
         <Tab.Screen name="Transactions" component={TransactionStackScreen} />
         <Tab.Screen name="Profile" component={ProfileStackScreen} />
       </Tab.Navigator>

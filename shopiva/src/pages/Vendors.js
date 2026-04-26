@@ -125,7 +125,6 @@ const CARD_PAD = 18;
 const PRODUCT_GAP = 10;
 const PRODUCT_W = Math.min(132, Math.floor((WINDOW_W - 32 - CARD_PAD * 2 - 24) / 2.2));
 
-const CARD_RADIUS = 28;
 const DARK = {
   cardBg: '#3D2E22',
   primaryText: '#FFFFFF',
@@ -203,7 +202,7 @@ function VendorCard({ item, index, onOpenShop, onPressMenu, preview }) {
   const carouselItems = Array.isArray(pv.items) ? pv.items : [];
 
   return (
-    <View style={[styles.card, { backgroundColor: t.cardBg, borderRadius: CARD_RADIUS }]}>
+    <View style={[styles.card, { backgroundColor: t.cardBg, borderRadius: 5 }]}>
       <View style={styles.cardInner}>
         <View style={styles.headerRow}>
           <View style={[styles.avatar, { backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : '#E8E8E8' }]}>
@@ -677,7 +676,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -737,7 +736,7 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   productCell: {
-    borderRadius: 16,
+    borderRadius: 5,
     overflow: 'hidden',
     marginRight: PRODUCT_GAP,
     aspectRatio: 1,
@@ -757,7 +756,7 @@ const styles = StyleSheet.create({
     left: 8,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 10,
+    borderRadius: 5,
   },
   priceBadgeText: {
     color: '#FFFFFF',
@@ -771,7 +770,7 @@ const styles = StyleSheet.create({
     right: 8,
     width: 36,
     height: 36,
-    borderRadius: 18,
+    borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -791,7 +790,7 @@ const styles = StyleSheet.create({
   arrowCta: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -827,7 +826,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: 40,
     height: 4,
-    borderRadius: 2,
+    borderRadius: 5,
     backgroundColor: '#D8D8D8',
     marginBottom: 12,
   },
@@ -848,7 +847,7 @@ const styles = StyleSheet.create({
   locationSearchOuter: {
     borderWidth: 1,
     borderColor: '#1A73E8',
-    borderRadius: 8,
+    borderRadius: 5,
     flexDirection: 'row',
     alignItems: 'center',
     paddingLeft: 12,
@@ -873,7 +872,7 @@ const styles = StyleSheet.create({
   locationRow: {
     paddingVertical: 7,
     paddingHorizontal: 0,
-    borderRadius: 8,
+    borderRadius: 5,
   },
   locationRowSelected: {
     backgroundColor: '#E8F0FE',

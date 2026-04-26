@@ -64,6 +64,44 @@ export async function updateUserRole(userId, role) {
 
 /**
  * @param {number} userId
+ * @param {string} email
+ */
+export async function updateUserEmail(userId, email) {
+  const em = String(email ?? '').trim().toLowerCase();
+  const res = await apiFetchAuth(`/user/email/update/${userId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ email: em }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return { ok: false, message: pickError(data, res) };
+  }
+  return {
+    ok: true,
+    user: /** @type {object | undefined} */ (
+      /** @type {{ user?: object }} */ (data).user
+    ),
+  };
+}
+
+/**
+ * @param {number} userId
+ * @param {string} password – plain text; server hashes with bcrypt
+ */
+export async function updateUserPassword(userId, password) {
+  const res = await apiFetchAuth(`/user/password/update/${userId}`, {
+    method: 'PUT',
+    body: JSON.stringify({ password: String(password ?? '') }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    return { ok: false, message: pickError(data, res) };
+  }
+  return { ok: true };
+}
+
+/**
+ * @param {number} userId
  * @param {string} phone – WhatsApp / phone (digits or E.164)
  */
 export async function updateUserPhone(userId, phone) {

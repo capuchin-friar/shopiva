@@ -13,16 +13,102 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { usePaystack } from 'react-native-paystack-webview';
 import { useAuth } from '../hooks/useAuth';
+import { useProfile } from '../context/ProfileContext';
 import { ShopOverflowMenu } from '../components/ShopOverflowMenu';
 import { getStorefrontProduct } from '../api/storefront';
 import { addBuyerCartLine } from '../api/buyer';
+import { isPaystackConfigured } from '../config/paystack';
 import { formatNaira } from '../utils/formatNaira';
 
 const { width: WINDOW_W } = Dimensions.get('window');
-const PURPLE = '#6236FF';
+const PURPLE = '#00926e';
 const PAD = 16;
-const IMG_RADIUS = 14;
+
+/**
+ * Buy now with Paystack — only mounted when {@link isPaystackConfigured} so `usePaystack` stays under `PaystackProvider`.
+ * @param {{
+ *   navigation: import('@react-navigation/native').NavigationProp<Record<string, object | undefined>>;
+ *   loggedIn: boolean;
+ *   signOut: () => void | Promise<void>;
+ *   userEmail: string;
+ *   firstInventoryId: number | null;
+ *   qty: number;
+ *   unitPrice: number;
+ *   title: string;
+ *   productId: string | number | null | undefined;
+ * }} props
+ */
+function BuyNowPaystackButton({
+  navigation,
+  loggedIn,
+  signOut,
+  userEmail,
+  firstInventoryId,
+  qty,
+  unitPrice,
+  title,
+  productId,
+}) {
+  const { popup } = usePaystack();
+
+  const onBuy = useCallback(() => {
+    if (!loggedIn) {
+      Alert.alert('Sign in required', 'Please sign in to complete payment.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign in', onPress: () => void signOut() },
+      ]);
+      return;
+    }
+    if (firstInventoryId == null) {
+      Alert.alert('Unavailable', 'This product has no purchasable variant yet.');
+      return;
+    }
+    const email = String(userEmail ?? '').trim();
+    if (!email) {
+      Alert.alert('Email required', 'Add an email to your account in Profile before paying with Paystack.');
+      return;
+    }
+    const total = Math.max(1, Math.round(Number(unitPrice) * qty));
+    const reference = `shopiva_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
+    popup.checkout({
+      email,
+      amount: total,
+      reference,
+      metadata: {
+        custom_fields: [
+          { display_name: 'Product', variable_name: 'product_title', value: String(title).slice(0, 120) },
+          { display_name: 'Quantity', variable_name: 'quantity', value: String(qty) },
+          { display_name: 'Inventory ID', variable_name: 'inventory_id', value: String(firstInventoryId) },
+          ...(productId != null && String(productId).trim() !== ''
+            ? [{ display_name: 'Product ID', variable_name: 'product_id', value: String(productId).trim() }]
+            : []),
+        ],
+      },
+      onSuccess: (res) => {
+        const ref = res && typeof res === 'object' && 'reference' in res ? String(/** @type {{ reference?: string }} */ (res).reference) : reference;
+        Alert.alert('Payment successful', `Reference: ${ref}\n\nYour payment was completed. Order updates can be added when the server verifies this charge.`, [
+          { text: 'OK', style: 'default' },
+          { text: 'View cart', onPress: () => navigation.navigate('cart') },
+        ]);
+      },
+      onCancel: () => {},
+      onError: (err) => {
+        const msg = err && typeof err === 'object' && 'message' in err ? String(/** @type {{ message?: string }} */ (err).message) : String(err || 'Something went wrong');
+        Alert.alert('Payment error', msg);
+      },
+    });
+  }, [loggedIn, signOut, firstInventoryId, userEmail, unitPrice, qty, title, productId, popup, navigation]);
+
+  return (
+    <TouchableOpacity style={styles.buyNow} activeOpacity={0.9} onPress={onBuy}>
+      <Text style={styles.buyNowText}>Buy now</Text>
+      <Icon name="card-outline" size={22} color="#000000" style={styles.buyNowIcon} />
+    </TouchableOpacity>
+  );
+}
 
 /**
  * @param {{ route: { params?: { product?: object; vendor?: { id: number; name?: string; slug?: string }; category?: string } }; navigation: import('@react-navigation/native').NavigationProp<Record<string, object | undefined>> }} props
@@ -30,6 +116,7 @@ const IMG_RADIUS = 14;
 export default function ProductScreen({ route, navigation }) {
   const insets = useSafeAreaInsets();
   const { isAuthenticated, signOut } = useAuth();
+  const { user } = useProfile();
   const loggedIn = isAuthenticated;
   const vendor = route.params?.vendor;
   const category = route.params?.category ?? 'fashion';
@@ -177,7 +264,7 @@ export default function ProductScreen({ route, navigation }) {
         contentContainerStyle={[styles.scrollInner, { paddingBottom: insets.bottom + 88 }]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.vendorHeader, { paddingTop: insets.top + 12 }]}>
+        <View style={[styles.vendorHeader, { paddingTop: 15 }]}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.headerBack}
@@ -324,10 +411,33 @@ export default function ProductScreen({ route, navigation }) {
           <Text style={styles.addCartText}>Add to cart</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.buyNow} activeOpacity={0.9}>
-          <Text style={styles.buyNowText}>Buy now</Text>
-          <Icon name="open-outline" size={22} color="#000000" style={styles.buyNowIcon} />
-        </TouchableOpacity>
+        {isPaystackConfigured() ? (
+          <BuyNowPaystackButton
+            navigation={navigation}
+            loggedIn={loggedIn}
+            signOut={signOut}
+            userEmail={user?.email ?? ''}
+            firstInventoryId={firstInventoryId}
+            qty={qty}
+            unitPrice={priceAmount}
+            title={title}
+            productId={productIdParam}
+          />
+        ) : (
+          <TouchableOpacity
+            style={styles.buyNow}
+            activeOpacity={0.9}
+            onPress={() =>
+              Alert.alert(
+                'Payments',
+                'Paystack is not configured. Add PAYSTACK_PUBLIC_KEY to a `.env` file in the app root (see `.env.example`), then restart Metro with `--reset-cache`.',
+              )
+            }
+          >
+            <Text style={styles.buyNowText}>Buy now</Text>
+            <Icon name="card-outline" size={22} color="#000000" style={styles.buyNowIcon} />
+          </TouchableOpacity>
+        )}
 
         <Text style={styles.sectionHeading}>Description</Text>
         <Text style={styles.descriptionBody}>
@@ -412,7 +522,7 @@ const styles = StyleSheet.create({
   vendorAvatar: {
     width: 48,
     height: 48,
-    borderRadius: 24,
+    borderRadius: 5,
     backgroundColor: '#EFEFEF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -454,7 +564,7 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   headerLoginHit: {
-    borderRadius: 16,
+    borderRadius: 5,
     backgroundColor: '#00926e',
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -471,7 +581,7 @@ const styles = StyleSheet.create({
   heroWrap: {
     width: WINDOW_W - PAD * 2,
     alignSelf: 'center',
-    borderRadius: IMG_RADIUS,
+    borderRadius: 5,
     overflow: 'hidden',
     aspectRatio: 1,
     backgroundColor: '#F5F5F5',
@@ -492,7 +602,7 @@ const styles = StyleSheet.create({
     marginTop: -20,
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: 5,
     backgroundColor: 'rgba(255,255,255,0.9)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -526,7 +636,7 @@ const styles = StyleSheet.create({
   iconCircle: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 5,
     borderWidth: 1.5,
     borderColor: '#D8D8D8',
     alignItems: 'center',
@@ -555,7 +665,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: 5,
     backgroundColor: '#EFEFEF',
   },
   socialPillText: {
@@ -582,7 +692,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: '#E0E0E0',
-    borderRadius: 28,
+    borderRadius: 5,
     paddingVertical: 6,
     paddingHorizontal: 8,
     marginBottom: 16,
@@ -604,7 +714,7 @@ const styles = StyleSheet.create({
   addCart: {
     backgroundColor: PURPLE,
     paddingVertical: 16,
-    borderRadius: 28,
+    borderRadius: 5,
     alignItems: 'center',
     marginBottom: 12,
   },
@@ -619,7 +729,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#111111',
     paddingVertical: 16,
-    borderRadius: 28,
+    borderRadius: 5,
     marginBottom: 28,
   },
   buyNowText: {
@@ -651,7 +761,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 24,
+    borderRadius: 5,
     backgroundColor: '#F2F2F2',
     marginBottom: 8,
   },
@@ -705,19 +815,19 @@ const styles = StyleSheet.create({
   histoTrack: {
     flex: 1,
     height: 8,
-    borderRadius: 4,
+    borderRadius: 5,
     backgroundColor: '#EEEEEE',
     overflow: 'hidden',
   },
   histoFill: {
     height: '100%',
     backgroundColor: '#C4C4C4',
-    borderRadius: 4,
+    borderRadius: 5,
   },
   reviewCard: {
     borderWidth: 1,
     borderColor: '#EEEEEE',
-    borderRadius: 16,
+    borderRadius: 5,
     padding: 16,
     backgroundColor: '#FAFAFA',
     marginBottom: 12,
@@ -742,7 +852,7 @@ const styles = StyleSheet.create({
   viewAllPill: {
     backgroundColor: '#F2F2F2',
     paddingVertical: 14,
-    borderRadius: 24,
+    borderRadius: 5,
     alignItems: 'center',
     marginBottom: 24,
   },
@@ -760,7 +870,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F2F2F2',
     paddingVertical: 14,
-    borderRadius: 22,
+    borderRadius: 5,
     alignItems: 'center',
   },
   policyHalfText: {
@@ -783,7 +893,7 @@ const styles = StyleSheet.create({
   fallbackBtn: {
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 5,
     backgroundColor: PURPLE,
   },
   fallbackBtnText: {

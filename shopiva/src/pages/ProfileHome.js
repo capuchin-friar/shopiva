@@ -16,6 +16,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../context/ProfileContext';
+import { isVendorRole } from '../profile/normalizeUser';
 
 const BLACK = '#000000';
 const PAGE_BG = '#F7F7F8';
@@ -48,6 +49,7 @@ export default function ProfileHomeScreen() {
   const avatarUri = user?.avatarUrl?.trim() || '';
   const avatarLetter = displayName.charAt(0).toUpperCase() || '?';
   const showProBadge = user?.roleRaw === 'entrepreneur';
+  const showShopInfo = isVendorRole(user?.roleRaw);
   const [msgNotifications, setMsgNotifications] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
   const toastOpacity = useRef(new Animated.Value(0)).current;
@@ -178,6 +180,17 @@ export default function ProfileHomeScreen() {
           right={<Icon name="chevron-forward" size={20} color={BLACK} />}
           onPress={() => navigation.navigate('profile-personal-information')}
         />
+        {showShopInfo ? (
+          <>
+            <View style={styles.menuDivider} />
+            <MenuRow
+              icon="storefront-outline"
+              title="Shop info"
+              right={<Icon name="chevron-forward" size={20} color={BLACK} />}
+              onPress={() => navigation.navigate('profile-shop-info')}
+            />
+          </>
+        ) : null}
         <View style={styles.menuDivider} />
         {/* <MenuRow
           icon="wallet-outline"
@@ -295,7 +308,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(33,33,33,0.94)',
     paddingVertical: 12,
     paddingHorizontal: 18,
-    borderRadius: 12,
+    borderRadius: 5,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -359,7 +372,7 @@ const styles = StyleSheet.create({
     backgroundColor: PRO_YELLOW,
     paddingHorizontal: 14,
     paddingVertical: 4,
-    borderRadius: 999,
+    borderRadius: 5,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(0,0,0,0.12)',
     ...Platform.select({
@@ -397,7 +410,7 @@ const styles = StyleSheet.create({
   quickBtn: {
     flex: 1,
     backgroundColor: SOFT_YELLOW,
-    borderRadius: 14,
+    borderRadius: 5,
     paddingVertical: 12,
     paddingHorizontal: 6,
     alignItems: 'center',
@@ -419,7 +432,7 @@ const styles = StyleSheet.create({
   },
   menuCard: {
     backgroundColor: CARD_BG,
-    borderRadius: 16,
+    borderRadius: 5,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#ECECEC',
@@ -469,7 +482,7 @@ const styles = StyleSheet.create({
   countBadge: {
     minWidth: 22,
     height: 22,
-    borderRadius: 11,
+    borderRadius: 5,
     backgroundColor: PRO_YELLOW,
     alignItems: 'center',
     justifyContent: 'center',
@@ -483,7 +496,7 @@ const styles = StyleSheet.create({
   aiGlyph: {
     width: 26,
     height: 26,
-    borderRadius: 8,
+    borderRadius: 5,
     borderWidth: 2,
     borderColor: BLACK,
     alignItems: 'center',

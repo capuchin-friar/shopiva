@@ -18,7 +18,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProfile } from '../context/ProfileContext';
-import { genderToApi, parseLocationString } from '../profile/normalizeUser';
+import { genderToApi, isVendorAccountRole, parseLocationString } from '../profile/normalizeUser';
 
 const BG = '#FFFFFF';
 const BLACK = '#000000';
@@ -129,11 +129,21 @@ export default function PersonalInformationScreen() {
   }, [user?.id, gender, location, saveProfileFields]);
 
   const onEditImage = useCallback(() => {
+
     Alert.alert('Edit image', 'Photo picker will be available in a future update.');
   }, []);
 
+  const vendorAccount = isVendorAccountRole(user?.roleRaw);
+  /** Vendors: show API name fields only, never the email-prefix fallback from `displayName`. */
+  const nameRowValue = vendorAccount
+    ? user?.profileName?.trim() || '—'
+    : user?.displayName?.trim() || '—';
+
   const avatarUri = user?.avatarUrl?.trim() || '';
-  const avatarLetter = (user?.displayName?.trim() || user?.email?.trim() || '?').charAt(0).toUpperCase();
+  const avatarLetterSource = vendorAccount
+    ? user?.profileName?.trim() || '?'
+    : user?.displayName?.trim() || user?.email?.trim() || '?';
+  const avatarLetter = avatarLetterSource.charAt(0).toUpperCase();
 
   return (
     <KeyboardAvoidingView
@@ -162,7 +172,7 @@ export default function PersonalInformationScreen() {
           </Pressable>
         </View>
 
-        <ReadOnlyRow icon="person-outline" value={user?.displayName} />
+        <ReadOnlyRow icon="person-outline" value={nameRowValue} />
         <ReadOnlyRow
           icon="mail-outline"
           value={user?.email}
@@ -198,8 +208,17 @@ export default function PersonalInformationScreen() {
         <ReadOnlyRow icon="shield-checkmark-outline" value={user?.roleLabel} />
 
         <Text style={styles.infoHint}>
-          Email and WhatsApp can be changed in{' '}
-          <Text style={styles.infoHintEm}>Settings</Text>. Edit location and gender here.
+          {vendorAccount ? (
+            <>
+              As a seller, your name is not editable on this screen. Email and WhatsApp can be changed in{' '}
+              <Text style={styles.infoHintEm}>Settings</Text>. Edit location and gender here.
+            </>
+          ) : (
+            <>
+              Email and WhatsApp can be changed in{' '}
+              <Text style={styles.infoHintEm}>Settings</Text>. Edit location and gender here.
+            </>
+          )}
         </Text>
 
         <Text style={styles.securityHint}>
@@ -407,7 +426,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: FIELD_BG,
-    borderRadius: 12,
+    borderRadius: 5,
     minHeight: 52,
     paddingHorizontal: 14,
     paddingVertical: 12,
@@ -433,7 +452,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: FIELD_BG,
-    borderRadius: 12,
+    borderRadius: 5,
     minHeight: 52,
     paddingHorizontal: 14,
     marginBottom: 14,
@@ -444,7 +463,7 @@ const styles = StyleSheet.create({
     paddingVertical: Platform.OS === 'ios' ? 12 : 8,
   },
   genderDropdownList: {
-    borderRadius: 12,
+    borderRadius: 5,
     marginTop: 4,
   },
   dropdownPlaceholder: {
@@ -481,7 +500,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 14,
     paddingHorizontal: 14,
-    borderRadius: 12,
+    borderRadius: 5,
     backgroundColor: FIELD_BG,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#E5E5EA',
@@ -553,7 +572,7 @@ const styles = StyleSheet.create({
   saveBtn: {
     marginTop: 8,
     backgroundColor: BLACK,
-    borderRadius: 14,
+    borderRadius: 5,
     paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',

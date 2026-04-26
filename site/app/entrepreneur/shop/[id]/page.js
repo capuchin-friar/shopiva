@@ -1056,7 +1056,8 @@ export default function ShopByIdPage() {
                     </p>
                   </span>
                 </div>
-                <div className="shop-cnt-body-right-shop-catalog">
+                
+                {/* <div className="shop-cnt-body-right-shop-catalog">
                   <div className="catalog-head">
                     <h5 style={{padding: "0px", margin: "0px"}}>
                       Catalog ({detailLoading || listLoading ? "…" : productCount})
@@ -1113,8 +1114,8 @@ export default function ShopByIdPage() {
                       </div>
                     ) : null}
                   </div>
-                </div>
-                <div className="shop-cnt-body-right-shop-orders">
+                </div> */}
+                {/* <div className="shop-cnt-body-right-shop-orders">
                   <div className="orders-head">
                     <h5>
                       Orders ({detailLoading || listLoading ? "…" : ordersCount})
@@ -1138,9 +1139,9 @@ export default function ShopByIdPage() {
                               height: "120px",
                               width: "100%"
                             }} alt="" />
-                            {/* <span style={{ fontWeight: 600, whiteSpace: "nowrap" }}>
+                            <span style={{ fontWeight: 600, whiteSpace: "nowrap" }}>
                               #{orderRowId(o)}
-                            </span> */}
+                            </span>
                             <span style={{ fontWeight: 500 }}>
                               {formatMoney(o?.amount ?? 0, "NGN")}
                             </span>
@@ -1160,7 +1161,8 @@ export default function ShopByIdPage() {
                       </div>
                     ) : null}
                   </div>
-                </div>
+                </div> */}
+
               </div>
             </div>
           }
@@ -1466,7 +1468,7 @@ export default function ShopByIdPage() {
                       ))}
                     </div>
                   </div>
-                  <div className="shop-cnt-body-right-shop-catalog">
+                  {/* <div className="shop-cnt-body-right-shop-catalog">
                     <div className="catalog-head">
                       <h5 style={{padding: "0px", margin: "0px"}}>
                         Catalog ({detailLoading || listLoading ? "…" : productCount})
@@ -1542,7 +1544,7 @@ export default function ShopByIdPage() {
                         </div>
                       ) : null}
                     </div>
-                  </div>
+                  </div> */}
                 </div>
 
               

@@ -16,6 +16,7 @@ import SettingsChangeEmailScreen from '../pages/SettingsChangeEmail';
 import SettingsChangePasswordScreen from '../pages/SettingsChangePassword';
 import SettingsWhatsappScreen from '../pages/SettingsWhatsapp';
 import SettingsPayoutScreen from '../pages/SettingsPayoutScreen';
+import ProfileShopInfoScreen from '../pages/ProfileShopInfoScreen';
 
 /** Lazily loaded so `react-native-maps` native module is not required until this screen mounts. */
 const SettingsLocationLazy = lazy(() => import('../pages/SettingsLocation'));
@@ -42,6 +43,7 @@ const SETTINGS_ROUTE_TITLES = {
   'profile-settings-whatsapp': 'WhatsApp number',
   'profile-settings-location': 'Location',
   'profile-settings-payout': 'Payout Details',
+  'profile-shop-info': 'Shop info',
 };
 
 function ProfileMainHeader({ navigation }) {
@@ -170,6 +172,11 @@ export function ProfileStackScreen() {
         }}
       />
       <ProfileStack.Screen
+        name="profile-shop-info"
+        component={ProfileShopInfoScreen}
+        options={detailScreenOptions}
+      />
+      <ProfileStack.Screen
         name="profile-settings-email"
         component={SettingsChangeEmailScreen}
         options={detailScreenOptions}
@@ -265,7 +272,7 @@ const styles = StyleSheet.create({
   backPill: {
     width: 40,
     height: 40,
-    borderRadius: 10,
+    borderRadius: 5,
     backgroundColor: '#F8F8FA',
     borderWidth: 1,
     borderColor: '#E5E5EA',

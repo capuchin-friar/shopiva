@@ -377,6 +377,57 @@ export class model{
         )
         return rows;
     })
+
+    /**
+     * Shops reference users by ownerid (FK) but also store contactemail for the storefront.
+     * When the account email changes, refresh that denormalized field where it matched the old
+     * address or was left blank so the virtual shop stays consistent with the user row.
+     */
+    static syncOwnedShopsAfterUserEmailChange = withErrorHandling(
+        async (ownerId: number, previousEmail: string | null | undefined, newEmail: string) => {
+            const neu = String(newEmail ?? "").trim();
+            if (!neu) return;
+            const prev = previousEmail != null ? String(previousEmail).trim() : "";
+            await (await db()).query(
+                `
+                    UPDATE shops
+                    SET contactemail = $1::varchar(255), updatedat = NOW()
+                    WHERE ownerid = $2::integer
+                      AND (
+                        contactemail IS NULL
+                        OR TRIM(COALESCE(contactemail::text, '')) = ''
+                        OR ($3::text <> '' AND LOWER(TRIM(contactemail::text)) = LOWER(TRIM($3::text)))
+                      )
+                `,
+                [neu, ownerId, prev]
+            );
+        }
+    );
+
+    /**
+     * Same idea as email: shops.contactphone may mirror the owner's phone until they set a
+     * dedicated shop line.
+     */
+    static syncOwnedShopsAfterUserPhoneChange = withErrorHandling(
+        async (ownerId: number, previousPhone: string | null | undefined, newPhone: string) => {
+            const neu = String(newPhone ?? "").trim();
+            if (!neu) return;
+            const prev = previousPhone != null ? String(previousPhone).trim() : "";
+            await (await db()).query(
+                `
+                    UPDATE shops
+                    SET contactphone = $1::varchar(20), updatedat = NOW()
+                    WHERE ownerid = $2::integer
+                      AND (
+                        contactphone IS NULL
+                        OR TRIM(COALESCE(contactphone::text, '')) = ''
+                        OR ($3::text <> '' AND TRIM(contactphone::text) = TRIM($3::text))
+                      )
+                `,
+                [neu, ownerId, prev]
+            );
+        }
+    );
 }
 
 

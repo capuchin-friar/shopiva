@@ -1,4 +1,4 @@
-import { apiFetchAuth } from './client';
+import { apiFetchAuth, apiFetchAuthMultipart } from './client';
 
 /**
  * @param {Response} res
@@ -60,6 +60,75 @@ export async function fetchOwnerShops(userId) {
   const res = await apiFetchAuth(`/shop/owner/${uid}`, { method: 'GET' });
   const data = await readJson(res);
   return Array.isArray(data.shops) ? data.shops : [];
+}
+
+/**
+ * Full shop row for editing (vendor). GET /shop/:shopId/:userId
+ * @param {number | string} shopId
+ * @param {number | string} userId
+ * @returns {Promise<Record<string, unknown>>}
+ */
+export async function fetchShopDetails(shopId, userId) {
+  const sid = String(shopId).trim();
+  const uid = String(userId).trim();
+  const res = await apiFetchAuth(`/shop/${encodeURIComponent(sid)}/${encodeURIComponent(uid)}`, {
+    method: 'GET',
+  });
+  const data = await readJson(res);
+  const shop = data.shop;
+  if (shop == null || typeof shop !== 'object') {
+    throw new Error('Shop not found');
+  }
+  return /** @type {Record<string, unknown>} */ (shop);
+}
+
+/**
+ * Update shop profile. POST /shop/update/:shopId/:userId
+ * @param {number | string} shopId
+ * @param {number | string} userId
+ * @param {Record<string, unknown>} body
+ */
+export async function updateVendorShop(shopId, userId, body) {
+  const res = await apiFetchAuth(
+    `/shop/update/${encodeURIComponent(String(shopId))}/${encodeURIComponent(String(userId))}`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  );
+  return readJson(res);
+}
+
+/**
+ * Record BVN (11 digits) for the shop; server validates format and stores masked last4 only.
+ * POST /shop/patch/:shopId/verify-bvn
+ * @param {number | string} shopId
+ * @param {string} bvnDigits
+ */
+export async function verifyShopBvn(shopId, bvnDigits) {
+  const digits = String(bvnDigits ?? '').replace(/\D/g, '');
+  const res = await apiFetchAuth(`/shop/patch/${encodeURIComponent(String(shopId))}/verify-bvn`, {
+    method: 'POST',
+    body: JSON.stringify({ bvn: digits }),
+  });
+  return readJson(res);
+}
+
+/**
+ * Upload ID / CAC / proof-of-address file to Cloudinary via API (requires server env).
+ * POST /shop/:shopId/verification-upload (multipart field `file`)
+ * @param {number | string} shopId
+ * @param {{ uri: string; name: string; type: string }} file
+ * @returns {Promise<{ url: string; publicId?: string }>}
+ */
+export async function uploadShopVerificationDocument(shopId, file) {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await apiFetchAuthMultipart(`/shop/${encodeURIComponent(String(shopId))}/verification-upload`, {
+    method: 'POST',
+    body: form,
+  });
+  return readJson(res);
 }
 
 /**

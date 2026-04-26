@@ -1,6 +1,11 @@
 import express from "express";
 import { authenticate, verifyToken } from "../../middleware/auth.js";
 import {
+    VerifyShopBvnController,
+    UploadShopVerificationDocumentController,
+    verificationUploadMiddleware,
+} from "../../controllers/business/shopVerification.js";
+import {
     CreateShopController,
     CreateShopByTokenController,
     UpdateShopController,
@@ -56,6 +61,13 @@ BusinessRouter.post("/shop/patch/:shopId/policy-clause", verifyToken, PatchShopP
 BusinessRouter.post("/shop/create", verifyToken, CreateShopByTokenController);
 BusinessRouter.post("/shop/create/:id", authenticate, CreateShopController);
 BusinessRouter.post("/shop/update/:shopId/:id", authenticate, UpdateShopController);
+BusinessRouter.post("/shop/patch/:shopId/verify-bvn", verifyToken, VerifyShopBvnController);
+BusinessRouter.post(
+  "/shop/:shopId/verification-upload",
+  verifyToken,
+  verificationUploadMiddleware,
+  UploadShopVerificationDocumentController,
+);
 BusinessRouter.post("/shop/delete/:shopId/:id", authenticate, DeleteShopController);
 
 // Shop Policies

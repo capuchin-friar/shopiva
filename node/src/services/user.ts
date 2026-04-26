@@ -179,6 +179,15 @@ export async function UpdateRoleService(id: number, role: string) {
 }
 
 export async function UpdateEmailService(id: number, email: string) {
+    const existing = await model.findUserById(id);
+    if (!existing || existing.length === 0) {
+        throw new Error("User not found");
+    }
+    const previousEmail =
+        existing[0].email != null && String(existing[0].email).trim() !== ""
+            ? String(existing[0].email).trim()
+            : "";
+
     // Check if email already exists
     const emailExists = await model.countEmail(email);
     if (emailExists > 0) {
@@ -186,10 +195,12 @@ export async function UpdateEmailService(id: number, email: string) {
     }
 
     const result = await model.updateUserEmailById(id, email);
-    
+
     if (result.length === 0) {
         throw new Error("User not found");
     }
+
+    await model.syncOwnedShopsAfterUserEmailChange(id, previousEmail || null, email);
 
     const { password, ...userWithoutPassword } = result[0];
     return userWithoutPassword;
@@ -197,6 +208,16 @@ export async function UpdateEmailService(id: number, email: string) {
 
 export async function UpdatePhoneService(id: number, phone: string | number) {
     const phoneNorm = typeof phone === "number" ? String(phone) : String(phone ?? "").trim();
+
+    const existing = await model.findUserById(id);
+    if (!existing || existing.length === 0) {
+        throw new Error("User not found");
+    }
+    const previousPhone =
+        existing[0].phone != null && String(existing[0].phone).trim() !== ""
+            ? String(existing[0].phone).trim()
+            : "";
+
     // Check if phone already exists
     const phoneExists = await model.countPhone(phoneNorm);
     if (phoneExists > 0) {
@@ -204,10 +225,12 @@ export async function UpdatePhoneService(id: number, phone: string | number) {
     }
 
     const result = await model.updateUserPhoneById(id, phoneNorm);
-    
+
     if (result.length === 0) {
         throw new Error("User not found");
     }
+
+    await model.syncOwnedShopsAfterUserPhoneChange(id, previousPhone || null, phoneNorm);
 
     const { password, ...userWithoutPassword } = result[0];
     return userWithoutPassword;

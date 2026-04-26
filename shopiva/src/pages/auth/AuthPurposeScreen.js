@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
     borderColor: AUTH.border,
-    borderRadius: 16,
+    borderRadius: 5,
     padding: 20,
     marginBottom: 16,
     backgroundColor: AUTH.inputBg,

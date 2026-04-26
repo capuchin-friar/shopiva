@@ -15,6 +15,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import mvpCategoryData from '../json/mvp_category.json';
+import { buildMvpCategoryFilters, formatMvpCategoryLabel } from '../utils/mvpCategory';
 import { getStorefrontProducts, getStorefrontShop } from '../api/storefront';
 import { formatNaira } from '../utils/formatNaira';
 
@@ -24,7 +25,7 @@ const BROWN_SOFT = 'rgba(92, 67, 50, 0.78)';
 const PAD = 16;
 const GRID_GAP = 12;
 
-const GENDERS = ['Male', 'Female', 'Unisex'];
+const GENDERS = ['Male', 'Female'];
 
 /** @type {{ gender: string | null; subCategory: string | null; type: string | null; sortPrice: 'none' | 'asc' | 'desc' }} */
 const DEFAULT_FILTERS = {
@@ -65,62 +66,6 @@ function applyProductFilters(products, f) {
 }
 
 /**
- * Title-case words for chip labels (JSON keys stay lowercase).
- * @param {string} raw
- */
-function formatCategoryLabel(raw) {
-  if (!raw || typeof raw !== 'string') return '';
-  return raw
-    .trim()
-    .split(/\s+/)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
-    .join(' ');
-}
-
-/**
- * Builds sub-categories, types allowed per sub-category, and valid (sub, type) pairs
- * from `src/json/mvp_category.json`.
- *
- * @param {Record<string, unknown>} data
- * @param {string} categoryKey
- * @returns {{ subCategories: string[]; typesBySubCategory: Map<string, string[]>; subTypePairs: { sub: string; type: string }[] }}
- */
-function buildMvpCategoryFilters(data, categoryKey) {
-  const key = String(categoryKey || '').trim() || 'fashion';
-  const segments = data[key];
-  const subCats = new Set();
-  /** @type {Map<string, Set<string>>} */
-  const typeSets = new Map();
-  if (!Array.isArray(segments)) {
-    return { subCategories: [], typesBySubCategory: new Map(), subTypePairs: [] };
-  }
-  for (const block of segments) {
-    if (!block || typeof block !== 'object') continue;
-    for (const [subKey, subVal] of Object.entries(block)) {
-      subCats.add(subKey);
-      if (!typeSets.has(subKey)) typeSets.set(subKey, new Set());
-      if (subVal && typeof subVal === 'object') {
-        for (const typeKey of Object.keys(subVal)) {
-          typeSets.get(subKey).add(typeKey);
-        }
-      }
-    }
-  }
-  const typesBySubCategory = new Map();
-  for (const [sub, set] of typeSets) {
-    typesBySubCategory.set(sub, [...set].sort((a, b) => a.localeCompare(b)));
-  }
-  const subCategories = [...subCats].sort((a, b) => a.localeCompare(b));
-  const subTypePairs = [];
-  for (const sub of subCategories) {
-    for (const type of typesBySubCategory.get(sub) || []) {
-      subTypePairs.push({ sub, type });
-    }
-  }
-  return { subCategories, typesBySubCategory, subTypePairs };
-}
-
-/**
  * @param {Record<string, unknown>} p
  * @param {number} index
  */
@@ -139,7 +84,7 @@ function mapStorefrontProductToTile(p, index) {
   const subCategory = subRaw || catRaw || 'general';
   const tags = Array.isArray(raw.tags) ? raw.tags.map((t) => String(t).toLowerCase()) : [];
   const type = tags[0] || subCategory;
-  let gender = 'Unisex';
+  let gender = 'Male';
   const brand = String(raw.brand ?? '').toLowerCase();
   if (brand.includes('female') || tags.some((t) => t.includes('female'))) gender = 'Female';
   else if (brand.includes('male') || tags.some((t) => t.includes('male'))) gender = 'Male';
@@ -273,7 +218,7 @@ export default function VendorShopScreen({ route, navigation }) {
   );
 
   const subCategoryOptions = useMemo(
-    () => [{ label: 'Any', value: null }, ...subCategories.map((s) => ({ label: formatCategoryLabel(s), value: s }))],
+    () => [{ label: 'Any', value: null }, ...subCategories.map((s) => ({ label: formatMvpCategoryLabel(s), value: s }))],
     [subCategories],
   );
 
@@ -283,7 +228,7 @@ export default function VendorShopScreen({ route, navigation }) {
       return [{ label: 'Any', value: null }];
     }
     const arr = typesBySubCategory.get(sub) ?? [];
-    return [{ label: 'Any', value: null }, ...arr.map((t) => ({ label: formatCategoryLabel(t), value: t }))];
+    return [{ label: 'Any', value: null }, ...arr.map((t) => ({ label: formatMvpCategoryLabel(t), value: t }))];
   }, [modalFilters.subCategory, typesBySubCategory]);
 
   useEffect(() => {
@@ -631,7 +576,7 @@ const styles = StyleSheet.create({
   circleBrown: {
     width: 42,
     height: 42,
-    borderRadius: 21,
+    borderRadius: 5,
     backgroundColor: 'rgba(255,255,255,0.92)',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(0,0,0,0.1)',
@@ -644,7 +589,7 @@ const styles = StyleSheet.create({
   followPill: {
     paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 22,
+    borderRadius: 5,
     backgroundColor: BROWN_SOFT,
   },
   followPillText: {
@@ -708,7 +653,7 @@ const styles = StyleSheet.create({
   filterFab: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 5,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -722,7 +667,7 @@ const styles = StyleSheet.create({
     marginBottom: GRID_GAP + 8,
   },
   tileImageWrap: {
-    borderRadius: 20,
+    borderRadius: 5,
     overflow: 'hidden',
     aspectRatio: 1,
     backgroundColor: 'rgba(255,255,255,0.08)',
@@ -743,7 +688,7 @@ const styles = StyleSheet.create({
     right: 8,
     width: 34,
     height: 34,
-    borderRadius: 17,
+    borderRadius: 5,
     backgroundColor: 'rgba(0,0,0,0.38)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -792,7 +737,7 @@ const styles = StyleSheet.create({
   fallbackBtn: {
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 10,
+    borderRadius: 5,
     backgroundColor: 'rgba(255,255,255,0.15)',
   },
   fallbackBtnText: {
@@ -857,7 +802,7 @@ const styles = StyleSheet.create({
   filterChip: {
     paddingHorizontal: 14,
     paddingVertical: 9,
-    borderRadius: 20,
+    borderRadius: 5,
     backgroundColor: '#F2F2F2',
     borderWidth: 1,
     borderColor: 'transparent',
@@ -883,7 +828,7 @@ const styles = StyleSheet.create({
   filterResetBtn: {
     flex: 1,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 5,
     backgroundColor: '#F2F2F2',
     alignItems: 'center',
   },
@@ -895,7 +840,7 @@ const styles = StyleSheet.create({
   filterClearBtn: {
     flex: 1,
     paddingVertical: 12,
-    borderRadius: 12,
+    borderRadius: 5,
     backgroundColor: '#FFF0F0',
     alignItems: 'center',
   },
@@ -907,7 +852,7 @@ const styles = StyleSheet.create({
   filterSheetBtn: {
     backgroundColor: '#00926e',
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 5,
     alignItems: 'center',
   },
   filterSheetBtnText: {

@@ -6,4 +6,5 @@ export * from './buyer';
 export * from './auth';
 export * from './user';
 export * from './shop';
+export * from './product';
 export { getOAuthStartUrl, parseOAuthCallbackUrl, oauthErrorMessage } from './oauth';

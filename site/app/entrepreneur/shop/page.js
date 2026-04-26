@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import "./styles/global.css";
 import "./styles/s.css";
-import "./styles/m.css";
-import "./styles/l.css";
+// import "./styles/m.css";
+// import "./styles/l.css";
 import "./styles/xxl.css";
 import logo_img from "../../../images/Shopiva.png";
 

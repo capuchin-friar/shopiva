@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     paddingVertical: 11,
     paddingHorizontal: 14,
-    borderRadius: 10,
+    borderRadius: 5,
     backgroundColor: '#F3F4F6',
   },
   searchPillText: {
@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
   archivedIconWrap: {
     width: 52,
     height: 52,
-    borderRadius: 26,
+    borderRadius: 5,
     backgroundColor: '#E8F5E9',
     alignItems: 'center',
     justifyContent: 'center',
@@ -198,7 +198,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: 52,
     height: 52,
-    borderRadius: 26,
+    borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 14,
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
     minWidth: 22,
     height: 22,
     paddingHorizontal: 6,
-    borderRadius: 11,
+    borderRadius: 5,
     backgroundColor: WA_GREEN,
     alignItems: 'center',
     justifyContent: 'center',

@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
   chip: {
     paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 999,
+    borderRadius: 5,
   },
   chipIdle: {
     backgroundColor: '#E8E8EA',
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
   iconCircle: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
   statusPill: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 999,
+    borderRadius: 5,
     alignSelf: 'flex-start',
   },
   statusPillText: {

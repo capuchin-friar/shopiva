@@ -1,9 +1,11 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,8 +13,11 @@ import {
   View,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { fetchOwnerShops } from '../../api/shop';
+import { getProducts } from '../../api/product';
+import { useProfile } from '../../context/ProfileContext';
 
 const BRAND = '#E85D04';
 const BG = '#F0F1F4';
@@ -21,40 +26,72 @@ const TEXT = '#111827';
 const MUTED = '#6B7280';
 const BORDER = '#E8EAEF';
 
-const MOCK_ROWS = [
-  {
-    id: '1',
-    title: 'Crossbody bag',
-    shop: 'Lexicon',
-    variantCount: 2,
-    status: 'draft',
-    sales: 0,
-    revenue: '₦0',
-    created: '15 Apr 2026',
-  },
-  {
-    id: '2',
-    title: 'Polo top',
-    shop: 'Lexicon',
-    variantCount: 6,
-    status: 'active',
-    sales: 24,
-    revenue: '₦182,400',
-    created: '12 Apr 2026',
-  },
-  {
-    id: '3',
-    title: 'UV sunglasses',
-    shop: 'Lexicon',
-    variantCount: 4,
-    status: 'draft',
-    sales: 0,
-    revenue: '₦0',
-    created: '10 Apr 2026',
-  },
-];
+const nairaFmt = new Intl.NumberFormat('en-NG');
 
-const SHOPS = ['Lexicon', 'Main store', 'Archive'];
+function formatNaira(amount) {
+  const n = Number(amount);
+  if (!Number.isFinite(n) || n < 0) return '₦0';
+  return `₦${nairaFmt.format(Math.round(n))}`;
+}
+
+/** @param {unknown} raw */
+function parseSpecifications(raw) {
+  if (raw == null) return {};
+  if (typeof raw === 'object' && !Array.isArray(raw)) {
+    return /** @type {Record<string, unknown>} */ (raw);
+  }
+  if (typeof raw === 'string') {
+    try {
+      const o = JSON.parse(raw);
+      return typeof o === 'object' && o != null && !Array.isArray(o) ? /** @type {Record<string, unknown>} */ (o) : {};
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+/** @param {Record<string, unknown>} specs */
+function variantCountFromSpecs(specs) {
+  const v = specs.variants ?? specs.shopiva_variants ?? specs.saved_variants;
+  return Array.isArray(v) ? v.length : 0;
+}
+
+/** @param {Record<string, unknown>} p @param {string} shopDisplayName */
+function mapApiProductToRow(p, shopDisplayName) {
+  const specs = parseSpecifications(p.specifications);
+  const idRaw = p.id ?? p.product_id;
+  const createdRaw = p.created_at ?? p.createdAt;
+  let created = '';
+  if (createdRaw) {
+    const d = new Date(String(createdRaw));
+    created = Number.isNaN(d.getTime())
+      ? String(createdRaw)
+      : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+  const sales = Number(p.total_sales ?? p.totalSales ?? 0) || 0;
+  const revenueN = Number(p.total_revenue ?? p.totalRevenue ?? 0) || 0;
+  return {
+    id: String(idRaw ?? ''),
+    title: String(p.name ?? p.title ?? 'Untitled').trim() || 'Untitled',
+    shop: shopDisplayName,
+    variantCount: variantCountFromSpecs(specs),
+    status: String(p.status ?? 'draft').toLowerCase(),
+    sales,
+    revenue: formatNaira(revenueN),
+    created: created || '—',
+  };
+}
+
+function shopIdOf(row) {
+  const v = row?.id ?? row?.shopid ?? row?.shop_id;
+  if (typeof v === 'number' && Number.isFinite(v)) return v;
+  return parseInt(String(v ?? ''), 10);
+}
+
+function shopNameOf(row) {
+  return String(row?.name ?? row?.shopname ?? row?.shop_name ?? 'Shop').trim() || 'Shop';
+}
 
 /** @param {string} status */
 function statusPillStyle(status) {
@@ -80,26 +117,114 @@ function StatBlock({ label, value }) {
 }
 
 /**
- * Vendor product catalog (nested under Products tab stack).
- * Card layout reads clearly on phones; avoids cramped horizontal tables.
+ * Vendor product catalog — MVP: one shop (first created). Same API as web `GET /shop/:shopId/products/:id`.
  */
 export default function VendorProductListScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const [shopModalOpen, setShopModalOpen] = useState(false);
-  const [selectedShop, setSelectedShop] = useState(SHOPS[0]);
+  const { user } = useProfile();
+  const [mvpShopId, setMvpShopId] = useState(/** @type {number | null} */ (null));
+  const [mvpShopName, setMvpShopName] = useState('Shop');
+  /** @type {ReturnType<typeof mapApiProductToRow>[]} */
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [listError, setListError] = useState(/** @type {string | null} */ (null));
   const [actionSheetProduct, setActionSheetProduct] = useState(
-    /** @type {(typeof MOCK_ROWS)[number] | null} */ (null),
+    /** @type {ReturnType<typeof mapApiProductToRow> | null} */ (null),
   );
 
-  const filteredRows = useMemo(
-    () => MOCK_ROWS.filter((r) => r.shop === selectedShop),
-    [selectedShop],
+  /** MVP: always bind to the first shop in the owner list (no multi-shop UI). */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const uid = user?.id;
+      if (!uid) {
+        setMvpShopId(null);
+        setMvpShopName('Shop');
+        return;
+      }
+      try {
+        const list = await fetchOwnerShops(uid);
+        if (cancelled) return;
+        const shops = Array.isArray(list) ? list : [];
+        const first = shops[0];
+        if (!first) {
+          setMvpShopId(null);
+          setMvpShopName('Shop');
+          return;
+        }
+        const sid = shopIdOf(first);
+        if (!Number.isNaN(sid) && sid > 0) {
+          setMvpShopId(sid);
+          setMvpShopName(shopNameOf(first));
+        } else {
+          setMvpShopId(null);
+          setMvpShopName('Shop');
+        }
+      } catch {
+        if (!cancelled) {
+          setMvpShopId(null);
+          setMvpShopName('Shop');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const loadProducts = useCallback(
+    async (opts = /** @type {{ silent?: boolean }} */ ({})) => {
+      const uid = user?.id;
+      const sid = mvpShopId;
+      if (!uid || !sid) {
+        setRows([]);
+        setListError(null);
+        if (!opts.silent) setLoading(false);
+        return;
+      }
+      if (!opts.silent) setListError(null);
+      try {
+        const data = await getProducts(sid, uid);
+        const products = Array.isArray(data?.products) ? data.products : [];
+        setRows(products.map((p) => mapApiProductToRow(/** @type {Record<string, unknown>} */ (p), mvpShopName)));
+      } catch (e) {
+        setRows([]);
+        setListError(e instanceof Error ? e.message : 'Could not load products.');
+      } finally {
+        if (!opts.silent) setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [user?.id, mvpShopId, mvpShopName],
   );
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id || !mvpShopId) {
+        setRows([]);
+        setLoading(false);
+        return undefined;
+      }
+      setLoading(true);
+      loadProducts({ silent: false }).catch(() => {});
+      return undefined;
+    }, [user?.id, mvpShopId, loadProducts]),
+  );
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadProducts({ silent: true }).catch(() => {});
+  }, [loadProducts]);
 
   const onAddProduct = useCallback(() => {
+    if (!mvpShopId) {
+      Alert.alert('No shop', 'Create a shop in settings before adding products.');
+      return;
+    }
     navigation.navigate('VendorCreateProduct');
-  }, [navigation]);
+  }, [navigation, mvpShopId]);
 
   const closeProductActions = useCallback(() => {
     setActionSheetProduct(null);
@@ -132,7 +257,7 @@ export default function VendorProductListScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            Alert.alert('Deleted', 'Wire this action to your product API when ready.');
+            Alert.alert('Not implemented', 'Wire delete to your product API when ready.');
           },
         },
       ],
@@ -142,143 +267,124 @@ export default function VendorProductListScreen() {
   return (
     <View style={styles.root}>
       {/* <View style={styles.toolbar}>
-        <Pressable
-          style={({ pressed }) => [styles.shopPill, pressed && styles.shopPillPressed]}
-          onPress={() => setShopModalOpen(true)}
-        >
+        <View style={styles.shopBadge}>
           <Icon name="storefront-outline" size={18} color={MUTED} />
-          <Text style={styles.shopPillText} numberOfLines={1}>
-            {selectedShop}
+          <Text style={styles.shopBadgeText} numberOfLines={1}>
+            {mvpShopName}
           </Text>
-          <Icon name="chevron-down" size={16} color={MUTED} />
-        </Pressable>
+        </View>
         <TouchableOpacity style={styles.primaryBtn} onPress={onAddProduct} activeOpacity={0.88}>
           <Icon name="add-circle-outline" size={20} color="#FFFFFF" style={styles.primaryBtnIcon} />
           <Text style={styles.primaryBtnText}>Add product</Text>
         </TouchableOpacity>
       </View> */}
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 28 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {filteredRows.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Icon name="cube-outline" size={40} color="#D1D5DB" />
-            <Text style={styles.emptyTitle}>No products in this shop</Text>
-            <Text style={styles.emptySub}>Switch shop or add your first product.</Text>
-            <TouchableOpacity style={styles.emptyCta} onPress={onAddProduct} activeOpacity={0.88}>
-              <Text style={styles.emptyCtaText}>Add product</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <>
-            <Text style={styles.listMetaOnly}>
-              {filteredRows.length} {filteredRows.length === 1 ? 'item' : 'items'} · {selectedShop}
-            </Text>
-            {filteredRows.map((row) => {
-            const pill = statusPillStyle(row.status);
-            const openCard = () =>
-              Alert.alert(row.title, 'Open product editor when wired to API.');
-            return (
-              <View key={row.id} style={styles.card}>
-                <View style={styles.cardTop}>
-                  <Pressable
-                    style={({ pressed }) => [styles.cardMainPress, pressed && styles.cardPressed]}
-                    onPress={openCard}
-                    android_ripple={{ color: '#F3F4F6' }}
-                  >
-                    <View style={styles.thumb}>
-                      <Icon name="image-outline" size={22} color="#9CA3AF" />
-                    </View>
-                    <View style={styles.cardTitleBlock}>
-                      <Text style={styles.cardTitle} numberOfLines={2}>
-                        {row.title}
-                      </Text>
-                      <Text style={styles.cardSubtitle} numberOfLines={1}>
-                        {row.variantCount} variant{row.variantCount !== 1 ? 's' : ''} · {row.shop}
-                      </Text>
-                    </View>
-                  </Pressable>
-                  <TouchableOpacity
-                    style={styles.cardMenuBtn}
-                    onPress={() => onRowMenu(row)}
-                    hitSlop={10}
-                    accessibilityLabel="Product actions"
-                  >
-                    <Icon name="ellipsis-horizontal" size={22} color="#6B7280" />
-                  </TouchableOpacity>
-                </View>
+      {listError ? (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorBannerText}>{listError}</Text>
+        </View>
+      ) : null}
 
-                <Pressable
-                  style={({ pressed }) => [styles.cardLowerPress, pressed && styles.cardPressed]}
-                  onPress={openCard}
-                  android_ripple={{ color: '#F3F4F6' }}
-                >
-                  <View style={styles.pillRow}>
-                    <View style={[styles.statusPill, { backgroundColor: pill.bg, borderColor: pill.border }]}>
-                      <Text style={[styles.statusPillText, { color: pill.text }]}>{String(row.status)}</Text>
+      {loading && rows.length === 0 ? (
+        <View style={styles.centerLoading}>
+          <ActivityIndicator size="large" color={BRAND} />
+          <Text style={styles.centerLoadingText}>Loading products…</Text>
+        </View>
+      ) : (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 28 }]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={BRAND} />
+          }
+        >
+          {!user?.id ? (
+            <View style={styles.emptyCard}>
+              <Icon name="person-outline" size={40} color="#D1D5DB" />
+              <Text style={styles.emptyTitle}>Sign in</Text>
+              <Text style={styles.emptySub}>Sign in as a vendor to see your catalog.</Text>
+            </View>
+          ) : !mvpShopId ? (
+            <View style={styles.emptyCard}>
+              <Icon name="storefront-outline" size={40} color="#D1D5DB" />
+              <Text style={styles.emptyTitle}>No shop yet</Text>
+              <Text style={styles.emptySub}>Create a shop in settings, then your products will appear here.</Text>
+            </View>
+          ) : rows.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Icon name="cube-outline" size={40} color="#D1D5DB" />
+              <Text style={styles.emptyTitle}>No products in this shop</Text>
+              <Text style={styles.emptySub}>Add your first product — it will show here after you save.</Text>
+              <TouchableOpacity style={styles.emptyCta} onPress={onAddProduct} activeOpacity={0.88}>
+                <Text style={styles.emptyCtaText}>Add product</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <>
+              <Text style={styles.listMetaOnly}>
+                {rows.length} {rows.length === 1 ? 'item' : 'items'} · {mvpShopName}
+              </Text>
+              {rows.map((row) => {
+                const pill = statusPillStyle(row.status);
+                const openCard = () =>
+                  Alert.alert(row.title, 'Product detail editor can open here when wired.');
+                return (
+                  <View key={row.id} style={styles.card}>
+                    <View style={styles.cardTop}>
+                      <Pressable
+                        style={({ pressed }) => [styles.cardMainPress, pressed && styles.cardPressed]}
+                        onPress={openCard}
+                        android_ripple={{ color: '#F3F4F6' }}
+                      >
+                        <View style={styles.thumb}>
+                          <Icon name="image-outline" size={22} color="#9CA3AF" />
+                        </View>
+                        <View style={styles.cardTitleBlock}>
+                          <Text style={styles.cardTitle} numberOfLines={2}>
+                            {row.title}
+                          </Text>
+                          <Text style={styles.cardSubtitle} numberOfLines={1}>
+                            {row.variantCount} variant{row.variantCount !== 1 ? 's' : ''} · {row.shop}
+                          </Text>
+                        </View>
+                      </Pressable>
+                      <TouchableOpacity
+                        style={styles.cardMenuBtn}
+                        onPress={() => onRowMenu(row)}
+                        hitSlop={10}
+                        accessibilityLabel="Product actions"
+                      >
+                        <Icon name="ellipsis-horizontal" size={22} color="#6B7280" />
+                      </TouchableOpacity>
                     </View>
+
+                    <Pressable
+                      style={({ pressed }) => [styles.cardLowerPress, pressed && styles.cardPressed]}
+                      onPress={openCard}
+                      android_ripple={{ color: '#F3F4F6' }}
+                    >
+                      <View style={styles.pillRow}>
+                        <View style={[styles.statusPill, { backgroundColor: pill.bg, borderColor: pill.border }]}>
+                          <Text style={[styles.statusPillText, { color: pill.text }]}>{String(row.status)}</Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.statsRow}>
+                        <StatBlock label="Sales" value={String(row.sales)} />
+                        <View style={styles.statDivider} />
+                        <StatBlock label="Revenue" value={row.revenue} />
+                        <View style={styles.statDivider} />
+                        <StatBlock label="Created" value={row.created} />
+                      </View>
+                    </Pressable>
                   </View>
-
-                  <View style={styles.statsRow}>
-                    <StatBlock label="Sales" value={String(row.sales)} />
-                    <View style={styles.statDivider} />
-                    <StatBlock label="Revenue" value={row.revenue} />
-                    <View style={styles.statDivider} />
-                    <StatBlock label="Created" value={row.created} />
-                  </View>
-                </Pressable>
-              </View>
-            );
-          })}
-          </>
-        )}
-      </ScrollView>
-
-      <Modal
-        visible={shopModalOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShopModalOpen(false)}
-      >
-        <Pressable style={styles.modalRoot} onPress={() => setShopModalOpen(false)}>
-          <View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 20) + 8 }]}>
-            <Text style={styles.modalTitle}>Shop</Text>
-            <Text style={styles.modalHint}>Show catalog for</Text>
-            {SHOPS.map((name) => {
-              const selected = name === selectedShop;
-              return (
-                <Pressable
-                  key={name}
-                  style={({ pressed }) => [
-                    styles.modalRow,
-                    selected && styles.modalRowSelected,
-                    pressed && styles.modalRowPressed,
-                  ]}
-                  onPress={() => {
-                    setSelectedShop(name);
-                    setShopModalOpen(false);
-                  }}
-                >
-                  <Icon
-                    name="storefront-outline"
-                    size={20}
-                    color={selected ? BRAND : MUTED}
-                    style={styles.modalRowIcon}
-                  />
-                  <Text style={[styles.modalRowText, selected && styles.modalRowTextSelected]}>{name}</Text>
-                  {selected ? <Icon name="checkmark-circle" size={22} color={BRAND} /> : <View style={styles.modalCheckSpacer} />}
-                </Pressable>
-              );
-            })}
-            <TouchableOpacity style={styles.modalClose} onPress={() => setShopModalOpen(false)}>
-              <Text style={styles.modalCloseText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </Pressable>
-      </Modal>
+                );
+              })}
+            </>
+          )}
+        </ScrollView>
+      )}
 
       <Modal
         visible={actionSheetProduct != null}
@@ -353,7 +459,31 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: BORDER,
   },
-  shopPill: {
+  errorBanner: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#FEF2F2',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#FECACA',
+  },
+  errorBannerText: {
+    fontSize: 14,
+    color: '#B91C1C',
+    fontWeight: '600',
+  },
+  centerLoading: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 40,
+  },
+  centerLoadingText: {
+    marginTop: 12,
+    fontSize: 15,
+    color: MUTED,
+    fontWeight: '600',
+  },
+  shopBadge: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -366,10 +496,7 @@ const styles = StyleSheet.create({
     borderColor: BORDER,
     backgroundColor: '#FAFBFC',
   },
-  shopPillPressed: {
-    backgroundColor: '#F3F4F6',
-  },
-  shopPillText: {
+  shopBadgeText: {
     flex: 1,
     fontSize: 15,
     fontWeight: '700',
@@ -426,12 +553,12 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     minWidth: 0,
     marginRight: 4,
-    borderRadius: 12,
+    borderRadius: 5,
     paddingVertical: 2,
     paddingRight: 4,
   },
   cardLowerPress: {
-    borderRadius: 12,
+    borderRadius: 5,
     marginHorizontal: -4,
     paddingHorizontal: 4,
   },
@@ -477,7 +604,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 999,
+    borderRadius: 5,
     borderWidth: 1,
   },
   statusPillText: {
@@ -542,78 +669,15 @@ const styles = StyleSheet.create({
     backgroundColor: BRAND,
     paddingVertical: 12,
     paddingHorizontal: 24,
-    borderRadius: 12,
+    borderRadius: 5,
   },
   emptyCtaText: {
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '700',
   },
-  modalRoot: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
-    justifyContent: 'flex-end',
-  },
-  modalSheet: {
-    backgroundColor: CARD,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-  },
-  modalTitle: {
-    fontSize: 11,
-    fontWeight: '800',
-    color: MUTED,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: 4,
-  },
-  modalHint: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: TEXT,
-    marginBottom: 16,
-  },
-  modalRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 4,
-    borderRadius: 12,
-    marginBottom: 4,
-  },
   modalRowPressed: {
     backgroundColor: '#F9FAFB',
-  },
-  modalRowSelected: {
-    backgroundColor: '#FFF7ED',
-  },
-  modalRowIcon: {
-    marginRight: 12,
-  },
-  modalRowText: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    color: TEXT,
-  },
-  modalRowTextSelected: {
-    color: BRAND,
-  },
-  modalCheckSpacer: {
-    width: 22,
-    height: 22,
-  },
-  modalClose: {
-    alignItems: 'center',
-    paddingVertical: 14,
-    marginTop: 4,
-  },
-  modalCloseText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: MUTED,
   },
   actionSheetModalRoot: {
     flex: 1,
@@ -634,7 +698,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: 40,
     height: 4,
-    borderRadius: 2,
+    borderRadius: 5,
     backgroundColor: '#D1D5DB',
     marginBottom: 16,
   },
@@ -650,7 +714,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 16,
     paddingHorizontal: 4,
-    borderRadius: 12,
+    borderRadius: 5,
     marginBottom: 4,
   },
   actionSheetRowIcon: {

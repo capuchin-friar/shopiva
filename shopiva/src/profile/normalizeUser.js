@@ -26,6 +26,28 @@ export function genderToApi(v) {
 }
 
 /**
+ * @param {unknown} roleRaw
+ * @returns {boolean}
+ */
+export function isVendorAccountRole(roleRaw) {
+  const r = String(roleRaw ?? '')
+    .trim()
+    .toLowerCase();
+  return r === 'vendor' || r === 'entrepreneur';
+}
+
+/**
+ * Strict vendor role (e.g. Shop info). Excludes `entrepreneur` and other roles.
+ * @param {unknown} roleRaw
+ * @returns {boolean}
+ */
+export function isVendorRole(roleRaw) {
+  return String(roleRaw ?? '')
+    .trim()
+    .toLowerCase() === 'vendor';
+}
+
+/**
  * @param {string} line
  * @returns {{ city?: string; state?: string; country?: string }}
  */
@@ -51,8 +73,18 @@ export function normalizeUser(raw) {
 
   const email = String(raw.email ?? '').trim();
   const fromEmail = email.includes('@') ? email.split('@')[0] : '';
+  const nameFromFnameLname = [String(raw.fname ?? '').trim(), String(raw.lname ?? '').trim()]
+    .filter(Boolean)
+    .join(' ')
+    .trim();
+  /** Profile name only — never username or email local-part (use on Edit Profile for vendors). */
+  const profileName =
+    String(raw.name ?? '').trim() ||
+    String(raw.full_name ?? '').trim() ||
+    String(raw.fullName ?? '').trim() ||
+    nameFromFnameLname;
   const displayName = String(
-    (raw.name ?? raw.full_name ?? raw.fullName ?? raw.username ?? fromEmail) || 'Shopper',
+    profileName || String(raw.username ?? '').trim() || fromEmail || 'Shopper',
   ).trim();
 
   const phone = String(raw.phone ?? raw.phone_number ?? raw.mobile ?? '').trim();
@@ -93,6 +125,7 @@ export function normalizeUser(raw) {
   return {
     id: Number.isFinite(id) && id > 0 ? id : 0,
     displayName,
+    profileName,
     email,
     phone,
     avatarUrl,

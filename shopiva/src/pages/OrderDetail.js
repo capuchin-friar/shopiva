@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: 36,
     height: 4,
-    borderRadius: 2,
+    borderRadius: 5,
     backgroundColor: '#D8D8D8',
     marginBottom: 12,
   },
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
     gap: 14,
     paddingVertical: 14,
     paddingHorizontal: 14,
-    borderRadius: 12,
+    borderRadius: 5,
   },
   actionRowPressed: {
     backgroundColor: '#F5F5F5',
@@ -615,7 +615,7 @@ const styles = StyleSheet.create({
   tlDotInner: {
     width: 5,
     height: 5,
-    borderRadius: 2.5,
+    borderRadius: 5,
     backgroundColor: WHITE,
   },
   tlConnector: {

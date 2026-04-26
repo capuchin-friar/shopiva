@@ -677,7 +677,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: 36,
     height: 4,
-    borderRadius: 2,
+    borderRadius: 5,
     backgroundColor: '#D8D8D8',
     marginBottom: 12,
   },
@@ -752,7 +752,7 @@ const styles = StyleSheet.create({
   statusPill: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 999,
+    borderRadius: 5,
   },
   statusPillText: {
     fontSize: 12,
@@ -916,7 +916,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.72)',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 5,
   },
   thumbBadgeText: {
     color: WHITE,
@@ -991,7 +991,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     backgroundColor: WHITE,
-    borderRadius: 999,
+    borderRadius: 5,
     paddingVertical: 8,
     paddingHorizontal: 8,
     borderWidth: StyleSheet.hairlineWidth,
@@ -1014,7 +1014,7 @@ const styles = StyleSheet.create({
     backgroundColor: TEAL,
     paddingVertical: 10,
     paddingHorizontal: 14,
-    borderRadius: 999,
+    borderRadius: 5,
     flexGrow: 1,
     flexShrink: 1,
   },
@@ -1030,7 +1030,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F0F0',
     paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 999,
+    borderRadius: 5,
     flexShrink: 0,
   },
   fabSecondaryText: {
@@ -1045,7 +1045,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F0F0',
     paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 999,
+    borderRadius: 5,
     flexShrink: 0,
   },
   fabPressed: {
@@ -1082,7 +1082,7 @@ const styles = StyleSheet.create({
   tlDotInner: {
     width: 5,
     height: 5,
-    borderRadius: 2.5,
+    borderRadius: 5,
     backgroundColor: WHITE,
   },
   tlConnector: {

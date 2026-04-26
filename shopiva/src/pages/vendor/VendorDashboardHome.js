@@ -525,7 +525,7 @@ const styles = StyleSheet.create({
   activityIconWrap: {
     width: 40,
     height: 40,
-    borderRadius: 12,
+    borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,

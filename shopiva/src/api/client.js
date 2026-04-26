@@ -46,3 +46,28 @@ export async function apiFetch(path, options = {}) {
     headers,
   });
 }
+
+/**
+ * Authenticated fetch without forcing JSON `Content-Type` (for `FormData` uploads).
+ * @param {string} path
+ * @param {RequestInit} [options]
+ */
+export async function apiFetchAuthMultipart(path, options = {}) {
+  const token = await getStoredAccessToken();
+  const prev =
+    options.headers && typeof options.headers === 'object' && !(options.headers instanceof Headers)
+      ? /** @type {Record<string, string>} */ ({ ...options.headers })
+      : {};
+  const headers = { Accept: 'application/json', ...prev };
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  const base = getApiBaseUrl();
+  const normalized = path.startsWith('/') ? path : `/${path}`;
+  const url = `${base}${normalized}`;
+  const res = await fetch(url, { ...options, headers });
+  if (token && res.status === 401) {
+    notifyUnauthorized();
+  }
+  return res;
+}

@@ -1,6 +1,11 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,6 +17,40 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { fetchOwnerShops } from '../../api/shop';
+import { createInventory, createProduct } from '../../api/product';
+import { useProfile } from '../../context/ProfileContext';
+import colorJson from '../../json/color.json';
+import mvpCategoryData from '../../json/mvp_category.json';
+import {
+  buildMvpCategoryFilters,
+  formatMvpCategoryLabel,
+  mvpCategoryRootKeys,
+} from '../../utils/mvpCategory';
+import {
+  buildColorOptionsFromJson,
+  buildVariantSnapshot,
+  formatPriceInput,
+  getClothingSubtypeConfig,
+  materialStringsForSizeKey,
+  resolveClothingSubType,
+  resolveSizeOptions,
+} from '../../utils/variantOptions';
+import { buildProductCreatePayloads } from '../../utils/vendorProductPayload';
+
+const GENDERS = ['Male', 'Female'];
+
+/** @template T @param {T[]} arr @param {number} size @returns {T[][]} */
+function chunkArray(arr, size) {
+  const chunks = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
+
+const VARIANT_FORM_WARNING =
+  'Please fill in the variant form. Color, size, stock (greater than 0), and variant price are all required.';
 
 /**
  * Create product flow (nested under Products tab stack).
@@ -19,17 +58,48 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 export default function VendorCreateProductScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { user } = useProfile();
+  const [resolvedShopId, setResolvedShopId] = useState(/** @type {number | null} */ (null));
+  const [saveSubmitting, setSaveSubmitting] = useState(false);
+  const defaultCategory = useMemo(
+    () => mvpCategoryRootKeys(/** @type {Record<string, unknown>} */ (mvpCategoryData))[0] || 'fashion',
+    [],
+  );
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('');
+  const [category, setCategory] = useState(defaultCategory);
   const [gender, setGender] = useState('');
   const [subCategory, setSubCategory] = useState('');
   const [productType, setProductType] = useState('');
-  const [variantColor, setVariantColor] = useState('');
+  const [picker, setPicker] = useState(
+    /** @type {null | 'category' | 'sub' | 'type' | 'gender' | 'variantColor' | 'variantSize' | 'variantMaterial'} */ (
+      null
+    ),
+  );
+  const colorOptionsList = useMemo(() => buildColorOptionsFromJson(colorJson), []);
+  /** @type {Record<string, { value: string; label: string; color: string }>} */
+  const colorByValue = useMemo(
+    () => Object.fromEntries(colorOptionsList.map((c) => [c.value, c])),
+    [colorOptionsList],
+  );
+  const colorPickerValues = useMemo(() => colorOptionsList.map((c) => c.value), [colorOptionsList]);
+  /** @type {Record<string, string>} */
+  const colorSwatchByValue = useMemo(
+    () => Object.fromEntries(colorOptionsList.map((c) => [c.value, c.color])),
+    [colorOptionsList],
+  );
+
+  const [variantColor, setVariantColor] = useState(
+    /** @type {null | { value: string; label: string; color: string }} */ (null),
+  );
   const [variantSize, setVariantSize] = useState('');
   const [variantMaterial, setVariantMaterial] = useState('');
   const [variantStock, setVariantStock] = useState('');
   const [variantPrice, setVariantPrice] = useState('');
+  const [variantError, setVariantError] = useState('');
+  const [savedVariants, setSavedVariants] = useState(
+    /** @type {{ id: string; details: { label: string; value: string }[]; stock: number }[]} */ ([]),
+  );
   const [price, setPrice] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [continueSelling, setContinueSelling] = useState(false);
@@ -44,21 +114,121 @@ export default function VendorCreateProductScreen() {
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [showFinishSheet, setShowFinishSheet] = useState(false);
 
-  const hasVariantOptions = useMemo(
-    () =>
-      [variantColor, variantSize, variantMaterial]
-        .map((v) => v.trim())
-        .some(Boolean),
-    [variantColor, variantSize, variantMaterial],
+  const categoryRoots = useMemo(
+    () => mvpCategoryRootKeys(/** @type {Record<string, unknown>} */ (mvpCategoryData)),
+    [],
   );
+  const categoryKey = String(category || defaultCategory).trim() || defaultCategory;
+  const { subCategories, typesBySubCategory } = useMemo(
+    () => buildMvpCategoryFilters(/** @type {Record<string, unknown>} */ (mvpCategoryData), categoryKey),
+    [categoryKey],
+  );
+  const typeOptions = useMemo(() => {
+    const sub = String(subCategory || '').trim();
+    if (!sub) return [];
+    return typesBySubCategory.get(sub) ?? [];
+  }, [subCategory, typesBySubCategory]);
 
-  const isPriceValid = Number(price) > 0;
-  const isQuantityValid = Number(quantity) > 0;
+  /** MVP: single shop — always the first shop returned for the signed-in owner. */
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const uid = user?.id;
+      if (!uid) {
+        if (!cancelled) setResolvedShopId(null);
+        return;
+      }
+      try {
+        const shops = await fetchOwnerShops(uid);
+        if (cancelled) return;
+        const first = Array.isArray(shops) && shops.length > 0 ? shops[0] : null;
+        const idRaw = first?.id ?? first?.shop_id;
+        const sid = typeof idRaw === 'number' ? idRaw : parseInt(String(idRaw ?? ''), 10);
+        if (!Number.isNaN(sid) && sid > 0) setResolvedShopId(sid);
+        else setResolvedShopId(null);
+      } catch {
+        if (!cancelled) setResolvedShopId(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  const variantCtx = useMemo(() => {
+    const cat = categoryKey;
+    const sub = String(subCategory || '');
+    const typ = String(productType || '');
+    const sizeConfig = resolveSizeOptions({ category: cat, subCategory: sub, type: typ });
+    const clothingSubType = resolveClothingSubType({ category: cat, subCategory: sub, type: typ });
+    const clothingSubTypeConfig = getClothingSubtypeConfig(clothingSubType);
+    const resolvedSizeOptions =
+      sizeConfig.key === 'clothing' && clothingSubTypeConfig
+        ? clothingSubTypeConfig.options
+        : sizeConfig.options;
+    const sizeFieldLabel =
+      sizeConfig.key === 'clothing' && clothingSubTypeConfig
+        ? `${clothingSubTypeConfig.label} size`
+        : sizeConfig.label.replace(/s$/i, '');
+    const materialStrings = materialStringsForSizeKey(sizeConfig.key);
+    const materialFieldLabel = sizeConfig.key === 'food' ? 'Packaging' : 'Material';
+    const materialPlaceholder =
+      sizeConfig.key === 'food' ? 'Select packaging' : 'Select a material';
+    const sizePlaceholder =
+      sizeConfig.key === 'clothing' && clothingSubTypeConfig
+        ? `Select a ${clothingSubTypeConfig.label.toLowerCase()} size`
+        : `Select ${sizeConfig.label.toLowerCase()}`;
+    return {
+      sizeConfigKey: sizeConfig.key,
+      resolvedSizeOptions,
+      sizeFieldLabel,
+      materialStrings,
+      materialFieldLabel,
+      materialPlaceholder,
+      sizePlaceholder,
+    };
+  }, [categoryKey, subCategory, productType]);
+
+  const canAddVariant = useMemo(() => {
+    if (!variantColor || !variantSize.trim()) return false;
+    const stockStr = variantStock.trim();
+    const stockOk =
+      stockStr !== '' && /^\d+$/.test(stockStr) && Number(stockStr) > 0;
+    const priceRaw = String(variantPrice).replace(/,/g, '').replace(/[^\d.]/g, '');
+    const priceNum = Number(priceRaw);
+    const priceOk = priceRaw !== '' && !Number.isNaN(priceNum) && priceNum > 0;
+    return stockOk && priceOk;
+  }, [variantColor, variantSize, variantStock, variantPrice]);
+
+  useEffect(() => {
+    setSubCategory('');
+    setProductType('');
+  }, [categoryKey]);
+
+  useEffect(() => {
+    setProductType('');
+  }, [subCategory]);
+
+  const variantStockTotal = useMemo(
+    () => savedVariants.reduce((t, v) => t + Number(v?.stock || 0), 0),
+    [savedVariants],
+  );
+  const hasVariantsList = savedVariants.length > 0;
+  const priceAmount = useMemo(
+    () => Number(String(price ?? '').replace(/,/g, '')) || 0,
+    [price],
+  );
+  const isPriceValid = priceAmount > 0;
+  const baseQuantityAmount = Number(String(quantity ?? '').replace(/,/g, '')) || 0;
+  const isQuantityValid = hasVariantsList ? variantStockTotal > 0 : baseQuantityAmount > 0;
+  const isFashionCategory = String(categoryKey).toLowerCase() === 'fashion';
+  const hasFashionGender = !isFashionCategory || gender.trim().length > 0;
   const hasCoreFields =
     title.trim().length > 1 &&
     category.trim().length > 0 &&
     isPriceValid &&
-    isQuantityValid;
+    isQuantityValid &&
+    hasFashionGender;
   const hasCategoryFields = subCategory.trim().length > 0 && productType.trim().length > 0;
 
   const onSave = useCallback(() => {
@@ -69,13 +239,303 @@ export default function VendorCreateProductScreen() {
     setShowFinishSheet(true);
   }, [hasCategoryFields, hasCoreFields]);
 
-  const onContinueFinalSave = useCallback(() => {
-    setShowFinishSheet(false);
-    // Final API hook point for product create.
+  const clearVariantFields = useCallback(() => {
+    setVariantColor(null);
+    setVariantSize('');
+    setVariantMaterial('');
+    setVariantStock('');
+    setVariantPrice('');
+    setVariantError('');
   }, []);
 
+  const handleVariantStockChange = useCallback((text) => {
+    const value = String(text).replace(/,/g, '');
+    if (value === '' || /^\d+$/.test(value)) {
+      setVariantStock(value);
+      setVariantError('');
+    }
+  }, []);
+
+  const handleVariantPriceChange = useCallback((text) => {
+    setVariantPrice(formatPriceInput(text));
+    setVariantError('');
+  }, []);
+
+  const handleSaveVariant = useCallback(() => {
+    const missingColor = !variantColor;
+    const missingSize = !variantSize.trim();
+    const stockStr = variantStock.trim();
+    const stockInvalid =
+      !stockStr || !/^\d+$/.test(stockStr) || Number(stockStr) <= 0;
+    const priceRaw = String(variantPrice).replace(/,/g, '').replace(/[^\d.]/g, '');
+    const priceNum = Number(priceRaw);
+    const priceInvalid =
+      !priceRaw || Number.isNaN(priceNum) || priceNum <= 0;
+
+    if (missingColor || missingSize || stockInvalid || priceInvalid) {
+      setVariantError(VARIANT_FORM_WARNING);
+      return;
+    }
+    const details = buildVariantSnapshot({
+      color: variantColor,
+      size: variantSize.trim(),
+      material: variantMaterial.trim(),
+      price: variantPrice.trim(),
+      stock: variantStock.trim(),
+      sizeDetailLabel: variantCtx.sizeFieldLabel,
+      materialDetailLabel: variantCtx.materialFieldLabel,
+    });
+    setSavedVariants((prev) => [
+      ...prev,
+      {
+        id: `${Date.now()}-${prev.length}`,
+        details,
+        stock: Number(variantStock),
+      },
+    ]);
+    clearVariantFields();
+  }, [
+    variantStock,
+    variantColor,
+    variantSize,
+    variantMaterial,
+    variantPrice,
+    variantCtx.sizeFieldLabel,
+    variantCtx.materialFieldLabel,
+    clearVariantFields,
+  ]);
+
+  const handleDeleteVariant = useCallback((variantId) => {
+    setSavedVariants((prev) => prev.filter((item) => item.id !== variantId));
+  }, []);
+
+  const handlePickerSelect = useCallback(
+    (raw) => {
+      const s = String(raw);
+      switch (picker) {
+        case 'category':
+          setCategory(s);
+          break;
+        case 'sub':
+          setSubCategory(s);
+          break;
+        case 'type':
+          setProductType(s);
+          break;
+        case 'gender':
+          setGender(s);
+          break;
+        case 'variantColor': {
+          const opt = colorByValue[s];
+          setVariantColor(opt ? { value: opt.value, label: opt.label, color: opt.color } : null);
+          setVariantError('');
+          break;
+        }
+        case 'variantSize':
+          setVariantSize(s);
+          setVariantError('');
+          break;
+        case 'variantMaterial':
+          setVariantMaterial(s);
+          setVariantError('');
+          break;
+        default:
+          break;
+      }
+    },
+    [picker, colorByValue],
+  );
+
+  const optionPickerProps = useMemo(() => {
+    if (!picker) {
+      return {
+        title: '',
+        options: /** @type {string[]} */ ([]),
+        formatLabel: (/** @type {string} */ s) => s,
+        swatchByValue: undefined,
+      };
+    }
+    if (picker === 'category') {
+      return {
+        title: 'Category',
+        options: categoryRoots,
+        formatLabel: formatMvpCategoryLabel,
+        swatchByValue: undefined,
+      };
+    }
+    if (picker === 'sub') {
+      return {
+        title: 'Sub category',
+        options: subCategories,
+        formatLabel: formatMvpCategoryLabel,
+        swatchByValue: undefined,
+      };
+    }
+    if (picker === 'type') {
+      return {
+        title: 'Type',
+        options: typeOptions,
+        formatLabel: formatMvpCategoryLabel,
+        swatchByValue: undefined,
+      };
+    }
+    if (picker === 'gender') {
+      return {
+        title: 'Gender',
+        options: GENDERS,
+        formatLabel: (s) => s,
+        swatchByValue: undefined,
+      };
+    }
+    if (picker === 'variantColor') {
+      return {
+        title: 'Color',
+        options: colorPickerValues,
+        formatLabel: (v) => colorByValue[v]?.label ?? v,
+        swatchByValue: colorSwatchByValue,
+      };
+    }
+    if (picker === 'variantSize') {
+      return {
+        title: variantCtx.sizeFieldLabel,
+        options: variantCtx.resolvedSizeOptions,
+        formatLabel: (s) => s,
+        swatchByValue: undefined,
+      };
+    }
+    if (picker === 'variantMaterial') {
+      return {
+        title: variantCtx.materialFieldLabel,
+        options: variantCtx.materialStrings,
+        formatLabel: (s) => s,
+        swatchByValue: undefined,
+      };
+    }
+    return {
+      title: '',
+      options: /** @type {string[]} */ ([]),
+      formatLabel: (/** @type {string} */ s) => s,
+      swatchByValue: undefined,
+    };
+  }, [
+    picker,
+    categoryRoots,
+    subCategories,
+    typeOptions,
+    colorPickerValues,
+    colorByValue,
+    colorSwatchByValue,
+    variantCtx.sizeFieldLabel,
+    variantCtx.resolvedSizeOptions,
+    variantCtx.materialFieldLabel,
+    variantCtx.materialStrings,
+  ]);
+
+  const onContinueFinalSave = useCallback(async () => {
+    const uid = user?.id;
+    if (!uid) {
+      Alert.alert('Sign in required', 'Sign in as a vendor to create products.');
+      return;
+    }
+    if (!resolvedShopId) {
+      Alert.alert('No shop', 'Create a shop in settings before adding products.');
+      return;
+    }
+    const brandTrim = brandName.trim();
+    if (!brandTrim) {
+      Alert.alert('Complete the form', 'Brand name is required.');
+      return;
+    }
+    if (!allowPickup && !allowDelivery) {
+      Alert.alert('Complete the form', 'Select at least one delivery method.');
+      return;
+    }
+    const qtyCheck = hasVariantsList ? variantStockTotal : baseQuantityAmount;
+    if (!qtyCheck || qtyCheck <= 0) {
+      Alert.alert(
+        'Complete the form',
+        hasVariantsList
+          ? 'Total variant stock must be greater than 0.'
+          : 'Enter a valid quantity.',
+      );
+      return;
+    }
+    if (!isPriceValid) {
+      Alert.alert('Complete the form', 'Enter a valid price.');
+      return;
+    }
+
+    setSaveSubmitting(true);
+    try {
+      const { productPayload, inventoryPayload } = buildProductCreatePayloads({
+        title,
+        description,
+        category: categoryKey,
+        subCategory,
+        type: productType,
+        gender,
+        brand: brandTrim,
+        tags: [],
+        savedVariants,
+        allowPickup,
+        allowDelivery,
+        price,
+        quantity,
+        continueSelling,
+        loadedSpecifications: {},
+      });
+
+      const data = await createProduct(resolvedShopId, uid, productPayload);
+      const rawProduct = data?.product;
+      const product =
+        rawProduct && typeof rawProduct === 'object'
+          ? /** @type {Record<string, unknown>} */ (rawProduct)
+          : {};
+      const productIdRaw = product.id ?? product.product_id;
+      const productId =
+        typeof productIdRaw === 'number' ? productIdRaw : parseInt(String(productIdRaw ?? ''), 10);
+      if (productId == null || Number.isNaN(Number(productId)) || Number(productId) <= 0) {
+        throw new Error('Invalid response from server (missing product id).');
+      }
+      await createInventory(resolvedShopId, productId, uid, inventoryPayload);
+      setShowFinishSheet(false);
+      Alert.alert('Saved', 'Product is live as active.', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+    } catch (e) {
+      Alert.alert('Save failed', e instanceof Error ? e.message : 'Something went wrong.');
+    } finally {
+      setSaveSubmitting(false);
+    }
+  }, [
+    user?.id,
+    resolvedShopId,
+    brandName,
+    allowPickup,
+    allowDelivery,
+    hasVariantsList,
+    variantStockTotal,
+    baseQuantityAmount,
+    isPriceValid,
+    title,
+    description,
+    categoryKey,
+    subCategory,
+    productType,
+    gender,
+    savedVariants,
+    price,
+    quantity,
+    continueSelling,
+    navigation,
+  ]);
+
   return (
-    <View style={[styles.root, { paddingTop: 0 }]}>
+    <KeyboardAvoidingView
+      style={[styles.root, { paddingTop: 0 }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}
+    >
       {/* <View style={styles.header}>
         <TouchableOpacity
           style={styles.backHit}
@@ -91,8 +551,10 @@ export default function VendorCreateProductScreen() {
       </View> */}
 
       <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 24 }]}
+        style={styles.scrollFlex}
+        contentContainerStyle={[styles.scroll, { paddingBottom: 16 }]}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
         <View style={styles.card}>
           <Text style={styles.label}>Product title</Text>
@@ -137,9 +599,15 @@ export default function VendorCreateProductScreen() {
 
         <View style={styles.card}>
           <Text style={styles.label}>Category</Text>
-          <SelectField value={category || 'Fashion'} onPress={() => {}} />
+          <SelectField
+            value={formatMvpCategoryLabel(categoryKey)}
+            onPress={() => setPicker('category')}
+          />
           <Text style={[styles.label, styles.spaceTop]}>Gender</Text>
-          <SelectField value={gender || 'Select Your Gender'} onPress={() => {}} />
+          <SelectField
+            value={gender ? formatMvpCategoryLabel(gender) : 'Select gender'}
+            onPress={() => setPicker('gender')}
+          />
         </View>
 
         <View style={styles.card}>
@@ -147,11 +615,19 @@ export default function VendorCreateProductScreen() {
           <View style={styles.row}>
             <View style={styles.half}>
               <Text style={styles.label}>Sub category</Text>
-              <SelectField value={subCategory || 'Select Product Sub'} onPress={() => {}} />
+              <SelectField
+                value={subCategory ? formatMvpCategoryLabel(subCategory) : 'Select sub category'}
+                onPress={() => setPicker('sub')}
+                disabled={subCategories.length === 0}
+              />
             </View>
             <View style={styles.half}>
               <Text style={styles.label}>Type</Text>
-              <SelectField value={productType || 'Select Product Type'} onPress={() => {}} />
+              <SelectField
+                value={productType ? formatMvpCategoryLabel(productType) : 'Select type'}
+                onPress={() => subCategory.trim() && setPicker('type')}
+                disabled={!subCategory.trim() || typeOptions.length === 0}
+              />
             </View>
           </View>
         </View>
@@ -162,35 +638,106 @@ export default function VendorCreateProductScreen() {
             <Icon name="add-circle-outline" size={20} color="#111111" />
             <Text style={styles.optionHeaderText}>Add options like color or size.</Text>
           </View>
-          <Text style={styles.label}>Color</Text>
-          <SelectField value={variantColor || 'Select a color'} onPress={() => {}} />
-          <Text style={styles.label}>General size</Text>
-          <SelectField value={variantSize || 'Select general sizes'} onPress={() => {}} />
-          <Text style={styles.label}>Material</Text>
-          <SelectField value={variantMaterial || 'Select a material'} onPress={() => {}} />
-          <Text style={styles.label}>Stock</Text>
+          <Text style={styles.variantFormHint}>
+            Color, size, stock, and variant price are required. Material is optional.
+          </Text>
+          <VariantFieldLabel title="Color" />
+          <SelectField
+            value={variantColor ? variantColor.label : 'Select a color'}
+            onPress={() => setPicker('variantColor')}
+            leadingSwatch={variantColor?.color}
+          />
+          <VariantFieldLabel title={variantCtx.sizeFieldLabel} />
+          <SelectField
+            value={variantSize || variantCtx.sizePlaceholder}
+            onPress={() => setPicker('variantSize')}
+          />
+          <VariantFieldLabel title={variantCtx.materialFieldLabel} optional />
+          <SelectField
+            value={variantMaterial || variantCtx.materialPlaceholder}
+            onPress={() => setPicker('variantMaterial')}
+          />
+          <VariantFieldLabel title="Stock" />
           <TextInput
             style={styles.input}
             placeholder="Enter variant stock"
             placeholderTextColor="#9CA3AF"
             keyboardType="number-pad"
             value={variantStock}
-            onChangeText={setVariantStock}
+            onChangeText={handleVariantStockChange}
           />
-          <Text style={styles.label}>Price</Text>
-          <NairaInput value={variantPrice} onChangeText={setVariantPrice} placeholder="Enter variant price" />
+          <VariantFieldLabel title="Variant price" />
+          <NairaInput
+            value={variantPrice}
+            onChangeText={handleVariantPriceChange}
+            placeholder="Enter variant price"
+          />
+
+          {variantError ? <Text style={styles.variantErrorText}>{variantError}</Text> : null}
 
           <View style={styles.rowBtnWrap}>
             <TouchableOpacity
-              style={[styles.addVariantBtn, !hasVariantOptions && styles.addVariantBtnDisabled]}
+              style={[styles.addVariantBtn, !canAddVariant && styles.addVariantBtnDisabled]}
               activeOpacity={0.88}
+              onPress={handleSaveVariant}
             >
-              <Text style={styles.addVariantBtnText}>Add variant</Text>
+              <Text
+                style={[styles.addVariantBtnText, !canAddVariant && styles.addVariantBtnTextDisabled]}
+              >
+                Add variant
+              </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.clearBtn} activeOpacity={0.88}>
+            <TouchableOpacity style={styles.clearBtn} activeOpacity={0.88} onPress={clearVariantFields}>
               <Text style={styles.clearBtnText}>Clear fields</Text>
             </TouchableOpacity>
           </View>
+
+          {savedVariants.length > 0 ? (
+            <View style={styles.savedVariants}>
+              {savedVariants.map((variant, index) => (
+                <View style={styles.savedVariantCard} key={variant.id}>
+                  <View style={styles.savedVariantCardTop}>
+                    <Text style={styles.savedVariantTitle}>Variant {index + 1}</Text>
+                    <TouchableOpacity
+                      style={styles.savedVariantDeleteBtn}
+                      onPress={() => handleDeleteVariant(variant.id)}
+                      hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel="Delete variant"
+                      activeOpacity={0.85}
+                    >
+                      <Text style={styles.savedVariantDeleteText}>Delete</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.savedVariantGrid}>
+                    {chunkArray(variant.details, 4).map((row, rowIndex) => (
+                      <View
+                        style={styles.savedVariantGridRow}
+                        key={`${variant.id}-row-${rowIndex}`}
+                      >
+                        {row.map((detail) => (
+                          <View
+                            style={[
+                              styles.savedVariantCell,
+                              row.length === 1 ? styles.savedVariantCellQuarter : styles.savedVariantCellFlex,
+                            ]}
+                            key={`${variant.id}-${detail.label}`}
+                          >
+                            <Text style={styles.savedVariantCellLabel}>
+                              {String(detail.label).toUpperCase()}
+                            </Text>
+                            <Text style={styles.savedVariantCellValue} numberOfLines={2}>
+                              {detail.value}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.card}>
@@ -206,7 +753,7 @@ export default function VendorCreateProductScreen() {
           <Text style={styles.sectionTitle}>Inventory</Text>
           <Text style={styles.label}>Quantity</Text>
           <View style={styles.inventoryRow}>
-            <Text style={styles.locationText}>Ifite Awka</Text>
+            {/* <Text style={styles.locationText}>Ifite Awka</Text> */}
             <TextInput
               style={styles.qtyInput}
               keyboardType="number-pad"
@@ -248,11 +795,13 @@ export default function VendorCreateProductScreen() {
             </View>
           </View>
         </View>
+      </ScrollView>
 
-        <TouchableOpacity style={styles.primaryBtn} onPress={onSave} activeOpacity={0.88}>
+      <View style={[styles.saveBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+        <TouchableOpacity style={styles.primaryBtnBar} onPress={onSave} activeOpacity={0.88}>
           <Text style={styles.primaryBtnText}>Save</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
 
       <Modal transparent visible={showValidationModal} animationType="fade">
         <View style={styles.modalRoot}>
@@ -272,6 +821,17 @@ export default function VendorCreateProductScreen() {
           </View>
         </View>
       </Modal>
+
+      <OptionPickerModal
+        visible={picker !== null}
+        title={optionPickerProps.title}
+        options={optionPickerProps.options}
+        formatLabel={optionPickerProps.formatLabel}
+        swatchByValue={optionPickerProps.swatchByValue}
+        onSelect={handlePickerSelect}
+        onClose={() => setPicker(null)}
+        insetBottom={insets.bottom}
+      />
 
       <Modal transparent visible={showFinishSheet} animationType="slide">
         <View style={styles.sheetRoot}>
@@ -305,22 +865,157 @@ export default function VendorCreateProductScreen() {
               checked={allowDelivery}
               onToggle={() => setAllowDelivery((v) => !v)}
             />
-            <TouchableOpacity style={styles.primaryBtn} onPress={onContinueFinalSave} activeOpacity={0.88}>
-              <Text style={styles.primaryBtnText}>Continue</Text>
+            <TouchableOpacity
+              style={[styles.primaryBtn, saveSubmitting && styles.primaryBtnDisabled]}
+              onPress={() => {
+                if (!saveSubmitting) onContinueFinalSave();
+              }}
+              activeOpacity={0.88}
+              disabled={saveSubmitting}
+            >
+              {saveSubmitting ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.primaryBtnText}>Continue</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
+    </KeyboardAvoidingView>
+  );
+}
+
+/**
+ * @param {{ title: string; optional?: boolean }} p
+ */
+function VariantFieldLabel({ title, optional }) {
+  return (
+    <View style={styles.variantLabelRow}>
+      <Text style={styles.variantLabelTitle}>{title}</Text>
+      <View
+        style={[
+          styles.variantLabelBadge,
+          optional ? styles.variantLabelBadgeOptional : styles.variantLabelBadgeRequired,
+        ]}
+      >
+        <Text
+          style={[
+            styles.variantLabelBadgeText,
+            optional ? styles.variantLabelBadgeTextOptional : styles.variantLabelBadgeTextRequired,
+          ]}
+        >
+          {optional ? 'Optional' : 'Required'}
+        </Text>
+      </View>
     </View>
   );
 }
 
-function SelectField({ value, onPress }) {
+/**
+ * @param {{ value: string; onPress: () => void; disabled?: boolean; leadingSwatch?: string }} p
+ */
+function SelectField({ value, onPress, disabled, leadingSwatch }) {
   return (
-    <TouchableOpacity style={styles.selectField} onPress={onPress} activeOpacity={0.88}>
-      <Text style={styles.selectText}>{value}</Text>
-      <Icon name="chevron-down" size={18} color="#C7CBD1" />
+    <TouchableOpacity
+      style={[styles.selectField, disabled && styles.selectFieldDisabled]}
+      onPress={disabled ? undefined : onPress}
+      activeOpacity={disabled ? 1 : 0.88}
+      disabled={disabled}
+      accessibilityState={{ disabled: Boolean(disabled) }}
+    >
+      <View style={styles.selectFieldLeft}>
+        {leadingSwatch ? (
+          <View
+            style={[
+              styles.selectSwatch,
+              { backgroundColor: leadingSwatch },
+              leadingSwatch.toLowerCase() === '#ffffff' && styles.selectSwatchLight,
+            ]}
+          />
+        ) : null}
+        <Text
+          style={[styles.selectText, disabled && styles.selectTextDisabled]}
+          numberOfLines={1}
+        >
+          {value}
+        </Text>
+      </View>
+      <Icon name="chevron-down" size={18} color={disabled ? '#111111' : '#00926e'} style={{ opacity: disabled ? 0.35 : 1 }} />
     </TouchableOpacity>
+  );
+}
+
+/**
+ * @param {{
+ *   visible: boolean;
+ *   title: string;
+ *   options: string[];
+ *   formatLabel: (raw: string) => string;
+ *   swatchByValue?: Record<string, string>;
+ *   onSelect: (raw: string) => void;
+ *   onClose: () => void;
+ *   insetBottom: number;
+ * }} p
+ */
+function OptionPickerModal({
+  visible,
+  title,
+  options,
+  formatLabel,
+  swatchByValue,
+  onSelect,
+  onClose,
+  insetBottom,
+}) {
+  return (
+    <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
+      <View style={styles.pickerModalRoot}>
+        <Pressable style={styles.pickerBackdrop} onPress={onClose} accessibilityLabel="Dismiss picker" />
+        <View style={[styles.pickerSheet, { paddingBottom: Math.max(insetBottom, 16) + 12 }]}>
+          <View style={styles.pickerSheetHeader}>
+            <Text style={styles.pickerSheetTitle}>{title}</Text>
+            <TouchableOpacity onPress={onClose} hitSlop={10} accessibilityLabel="Close">
+              <Icon name="close" size={24} color="#111111" />
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={options}
+            keyExtractor={(item, index) => `${item}-${index}`}
+            keyboardShouldPersistTaps="handled"
+            style={styles.pickerList}
+            renderItem={({ item }) => {
+              const swatch = swatchByValue?.[item];
+              return (
+                <Pressable
+                  style={({ pressed }) => [styles.pickerRow, pressed && styles.pickerRowPressed]}
+                  onPress={() => {
+                    onSelect(item);
+                    onClose();
+                  }}
+                >
+                  <View style={styles.pickerRowInner}>
+                    {swatch ? (
+                      <View
+                        style={[
+                          styles.pickerSwatch,
+                          { backgroundColor: swatch },
+                          String(swatch).toLowerCase() === '#ffffff' && styles.pickerSwatchLight,
+                        ]}
+                      />
+                    ) : null}
+                    <Text style={styles.pickerRowText}>{formatLabel(item)}</Text>
+                  </View>
+                </Pressable>
+              );
+            }}
+            ListEmptyComponent={
+              <Text style={styles.pickerEmpty}>No options for this selection.</Text>
+            }
+          />
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -392,13 +1087,29 @@ const styles = StyleSheet.create({
   headerSpacer: {
     width: 40,
   },
+  scrollFlex: {
+    flex: 1,
+  },
   scroll: {
     paddingHorizontal: 8,
     paddingTop: 12,
   },
+  saveBar: {
+    paddingTop: 10,
+    paddingHorizontal: 8,
+    backgroundColor: '#F4F5F7',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0,0,0,0.08)',
+  },
+  primaryBtnBar: {
+    backgroundColor: '#111111',
+    paddingVertical: 16,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
   card: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    borderRadius: 5,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
@@ -420,7 +1131,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 12,
+    borderRadius: 5,
     paddingHorizontal: 14,
     paddingVertical: 14,
     fontSize: 16,
@@ -430,7 +1141,7 @@ const styles = StyleSheet.create({
     minHeight: 100,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 12,
+    borderRadius: 5,
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontSize: 15,
@@ -447,7 +1158,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderStyle: 'dashed',
     borderColor: '#D6D9DE',
-    borderRadius: 10,
+    borderRadius: 5,
     paddingVertical: 16,
     paddingHorizontal: 10,
     alignItems: 'center',
@@ -458,12 +1169,12 @@ const styles = StyleSheet.create({
   },
   mediaBtnActive: {
     backgroundColor: '#111111',
-    borderRadius: 6,
+    borderRadius: 5,
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
   mediaBtnGhost: {
-    borderRadius: 6,
+    borderRadius: 5,
     paddingVertical: 8,
     paddingHorizontal: 12,
     backgroundColor: '#F6F7F9',
@@ -487,7 +1198,7 @@ const styles = StyleSheet.create({
     minHeight: 46,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 10,
+    borderRadius: 5,
     paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -496,6 +1207,211 @@ const styles = StyleSheet.create({
   selectText: {
     color: '#111111',
     fontSize: 16,
+  },
+  selectFieldDisabled: {
+    opacity: 0.5,
+  },
+  selectTextDisabled: {
+    opacity: 0.65,
+  },
+  selectFieldLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginRight: 8,
+  },
+  selectSwatch: {
+    width: 14,
+    height: 14,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#CCCCCC',
+  },
+  selectSwatchLight: {
+    borderWidth: 1,
+    borderColor: '#CCCCCC',
+  },
+  variantFormHint: {
+    fontSize: 13,
+    color: '#6B7280',
+    lineHeight: 18,
+    marginBottom: 4,
+  },
+  variantLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  variantLabelTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  variantLabelBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 5,
+  },
+  variantLabelBadgeOptional: {
+    backgroundColor: '#F3F4F6',
+  },
+  variantLabelBadgeRequired: {
+    backgroundColor: '#E0F4EE',
+  },
+  variantLabelBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.2,
+  },
+  variantLabelBadgeTextOptional: {
+    color: '#6B7280',
+  },
+  variantLabelBadgeTextRequired: {
+    color: '#00926e',
+  },
+  variantErrorText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#B91C1C',
+    fontWeight: '600',
+  },
+  savedVariants: {
+    marginTop: 14,
+    gap: 12,
+  },
+  savedVariantCard: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 5,
+    padding: 14,
+    backgroundColor: '#FFFFFF',
+  },
+  savedVariantCardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  savedVariantTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#3F3F46',
+  },
+  savedVariantDeleteBtn: {
+    backgroundColor: '#FCE7E7',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 5,
+  },
+  savedVariantDeleteText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#B91C1C',
+  },
+  savedVariantGrid: {
+    gap: 8,
+  },
+  savedVariantGridRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  savedVariantCell: {
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+    borderRadius: 5,
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    minHeight: 72,
+    justifyContent: 'flex-start',
+  },
+  savedVariantCellFlex: {
+    flex: 1,
+    minWidth: 0,
+  },
+  savedVariantCellQuarter: {
+    width: '24%',
+    flexGrow: 0,
+  },
+  savedVariantCellLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#9CA3AF',
+    letterSpacing: 0.6,
+    marginBottom: 6,
+  },
+  savedVariantCellValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#18181B',
+  },
+  pickerModalRoot: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  pickerBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  pickerSheet: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    maxHeight: '72%',
+  },
+  pickerSheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  pickerSheetTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111111',
+  },
+  pickerList: {
+    flexGrow: 0,
+    maxHeight: 400,
+  },
+  pickerRow: {
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: 'rgba(0,0,0,0.08)',
+  },
+  pickerRowInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pickerSwatch: {
+    width: 14,
+    height: 14,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#CCCCCC',
+  },
+  pickerSwatchLight: {
+    borderWidth: 1,
+    borderColor: '#CCCCCC',
+  },
+  pickerRowPressed: {
+    backgroundColor: '#E0F4EE',
+  },
+  pickerRowText: {
+    fontSize: 16,
+    color: '#111111',
+  },
+  pickerEmpty: {
+    paddingVertical: 24,
+    textAlign: 'center',
+    color: '#00926e',
+    fontSize: 15,
   },
   row: {
     flexDirection: 'row',
@@ -521,7 +1437,7 @@ const styles = StyleSheet.create({
     minHeight: 46,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 10,
+    borderRadius: 5,
     paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
@@ -544,23 +1460,27 @@ const styles = StyleSheet.create({
   },
   addVariantBtn: {
     flex: 1,
-    borderRadius: 10,
-    backgroundColor: '#D6DBE2',
+    borderRadius: 5,
+    backgroundColor: '#111111',
     minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
   addVariantBtnDisabled: {
-    opacity: 0.8,
+    backgroundColor: '#D6DBE2',
+    opacity: 1,
   },
   addVariantBtnText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
   },
+  addVariantBtnTextDisabled: {
+    color: '#9CA3AF',
+  },
   clearBtn: {
     flex: 1,
-    borderRadius: 10,
+    borderRadius: 5,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     minHeight: 44,
@@ -588,7 +1508,7 @@ const styles = StyleSheet.create({
     minHeight: 46,
     borderWidth: 1,
     borderColor: '#BFC4CD',
-    borderRadius: 8,
+    borderRadius: 5,
     textAlign: 'center',
     fontSize: 18,
     color: '#111111',
@@ -602,7 +1522,7 @@ const styles = StyleSheet.create({
   checkbox: {
     width: 24,
     height: 24,
-    borderRadius: 7,
+    borderRadius: 5,
     borderWidth: 1.5,
     borderColor: '#B5BAC3',
     alignItems: 'center',
@@ -622,7 +1542,7 @@ const styles = StyleSheet.create({
     minHeight: 46,
     borderWidth: 1,
     borderColor: '#BFC4CD',
-    borderRadius: 8,
+    borderRadius: 5,
     overflow: 'hidden',
     flexDirection: 'row',
     alignItems: 'center',
@@ -665,8 +1585,13 @@ const styles = StyleSheet.create({
     marginTop: 14,
     backgroundColor: '#111111',
     paddingVertical: 16,
-    borderRadius: 10,
+    borderRadius: 5,
     alignItems: 'center',
+    minHeight: 52,
+    justifyContent: 'center',
+  },
+  primaryBtnDisabled: {
+    opacity: 0.75,
   },
   primaryBtnText: {
     color: '#FFFFFF',
@@ -683,31 +1608,31 @@ const styles = StyleSheet.create({
   validationModalCard: {
     width: '100%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 18,
+    borderRadius: 5,
     padding: 20,
   },
   validationTitle: {
-    fontSize: 34,
+    fontSize: 20,
     fontWeight: '800',
     color: '#111111',
     marginBottom: 10,
   },
   validationText: {
-    fontSize: 24,
-    lineHeight: 33,
+    fontSize: 16,
+    lineHeight: 24,
     color: '#3F3F46',
   },
   validationOkBtn: {
     marginTop: 18,
     minHeight: 50,
     backgroundColor: '#111111',
-    borderRadius: 10,
+    borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
   },
   validationOkText: {
     color: '#FFFFFF',
-    fontSize: 25,
+    fontSize: 16,
     fontWeight: '700',
   },
   sheetRoot: {

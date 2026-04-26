@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fafafa',
   },
   dropdownContainer: {
-    borderRadius: 10,
+    borderRadius: 5,
   },
   placeholderStyle: {
     fontSize: 16,
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   inputSearchStyle: {
     height: 44,
     fontSize: 16,
-    borderRadius: 8,
+    borderRadius: 5,
     // borderColor: '#e0e0e0',
     // borderWidth: 1,
     paddingHorizontal: 10,

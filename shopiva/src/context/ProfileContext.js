@@ -6,7 +6,13 @@ import React, {
   useMemo,
   useState,
 } from 'react';
-import { fetchCurrentUser, updateUserPhone, updateUserProfileFields } from '../api/user';
+import {
+  fetchCurrentUser,
+  updateUserEmail,
+  updateUserPassword,
+  updateUserPhone,
+  updateUserProfileFields,
+} from '../api/user';
 import { getStoredAccessToken, getStoredUser, saveSession } from '../auth/session';
 import { normalizeUser } from '../profile/normalizeUser';
 
@@ -19,8 +25,10 @@ const ProfileContext = createContext(
    *   error: string | null;
    *   refresh: () => Promise<void>;
    *   mergeRemoteUser: (raw: object) => Promise<void>;
-   *   savePhone: (phone: string) => Promise<{ ok: boolean; message?: string }>;
-   *   saveProfileFields: (fields: { gender?: string; location?: { city?: string; state?: string; country?: string } }) => Promise<{ ok: boolean; message?: string }>;
+ *   savePhone: (phone: string) => Promise<{ ok: boolean; message?: string }>;
+ *   saveEmail: (email: string) => Promise<{ ok: boolean; message?: string }>;
+ *   savePassword: (newPassword: string) => Promise<{ ok: boolean; message?: string }>;
+ *   saveProfileFields: (fields: { gender?: string; location?: { city?: string; state?: string; country?: string } }) => Promise<{ ok: boolean; message?: string }>;
    * }} */ (null),
 );
 
@@ -86,6 +94,34 @@ export function ProfileProvider({ children }) {
     [user?.id, mergeRemoteUser, refresh],
   );
 
+  const saveEmail = useCallback(
+    async (email) => {
+      const uid = user?.id;
+      if (!uid) return { ok: false, message: 'Not signed in.' };
+      const out = await updateUserEmail(uid, email);
+      if (out.ok && out.user) {
+        await mergeRemoteUser(out.user);
+      } else if (out.ok) {
+        await refresh();
+      }
+      return out.ok ? { ok: true } : { ok: false, message: out.message };
+    },
+    [user?.id, mergeRemoteUser, refresh],
+  );
+
+  const savePassword = useCallback(
+    async (newPassword) => {
+      const uid = user?.id;
+      if (!uid) return { ok: false, message: 'Not signed in.' };
+      const out = await updateUserPassword(uid, newPassword);
+      if (out.ok) {
+        await refresh();
+      }
+      return out.ok ? { ok: true } : { ok: false, message: out.message };
+    },
+    [user?.id, refresh],
+  );
+
   const saveProfileFields = useCallback(
     async (fields) => {
       const uid = user?.id;
@@ -109,9 +145,11 @@ export function ProfileProvider({ children }) {
       refresh,
       mergeRemoteUser,
       savePhone,
+      saveEmail,
+      savePassword,
       saveProfileFields,
     }),
-    [user, loading, error, refresh, mergeRemoteUser, savePhone, saveProfileFields],
+    [user, loading, error, refresh, mergeRemoteUser, savePhone, saveEmail, savePassword, saveProfileFields],
   );
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;
