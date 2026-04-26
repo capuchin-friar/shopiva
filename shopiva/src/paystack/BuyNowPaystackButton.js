@@ -63,7 +63,7 @@ export default function BuyNowPaystackButton({
     popup.checkout({
       email,
       // amount: total,
-      amount: 100000,
+      amount: 1000,
       reference,
       metadata: {
         custom_fields: [

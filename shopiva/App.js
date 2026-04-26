@@ -11,7 +11,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { WIPE_STORAGE_ON_LAUNCH } from './src/auth/devAuth';
 import { clearAllShopivaStorage } from './src/auth/session';
-import { getPaystackPublicKey, isPaystackConfigured } from './src/config/paystack';
+import { getPaystackPublicKey, isPaystackConfigured, warnIfPaystackLiveInDev } from './src/config/paystack';
 import { getPaystackProvider } from './src/paystack/paystackNativeGate';
 import NavigationHandler from './src/navigations/index';
 
@@ -22,6 +22,7 @@ function App() {
     if (WIPE_STORAGE_ON_LAUNCH) {
       void clearAllShopivaStorage();
     }
+    warnIfPaystackLiveInDev();
   }, []);
 
   const paystackPublicKey = getPaystackPublicKey();

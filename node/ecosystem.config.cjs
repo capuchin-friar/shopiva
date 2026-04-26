@@ -5,7 +5,7 @@ module.exports = {
   apps: [
     {
       name: 'shopiva-backend',
-      script: 'dist/index.js',
+      script: 'dist/index.ts',
       interpreter: '/root/.bun/bin/bun',
       autorestart: true,
       watch: true,
