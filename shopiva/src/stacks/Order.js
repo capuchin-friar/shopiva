@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#00926e',
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 5,
+    borderRadius: 10,
     gap: 6,
     ...Platform.select({
       ios: {
@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
   backButton: {
     height: 44,
     width: 44,
-    borderRadius: 5,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },

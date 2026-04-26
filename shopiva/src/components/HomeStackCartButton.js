@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
     zIndex: 3,
     width: 48,
     height: 48,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: 'rgba(255,255,255,0.92)',
     justifyContent: 'center',
     alignItems: 'center',
@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
   loginBtn: {
     minHeight: 32,
     paddingHorizontal: 12,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: '#00926e',
   },
   loginText: {

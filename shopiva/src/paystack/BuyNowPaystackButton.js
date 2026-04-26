@@ -11,7 +11,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#111111',
     paddingVertical: 16,
-    borderRadius: 5,
+    borderRadius: 10,
     marginBottom: 28,
   },
   buyNowText: {

@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
     minHeight: 52,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 5,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#D0D0D0',
     backgroundColor: '#FAFAFA',
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 8 },
   card: {
     backgroundColor: '#ECECEF',
-    borderRadius: 5,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#D8D8DC',
     padding: 12,
@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
   tile: {
     width: TILE_W,
     backgroundColor: '#FFFFFF',
-    borderRadius: 5,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#DDE0E6',
     paddingVertical: 10,

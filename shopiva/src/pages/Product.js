@@ -963,7 +963,7 @@ const styles = StyleSheet.create({
   vendorAvatar: {
     width: 48,
     height: 48,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: '#EFEFEF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -996,7 +996,7 @@ const styles = StyleSheet.create({
     marginHorizontal: PAD,
     marginBottom: 14,
     padding: 14,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: '#FFF8E6',
     borderWidth: 1,
     borderColor: '#E8D4A8',
@@ -1018,7 +1018,7 @@ const styles = StyleSheet.create({
     backgroundColor: PURPLE,
     paddingVertical: 10,
     paddingHorizontal: 16,
-    borderRadius: 5,
+    borderRadius: 10,
   },
   detailFailRetryText: {
     color: '#FFFFFF',
@@ -1038,7 +1038,7 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   headerLoginHit: {
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: '#00926e',
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -1055,7 +1055,7 @@ const styles = StyleSheet.create({
   heroWrap: {
     width: WINDOW_W - PAD * 2,
     alignSelf: 'center',
-    borderRadius: 5,
+    borderRadius: 10,
     overflow: 'hidden',
     aspectRatio: 1,
     backgroundColor: '#F5F5F5',
@@ -1076,7 +1076,7 @@ const styles = StyleSheet.create({
     marginTop: -20,
     width: 40,
     height: 40,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: 'rgba(255,255,255,0.9)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1110,7 +1110,7 @@ const styles = StyleSheet.create({
   iconCircle: {
     width: 44,
     height: 44,
-    borderRadius: 5,
+    borderRadius: 10,
     borderWidth: 1.5,
     borderColor: '#D8D8D8',
     alignItems: 'center',
@@ -1139,7 +1139,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: '#EFEFEF',
   },
   socialPillText: {
@@ -1206,7 +1206,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: '#E0E0E0',
-    borderRadius: 5,
+    borderRadius: 10,
     paddingVertical: 6,
     paddingHorizontal: 8,
     marginBottom: 16,
@@ -1228,7 +1228,7 @@ const styles = StyleSheet.create({
   addCart: {
     backgroundColor: PURPLE,
     paddingVertical: 16,
-    borderRadius: 5,
+    borderRadius: 10,
     alignItems: 'center',
     marginBottom: 12,
   },
@@ -1259,7 +1259,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(33,33,33,0.94)',
     paddingVertical: 12,
     paddingHorizontal: 18,
-    borderRadius: 5,
+    borderRadius: 10,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -1282,7 +1282,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#111111',
     paddingVertical: 16,
-    borderRadius: 5,
+    borderRadius: 10,
     marginBottom: 28,
   },
   buyNowText: {
@@ -1311,7 +1311,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: '#F2F2F2',
     marginBottom: 8,
   },
@@ -1365,19 +1365,19 @@ const styles = StyleSheet.create({
   histoTrack: {
     flex: 1,
     height: 8,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: '#EEEEEE',
     overflow: 'hidden',
   },
   histoFill: {
     height: '100%',
     backgroundColor: '#C4C4C4',
-    borderRadius: 5,
+    borderRadius: 10,
   },
   reviewCard: {
     borderWidth: 1,
     borderColor: '#EEEEEE',
-    borderRadius: 5,
+    borderRadius: 10,
     padding: 16,
     backgroundColor: '#FAFAFA',
     marginBottom: 12,
@@ -1402,7 +1402,7 @@ const styles = StyleSheet.create({
   viewAllPill: {
     backgroundColor: '#F2F2F2',
     paddingVertical: 14,
-    borderRadius: 5,
+    borderRadius: 10,
     alignItems: 'center',
     marginBottom: 24,
   },
@@ -1426,7 +1426,7 @@ const styles = StyleSheet.create({
   fallbackBtn: {
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: PURPLE,
   },
   fallbackBtnText: {

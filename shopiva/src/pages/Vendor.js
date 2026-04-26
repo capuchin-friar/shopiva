@@ -581,7 +581,7 @@ const styles = StyleSheet.create({
   circleBrown: {
     width: 42,
     height: 42,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: 'rgba(255,255,255,0.92)',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(0,0,0,0.1)',
@@ -594,7 +594,7 @@ const styles = StyleSheet.create({
   followPill: {
     paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: BROWN_SOFT,
   },
   followPillText: {
@@ -658,7 +658,7 @@ const styles = StyleSheet.create({
   filterFab: {
     width: 44,
     height: 44,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
@@ -672,7 +672,7 @@ const styles = StyleSheet.create({
     marginBottom: GRID_GAP + 8,
   },
   tileImageWrap: {
-    borderRadius: 5,
+    borderRadius: 10,
     overflow: 'hidden',
     aspectRatio: 1,
     backgroundColor: 'rgba(255,255,255,0.08)',
@@ -693,7 +693,7 @@ const styles = StyleSheet.create({
     right: 8,
     width: 34,
     height: 34,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: 'rgba(0,0,0,0.38)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -742,7 +742,7 @@ const styles = StyleSheet.create({
   fallbackBtn: {
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: 'rgba(255,255,255,0.15)',
   },
   fallbackBtnText: {
@@ -807,7 +807,7 @@ const styles = StyleSheet.create({
   filterChip: {
     paddingHorizontal: 14,
     paddingVertical: 9,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: '#F2F2F2',
     borderWidth: 1,
     borderColor: 'transparent',
@@ -833,7 +833,7 @@ const styles = StyleSheet.create({
   filterResetBtn: {
     flex: 1,
     paddingVertical: 12,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: '#F2F2F2',
     alignItems: 'center',
   },
@@ -845,7 +845,7 @@ const styles = StyleSheet.create({
   filterClearBtn: {
     flex: 1,
     paddingVertical: 12,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: '#FFF0F0',
     alignItems: 'center',
   },
@@ -857,7 +857,7 @@ const styles = StyleSheet.create({
   filterSheetBtn: {
     backgroundColor: '#00926e',
     paddingVertical: 14,
-    borderRadius: 5,
+    borderRadius: 10,
     alignItems: 'center',
   },
   filterSheetBtnText: {

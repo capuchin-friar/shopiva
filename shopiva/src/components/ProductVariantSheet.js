@@ -281,7 +281,7 @@ const styles = StyleSheet.create({
   confirmBtn: {
     backgroundColor: PURPLE,
     paddingVertical: 16,
-    borderRadius: 5,
+    borderRadius: 10,
     alignItems: 'center',
   },
   confirmBtnDisabled: {

@@ -404,7 +404,7 @@ const styles = StyleSheet.create({
   },
   menuCard: {
     backgroundColor: CARD_BG,
-    borderRadius: 5,
+    borderRadius: 10,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#ECECEC',
@@ -468,7 +468,7 @@ const styles = StyleSheet.create({
   sheetHandle: {
     width: 40,
     height: 4,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: '#D8D8D8',
     alignSelf: 'center',
     marginBottom: 12,
@@ -501,7 +501,7 @@ const styles = StyleSheet.create({
     height: 46,
     borderWidth: 1,
     borderColor: '#E4E4E7',
-    borderRadius: 5,
+    borderRadius: 10,
     paddingHorizontal: 12,
     color: '#111111',
     fontSize: 14,
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
   chip: {
     borderWidth: 1,
     borderColor: '#DEDEDE',
-    borderRadius: 5,
+    borderRadius: 10,
     paddingVertical: 8,
     paddingHorizontal: 12,
     backgroundColor: '#FFFFFF',
@@ -546,7 +546,7 @@ const styles = StyleSheet.create({
     minHeight: 32,
     borderWidth: 1,
     borderColor: BRAND,
-    borderRadius: 5,
+    borderRadius: 10,
     paddingHorizontal: 12,
     alignItems: 'center',
     justifyContent: 'center',
@@ -565,7 +565,7 @@ const styles = StyleSheet.create({
   },
   primaryBtn: {
     height: 48,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: BRAND,
     alignItems: 'center',
     justifyContent: 'center',

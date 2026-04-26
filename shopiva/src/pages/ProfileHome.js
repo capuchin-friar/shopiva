@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(33,33,33,0.94)',
     paddingVertical: 12,
     paddingHorizontal: 18,
-    borderRadius: 5,
+    borderRadius: 10,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
     backgroundColor: PRO_YELLOW,
     paddingHorizontal: 14,
     paddingVertical: 4,
-    borderRadius: 5,
+    borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: 'rgba(0,0,0,0.12)',
     ...Platform.select({
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
   quickBtn: {
     flex: 1,
     backgroundColor: SOFT_YELLOW,
-    borderRadius: 5,
+    borderRadius: 10,
     paddingVertical: 12,
     paddingHorizontal: 6,
     alignItems: 'center',
@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
   },
   menuCard: {
     backgroundColor: CARD_BG,
-    borderRadius: 5,
+    borderRadius: 10,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#ECECEC',
@@ -483,7 +483,7 @@ const styles = StyleSheet.create({
   countBadge: {
     minWidth: 22,
     height: 22,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: PRO_YELLOW,
     alignItems: 'center',
     justifyContent: 'center',
@@ -497,7 +497,7 @@ const styles = StyleSheet.create({
   aiGlyph: {
     width: 26,
     height: 26,
-    borderRadius: 5,
+    borderRadius: 10,
     borderWidth: 2,
     borderColor: BLACK,
     alignItems: 'center',

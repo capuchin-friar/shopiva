@@ -303,7 +303,7 @@ export default function CartCheckoutScreen({ navigation }) {
 
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={[styles.scrollInner, { paddingBottom: insets.bottom + 220 }]}
+          contentContainerStyle={[styles.scrollInner, { paddingBottom: 150 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -566,7 +566,7 @@ const styles = StyleSheet.create({
   },
   emptyCard: {
     backgroundColor: CARD_BG,
-    borderRadius: 5,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: BORDER,
     padding: 20,
@@ -578,12 +578,12 @@ const styles = StyleSheet.create({
     backgroundColor: PRIMARY,
     paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 5,
+    borderRadius: 10,
   },
   primaryBtnText: { color: '#FFF', fontWeight: '700', fontSize: 15 },
   card: {
     backgroundColor: CARD_BG,
-    borderRadius: 5,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: BORDER,
     padding: 16,
@@ -608,7 +608,7 @@ const styles = StyleSheet.create({
   orderThumb: {
     width: 56,
     height: 56,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: '#F5F5F5',
   },
   orderThumbPh: {
@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
   orderLineTotal: { fontSize: 15, fontWeight: '700', color: '#111' },
   formBanner: {
     backgroundColor: ERROR_BG,
-    borderRadius: 5,
+    borderRadius: 10,
     padding: 10,
     marginBottom: 12,
   },
@@ -641,7 +641,7 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: '#F5F5F5',
-    borderRadius: 5,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: BORDER,
     paddingHorizontal: 14,
@@ -661,7 +661,7 @@ const styles = StyleSheet.create({
   },
   countryBox: {
     backgroundColor: '#F5F5F5',
-    borderRadius: 5,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: BORDER,
     paddingHorizontal: 14,
@@ -679,7 +679,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderRadius: 5,
+    borderRadius: 10,
     borderWidth: 1,
     padding: 14,
     marginBottom: 10,
@@ -698,7 +698,7 @@ const styles = StyleSheet.create({
   deliveryPrice: { fontSize: 16, fontWeight: '700', color: '#111' },
   payRow: {
     backgroundColor: CARD_BG,
-    borderRadius: 5,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: BORDER,
     paddingVertical: 16,
@@ -738,7 +738,7 @@ const styles = StyleSheet.create({
   totalAmount: { fontSize: 18, fontWeight: '800', color: '#111' },
   continueBtn: {
     backgroundColor: PRIMARY,
-    borderRadius: 5,
+    borderRadius: 10,
     paddingVertical: 16,
     alignItems: 'center',
   },
@@ -813,7 +813,7 @@ const styles = StyleSheet.create({
   },
   orderModalCard: {
     backgroundColor: '#FAFAFA',
-    borderRadius: 5,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: BORDER,
     paddingHorizontal: 12,
@@ -856,7 +856,7 @@ const styles = StyleSheet.create({
   },
   orderModalContinueBtn: {
     backgroundColor: PRIMARY,
-    borderRadius: 5,
+    borderRadius: 10,
     paddingVertical: 16,
     alignItems: 'center',
     marginBottom: 6,

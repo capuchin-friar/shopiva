@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   backPill: {
     width: 40,
     height: 40,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: '#F8F8FA',
     borderWidth: 1,
     borderColor: '#E5E5EA',

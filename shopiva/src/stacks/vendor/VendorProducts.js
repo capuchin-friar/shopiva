@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
   logoMark: {
     width: 40,
     height: 40,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: BRAND,
     alignItems: 'center',
     justifyContent: 'center',
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: 36,
     height: 36,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',

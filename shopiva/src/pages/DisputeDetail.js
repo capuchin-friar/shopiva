@@ -677,7 +677,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: 36,
     height: 4,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: '#D8D8D8',
     marginBottom: 12,
   },
@@ -696,7 +696,7 @@ const styles = StyleSheet.create({
     gap: 14,
     paddingVertical: 14,
     paddingHorizontal: 14,
-    borderRadius: 5,
+    borderRadius: 10,
   },
   actionRowPressed: {
     backgroundColor: '#F5F5F5',
@@ -752,7 +752,7 @@ const styles = StyleSheet.create({
   statusPill: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 5,
+    borderRadius: 10,
   },
   statusPillText: {
     fontSize: 12,
@@ -767,7 +767,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: WHITE,
-    borderRadius: 5,
+    borderRadius: 10,
     padding: 16,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#E8E8E8',
@@ -899,7 +899,7 @@ const styles = StyleSheet.create({
   thumbOuter: {
     width: 96,
     height: 96,
-    borderRadius: 5,
+    borderRadius: 10,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#111',
@@ -916,7 +916,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.72)',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 5,
+    borderRadius: 10,
   },
   thumbBadgeText: {
     color: WHITE,
@@ -991,7 +991,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     backgroundColor: WHITE,
-    borderRadius: 5,
+    borderRadius: 10,
     paddingVertical: 8,
     paddingHorizontal: 8,
     borderWidth: StyleSheet.hairlineWidth,
@@ -1014,7 +1014,7 @@ const styles = StyleSheet.create({
     backgroundColor: TEAL,
     paddingVertical: 10,
     paddingHorizontal: 14,
-    borderRadius: 5,
+    borderRadius: 10,
     flexGrow: 1,
     flexShrink: 1,
   },
@@ -1030,7 +1030,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F0F0',
     paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 5,
+    borderRadius: 10,
     flexShrink: 0,
   },
   fabSecondaryText: {
@@ -1045,7 +1045,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F0F0',
     paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 5,
+    borderRadius: 10,
     flexShrink: 0,
   },
   fabPressed: {
@@ -1066,7 +1066,7 @@ const styles = StyleSheet.create({
   tlDotOuter: {
     width: 16,
     height: 16,
-    borderRadius: 5,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 2,
@@ -1082,7 +1082,7 @@ const styles = StyleSheet.create({
   tlDotInner: {
     width: 5,
     height: 5,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: WHITE,
   },
   tlConnector: {

@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(228, 228, 228, 0.92)',
     paddingHorizontal: 14,
     paddingVertical: 5,
-    borderRadius: 5,
+    borderRadius: 10,
   },
   todayText: {
     fontSize: 12,
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
   },
   bubble: {
     maxWidth: '80%',
-    borderRadius: 5,
+    borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 6,
     ...Platform.select({
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     backgroundColor: '#FFFFFF',
-    borderRadius: 5,
+    borderRadius: 10,
     paddingLeft: 12,
     paddingRight: 4,
     paddingVertical: 4,
@@ -384,7 +384,7 @@ const styles = StyleSheet.create({
   sendBtn: {
     width: 48,
     height: 48,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: SEND_GREEN,
     alignItems: 'center',
     justifyContent: 'center',

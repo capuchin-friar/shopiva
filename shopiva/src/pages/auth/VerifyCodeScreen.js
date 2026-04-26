@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
   primaryBtn: {
     backgroundColor: AUTH.primary,
     paddingVertical: 16,
-    borderRadius: 5,
+    borderRadius: 10,
     alignItems: 'center',
     minHeight: 54,
     justifyContent: 'center',

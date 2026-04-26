@@ -300,7 +300,7 @@ function Field({ label, children }) {
 const styles = StyleSheet.create({
   mapCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 5,
+    borderRadius: 10,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#E0E0E0',
     padding: 12,
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
   },
   mapWrap: {
     alignSelf: 'center',
-    borderRadius: 5,
+    borderRadius: 10,
     overflow: 'hidden',
     backgroundColor: '#ECECEC',
   },
@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 12,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: '#F3F3F5',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#E0E0E0',

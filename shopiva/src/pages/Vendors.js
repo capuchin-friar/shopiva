@@ -205,7 +205,7 @@ function VendorCard({ item, index, onOpenShop, onPressMenu, preview }) {
   const carouselItems = Array.isArray(pv.items) ? pv.items : [];
 
   return (
-    <View style={[styles.card, { backgroundColor: t.cardBg, borderRadius: 5 }]}>
+    <View style={[styles.card, { backgroundColor: t.cardBg, borderRadius: 10 }]}>
       <View style={styles.cardInner}>
         <View style={styles.headerRow}>
           <View style={[styles.avatar, { backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : '#E8E8E8' }]}>
@@ -750,7 +750,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: 48,
     height: 48,
-    borderRadius: 5,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -810,7 +810,7 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   productCell: {
-    borderRadius: 5,
+    borderRadius: 10,
     overflow: 'hidden',
     marginRight: PRODUCT_GAP,
     aspectRatio: 1,
@@ -830,7 +830,7 @@ const styles = StyleSheet.create({
     left: 8,
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 5,
+    borderRadius: 10,
   },
   priceBadgeText: {
     color: '#FFFFFF',
@@ -844,7 +844,7 @@ const styles = StyleSheet.create({
     right: 8,
     width: 36,
     height: 36,
-    borderRadius: 5,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -864,7 +864,7 @@ const styles = StyleSheet.create({
   arrowCta: {
     width: 48,
     height: 48,
-    borderRadius: 5,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -900,7 +900,7 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: 40,
     height: 4,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: '#D8D8D8',
     marginBottom: 12,
   },
@@ -921,7 +921,7 @@ const styles = StyleSheet.create({
   locationSearchOuter: {
     borderWidth: 1,
     borderColor: '#1A73E8',
-    borderRadius: 5,
+    borderRadius: 10,
     flexDirection: 'row',
     alignItems: 'center',
     paddingLeft: 12,
@@ -946,7 +946,7 @@ const styles = StyleSheet.create({
   locationRow: {
     paddingVertical: 7,
     paddingHorizontal: 0,
-    borderRadius: 5,
+    borderRadius: 10,
   },
   locationRowSelected: {
     backgroundColor: '#E8F0FE',

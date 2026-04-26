@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
     paddingTop: 16,
   },
   card: {
@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'stretch',
     backgroundColor: '#FFF',
-    borderRadius: 5,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: BORDER,
     padding: 12,
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
   cardImage: {
     width: 88,
     height: 88,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: '#EEE',
   },
   cardImagePh: {
@@ -367,7 +367,7 @@ const styles = StyleSheet.create({
   colorDot: {
     width: 14,
     height: 14,
-    borderRadius: 5,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#DDD',
   },
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
   qtyBtn: {
     width: 32,
     height: 32,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: '#EFEFEF',
     justifyContent: 'center',
     alignItems: 'center',
@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
     backgroundColor: TEAL,
     paddingVertical: 14,
     paddingHorizontal: 20,
-    borderRadius: 5,
+    borderRadius: 10,
   },
   checkoutBtnText: {
     color: '#FFF',

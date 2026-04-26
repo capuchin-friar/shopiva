@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
   logoMark: {
     width: 40,
     height: 40,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: BRAND,
     alignItems: 'center',
     justifyContent: 'center',
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
   avatar: {
     width: 36,
     height: 36,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
   exportBtn: {
     width: 44,
     height: 44,
-    borderRadius: 5,
+    borderRadius: 10,
     backgroundColor: CARD,
     alignItems: 'center',
     justifyContent: 'center',
@@ -449,7 +449,7 @@ const styles = StyleSheet.create({
     width: '48%',
     marginBottom: 12,
     backgroundColor: CARD,
-    borderRadius: 5,
+    borderRadius: 10,
     padding: 16,
     paddingTop: 36,
     borderWidth: 1,
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
   },
   activityCard: {
     backgroundColor: CARD,
-    borderRadius: 5,
+    borderRadius: 10,
     padding: 16,
     borderWidth: 1,
     borderColor: '#F0F0F0',
@@ -532,7 +532,7 @@ const styles = StyleSheet.create({
   activityIconWrap: {
     width: 40,
     height: 40,
-    borderRadius: 5,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,

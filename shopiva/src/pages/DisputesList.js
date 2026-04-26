@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
   chip: {
     paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 5,
+    borderRadius: 10,
   },
   chipIdle: {
     backgroundColor: '#E8E8EA',
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: WHITE,
-    borderRadius: 5,
+    borderRadius: 10,
     padding: 16,
     ...Platform.select({
       ios: {
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
   iconCircle: {
     width: 44,
     height: 44,
-    borderRadius: 5,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
   statusPill: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 5,
+    borderRadius: 10,
     alignSelf: 'flex-start',
   },
   statusPillText: {

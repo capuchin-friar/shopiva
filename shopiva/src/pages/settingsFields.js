@@ -28,7 +28,7 @@ export const settingsFormStyles = StyleSheet.create({
   },
   card: {
     backgroundColor: CARD,
-    borderRadius: 5,
+    borderRadius: 10,
     overflow: 'hidden',
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: BORDER,
@@ -75,7 +75,7 @@ export const settingsFormStyles = StyleSheet.create({
   },
   saveBtn: {
     backgroundColor: BLACK,
-    borderRadius: 5,
+    borderRadius: 10,
     paddingVertical: 15,
     alignItems: 'center',
     justifyContent: 'center',

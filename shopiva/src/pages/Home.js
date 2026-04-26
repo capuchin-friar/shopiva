@@ -121,12 +121,12 @@ const styles = StyleSheet.create({
     minHeight: 52,
     borderColor: '#e0e0e0',
     borderWidth: 1,
-    borderRadius: 5,
+    borderRadius: 10,
     paddingHorizontal: 12,
     backgroundColor: '#fafafa',
   },
   dropdownContainer: {
-    borderRadius: 5,
+    borderRadius: 10,
   },
   placeholderStyle: {
     fontSize: 16,
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
   inputSearchStyle: {
     height: 44,
     fontSize: 16,
-    borderRadius: 5,
+    borderRadius: 10,
     // borderColor: '#e0e0e0',
     // borderWidth: 1,
     paddingHorizontal: 10,
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#00926e',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 5,
+    borderRadius: 10,
   },
   btnText: {
     color: '#fff',
