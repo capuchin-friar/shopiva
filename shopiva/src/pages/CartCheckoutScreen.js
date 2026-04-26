@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -81,15 +82,41 @@ function normalizeCheckoutLine(row, index = 0) {
   };
 }
 
-/**
- * @param {import('@react-navigation/native').NavigationProp<Record<string, object | undefined>>} navigation
- */
-function goToProfileTab(navigation) {
-  const home = navigation.getParent();
-  const tab = home?.getParent?.();
-  if (tab && typeof tab.navigate === 'function') {
-    tab.navigate('Profile');
-  }
+/** @param {{ lines: Array<{ key: string; title: string; image: string; unitPrice: number; qty: number; variantLabel: string }>; styles: object }} p */
+function OrderLinesList({ lines, styles: S }) {
+  return (
+    <>
+      {lines.map((line, idx) => {
+        const lineTotal = line.unitPrice * line.qty;
+        const last = idx === lines.length - 1;
+        return (
+          <View key={line.key} style={[S.orderLine, last ? S.orderLineLast : null]}>
+            {line.image ? (
+              <Image source={{ uri: line.image }} style={S.orderThumb} resizeMode="cover" />
+            ) : (
+              <View style={[S.orderThumb, S.orderThumbPh]}>
+                <Icon name="image-outline" size={22} color="#BDBDBD" />
+              </View>
+            )}
+            <View style={S.orderLineBody}>
+              <Text style={S.orderTitle} numberOfLines={2}>
+                {line.title}
+              </Text>
+              {line.variantLabel ? (
+                <Text style={S.orderVariant} numberOfLines={1}>
+                  {line.variantLabel}
+                </Text>
+              ) : null}
+              <Text style={S.orderMeta}>
+                {formatNaira(line.unitPrice)} × {line.qty}
+              </Text>
+            </View>
+            <Text style={S.orderLineTotal}>{formatNaira(lineTotal)}</Text>
+          </View>
+        );
+      })}
+    </>
+  );
 }
 
 /**
@@ -116,6 +143,7 @@ export default function CartCheckoutScreen({ navigation }) {
 
   const [touchedSubmit, setTouchedSubmit] = useState(false);
   const [formBanner, setFormBanner] = useState('');
+  const [orderSummaryOpen, setOrderSummaryOpen] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -228,6 +256,37 @@ export default function CartCheckoutScreen({ navigation }) {
     );
   }, [hasBlockingErrors, subtotal, total]);
 
+  useLayoutEffect(() => {
+    const canShowOrder = !cartLoading && subtotal > 0 && checkoutLines.length > 0;
+    navigation.setOptions({
+      headerRight: () => (
+        <Pressable
+          onPress={() => setOrderSummaryOpen(true)}
+          disabled={!canShowOrder}
+          style={({ pressed }) => [
+            styles.headerOrderBtn,
+            !canShowOrder && styles.headerOrderBtnDisabled,
+            pressed && canShowOrder && styles.headerOrderBtnPressed,
+          ]}
+          hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="View order you are paying for"
+        >
+          <Icon name="receipt-outline" size={22} color={canShowOrder ? PRIMARY : '#BDBDBD'} />
+          <Text style={[styles.headerOrderBtnLabel, !canShowOrder && styles.headerOrderBtnLabelDisabled]}>Order</Text>
+        </Pressable>
+      ),
+    });
+    return () => {
+      navigation.setOptions({ headerRight: undefined });
+    };
+  }, [navigation, cartLoading, subtotal, checkoutLines.length]);
+
+  const continueToPayment = useCallback(() => {
+    setOrderSummaryOpen(false);
+    onContinue();
+  }, [onContinue]);
+
   const inputStyle = (key) => [
     styles.input,
     showErrors && errors[key] ? styles.inputError : null,
@@ -244,7 +303,7 @@ export default function CartCheckoutScreen({ navigation }) {
 
         <ScrollView
           style={styles.scroll}
-          contentContainerStyle={[styles.scrollInner, { paddingBottom: insets.bottom + 200 }]}
+          contentContainerStyle={[styles.scrollInner, { paddingBottom: insets.bottom + 220 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -254,45 +313,12 @@ export default function CartCheckoutScreen({ navigation }) {
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>Nothing to check out</Text>
               <Text style={styles.emptyBody}>Your cart is empty. Go back and add products first.</Text>
-              <Pressable style={styles.primaryBtn} onPress={() => navigation.navigate('cart-main')}>
+              <Pressable style={styles.primaryBtn} onPress={() => navigation.navigate('cart')}>
                 <Text style={styles.primaryBtnText}>Return to cart</Text>
               </Pressable>
             </View>
           ) : (
             <>
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>Order items</Text>
-                {checkoutLines.map((line, idx) => {
-                  const lineTotal = line.unitPrice * line.qty;
-                  const last = idx === checkoutLines.length - 1;
-                  return (
-                    <View key={line.key} style={[styles.orderLine, last ? styles.orderLineLast : null]}>
-                      {line.image ? (
-                        <Image source={{ uri: line.image }} style={styles.orderThumb} resizeMode="cover" />
-                      ) : (
-                        <View style={[styles.orderThumb, styles.orderThumbPh]}>
-                          <Icon name="image-outline" size={22} color="#BDBDBD" />
-                        </View>
-                      )}
-                      <View style={styles.orderLineBody}>
-                        <Text style={styles.orderTitle} numberOfLines={2}>
-                          {line.title}
-                        </Text>
-                        {line.variantLabel ? (
-                          <Text style={styles.orderVariant} numberOfLines={1}>
-                            {line.variantLabel}
-                          </Text>
-                        ) : null}
-                        <Text style={styles.orderMeta}>
-                          {formatNaira(line.unitPrice)} × {line.qty}
-                        </Text>
-                      </View>
-                      <Text style={styles.orderLineTotal}>{formatNaira(lineTotal)}</Text>
-                    </View>
-                  );
-                })}
-              </View>
-
               <View style={styles.card}>
                 <Text style={styles.cardTitle}>Contact information</Text>
                 {formBanner ? (
@@ -434,6 +460,62 @@ export default function CartCheckoutScreen({ navigation }) {
             </Pressable>
           </View>
         ) : null}
+
+        <Modal
+          visible={orderSummaryOpen}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setOrderSummaryOpen(false)}
+        >
+          <View style={styles.orderModalRoot}>
+            <Pressable style={styles.orderModalBackdrop} onPress={() => setOrderSummaryOpen(false)} accessibilityLabel="Close" />
+            <View style={[styles.orderModalSheet, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+              <View style={styles.orderModalGrabberWrap}>
+                <View style={styles.orderModalGrabber} />
+              </View>
+              <Text style={styles.orderModalTitle}>Your order</Text>
+              <Text style={styles.orderModalSubtitle}>Review what you are about to pay for</Text>
+              <ScrollView
+                style={styles.orderModalScroll}
+                contentContainerStyle={styles.orderModalScrollContent}
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={styles.orderModalCard}>
+                  <OrderLinesList lines={checkoutLines} styles={styles} />
+                </View>
+                <View style={styles.orderModalTotals}>
+                  <View style={styles.orderModalTotalRow}>
+                    <Text style={styles.orderModalTotalLabel}>Subtotal</Text>
+                    <Text style={styles.orderModalTotalValue}>{formatNaira(subtotal)}</Text>
+                  </View>
+                  <View style={styles.orderModalTotalRow}>
+                    <Text style={styles.orderModalTotalLabel}>Shipping</Text>
+                    <Text style={styles.orderModalTotalValue}>{shippingLabel}</Text>
+                  </View>
+                  <View style={[styles.orderModalTotalRow, styles.orderModalTotalRowGrand]}>
+                    <Text style={styles.orderModalGrandLabel}>Total</Text>
+                    <Text style={styles.orderModalGrandValue}>{formatNaira(total)}</Text>
+                  </View>
+                </View>
+              </ScrollView>
+              <Pressable
+                style={styles.orderModalContinueBtn}
+                onPress={continueToPayment}
+                accessibilityRole="button"
+                accessibilityLabel="Continue to payment"
+              >
+                <Text style={styles.orderModalContinueBtnText}>Continue to payment</Text>
+              </Pressable>
+              <Pressable
+                style={styles.orderModalCloseLink}
+                onPress={() => setOrderSummaryOpen(false)}
+                accessibilityRole="button"
+              >
+                <Text style={styles.orderModalCloseLinkText}>Close</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
       </View>
     </KeyboardAvoidingView>
   );
@@ -505,7 +587,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: BORDER,
     padding: 16,
-    marginBottom: 16,
+    marginBottom: 8,
   },
   cardTitle: {
     fontSize: 17,
@@ -665,5 +747,133 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '800',
     letterSpacing: 0.3,
+  },
+  headerOrderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  headerOrderBtnPressed: {
+    opacity: 0.75,
+  },
+  headerOrderBtnDisabled: {
+    opacity: 0.45,
+  },
+  headerOrderBtnLabel: {
+    marginLeft: 4,
+    fontSize: 15,
+    fontWeight: '700',
+    color: PRIMARY,
+  },
+  headerOrderBtnLabelDisabled: {
+    color: '#BDBDBD',
+  },
+  orderModalRoot: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  orderModalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  orderModalSheet: {
+    backgroundColor: CARD_BG,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    maxHeight: '88%',
+  },
+  orderModalGrabberWrap: { alignItems: 'center', marginBottom: 8 },
+  orderModalGrabber: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#E0E0E0',
+  },
+  orderModalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#111',
+    marginBottom: 4,
+  },
+  orderModalSubtitle: {
+    fontSize: 14,
+    color: MUTED,
+    marginBottom: 12,
+  },
+  orderModalScroll: {
+    maxHeight: 360,
+  },
+  orderModalScrollContent: {
+    paddingBottom: 8,
+  },
+  orderModalCard: {
+    backgroundColor: '#FAFAFA',
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  orderModalTotals: {
+    marginBottom: 8,
+  },
+  orderModalTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  orderModalTotalRowGrand: {
+    marginTop: 4,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: BORDER,
+  },
+  orderModalTotalLabel: {
+    fontSize: 15,
+    color: '#444',
+  },
+  orderModalTotalValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111',
+  },
+  orderModalGrandLabel: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#111',
+  },
+  orderModalGrandValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111',
+  },
+  orderModalContinueBtn: {
+    backgroundColor: PRIMARY,
+    borderRadius: 5,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  orderModalContinueBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  orderModalCloseLink: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  orderModalCloseLinkText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: MUTED,
   },
 });

@@ -47,10 +47,20 @@ export async function PostBuyerCartController(req: AuthRequest, res: Response): 
       res.status(401).json({ error: "Unauthorized" });
       return;
     }
-    const body = (req.body ?? {}) as { inventory_id?: unknown; quantity?: unknown };
+    const body = (req.body ?? {}) as { inventory_id?: unknown; quantity?: unknown; unit_price?: unknown };
     const inventoryId = Number(body.inventory_id);
     const quantity = body.quantity != null ? Number(body.quantity) : 1;
-    const result = await addOrIncrementCartLine(userId, inventoryId, quantity);
+    const unitPriceRaw = body.unit_price;
+    const clientUnitPrice =
+      unitPriceRaw === undefined || unitPriceRaw === null || unitPriceRaw === ""
+        ? null
+        : Number(unitPriceRaw);
+    const result = await addOrIncrementCartLine(
+      userId,
+      inventoryId,
+      quantity,
+      clientUnitPrice != null && Number.isFinite(clientUnitPrice) ? clientUnitPrice : null
+    );
     res.status(200).json({ ok: true, ...result });
   } catch (err) {
     res.status(400).json({ error: err instanceof Error ? err.message : String(err) });

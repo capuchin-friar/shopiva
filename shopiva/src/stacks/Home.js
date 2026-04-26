@@ -5,7 +5,6 @@ import React from 'react';
 import {
   Image,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -15,9 +14,9 @@ import HomeScreen from "../pages/Home";
 import VendorsScreen from "../pages/Vendors";
 import VendorScreen from '../pages/Vendor';
 import ProductScreen from '../pages/Product';
-import { CartStackScreen } from './Cart';
+import CartScreen from '../pages/Cart';
+import CartCheckoutScreen from '../pages/CartCheckoutScreen';
 import { HomeStackCartIconButton } from '../components/HomeStackCartButton';
-import { useNavigation } from '@react-navigation/native';
 
 /** Bundled logo for native stack header (do not use `{ uri: '../assets/...' }` for local files). */
 const SHOPIVA_LOGO = require('../assets/Shopiva.png');
@@ -56,10 +55,6 @@ export function HomeStackScreen() {
   // const { user } = useSelector(s => s?.user ?? {});
   // const dispatch = useDispatch();
 
-  const navigation = useNavigation();
-  const showBack =
-  navigation.canGoBack() ||
-  Boolean(navigation.getParent()?.canGoBack?.());
   return (
     <HomeStack.Navigator>
       <HomeStack.Screen
@@ -165,37 +160,24 @@ export function HomeStackScreen() {
 
       <HomeStack.Screen
         name="cart"
-        component={CartStackScreen}
+        component={CartScreen}
         options={{
-          // headerShown: false,
           title: 'Cart',
-
-          
-
-          headerLeft: () => {
-            <View style={styles.headerSide}>
-              {showBack ? (
-                <Pressable
-                  onPress={onHeaderBack}
-                  style={styles.headerIconBtn}
-                  accessibilityRole="button"
-                  accessibilityLabel="Go back"
-                >
-                  <Icon name="arrow-back-outline" size={24} color="#000000" />
-                </Pressable>
-              ) : (
-                <View style={styles.headerIconBtn} />
-              )}
-            </View>
-          },
-
-          // headerRight: () => {
-          //   <View style={[styles.headerSide, styles.headerSideRight]}>
-          //     <Pressable style={styles.headerIconBtn} accessibilityRole="button" accessibilityLabel="Notifications">
-          //       <Icon name="notifications-outline" size={24} color="#000000" />
-          //     </Pressable>
-          //   </View>
-          // }
+          headerShown: true,
+          headerTitleStyle: { fontWeight: '700' },
+          headerShadowVisible: false,
+          headerStyle: { backgroundColor: '#FFFFFF' },
+        }}
+      />
+      <HomeStack.Screen
+        name="cart-checkout"
+        component={CartCheckoutScreen}
+        options={{
+          title: 'Checkout',
+          headerShown: true,
+          headerTitleStyle: { fontWeight: '700' },
+          headerShadowVisible: false,
+          headerStyle: { backgroundColor: '#FFFFFF' },
         }}
       />
     </HomeStack.Navigator>

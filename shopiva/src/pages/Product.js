@@ -416,7 +416,15 @@ export default function ProductScreen({ route, navigation }) {
     async (inventoryId) => {
       setCartToggleBusy(true);
       try {
-        await addBuyerCartLine(inventoryId, qty);
+        let cartOpts = /** @type {{ unitPrice?: number }} */ ({});
+        if (hasVariants && selectedVariant) {
+          const vp = getVariantRowPrice(/** @type {Record<string, unknown>} */ (selectedVariant));
+          if (Number.isFinite(vp)) cartOpts = { unitPrice: vp };
+        } else if (d && !hasVariants) {
+          const p = Number(d.price) || 0;
+          if (p > 0) cartOpts = { unitPrice: p };
+        }
+        await addBuyerCartLine(inventoryId, qty, cartOpts);
         showCartToast('Added to your cart.');
         await syncCartMembership();
         return true;
@@ -432,7 +440,7 @@ export default function ProductScreen({ route, navigation }) {
         setCartToggleBusy(false);
       }
     },
-    [qty, showCartToast, syncCartMembership],
+    [qty, showCartToast, syncCartMembership, hasVariants, selectedVariant, d],
   );
 
   const performRemoveFromCart = useCallback(async () => {
@@ -581,12 +589,9 @@ export default function ProductScreen({ route, navigation }) {
           : undefined,
     };
 
-    navigation.navigate('cart', {
-      screen: 'cart-checkout',
-      params: {
-        checkoutSource: 'product',
-        checkoutLines: [buyLine],
-      },
+    navigation.navigate('cart-checkout', {
+      checkoutSource: 'product',
+      checkoutLines: [buyLine],
     });
   }, [
     ensureReadyForCartOrCheckout,

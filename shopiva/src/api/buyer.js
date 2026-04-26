@@ -60,15 +60,21 @@ export async function fetchBuyerCart() {
 /**
  * @param {number} inventoryId
  * @param {number} [quantity]
+ * @param {{ unitPrice?: number }} [opts] — when set (e.g. selected variant), stored as line snapshot after server validation
  * @returns {Promise<Record<string, unknown>>}
  */
-export async function addBuyerCartLine(inventoryId, quantity = 1) {
+export async function addBuyerCartLine(inventoryId, quantity = 1, opts = {}) {
+  const unitPrice = opts && typeof opts === 'object' && 'unitPrice' in opts ? Number(/** @type {{ unitPrice?: unknown }} */ (opts).unitPrice) : NaN;
+  const payload = {
+    inventory_id: inventoryId,
+    quantity: quantity ?? 1,
+  };
+  if (Number.isFinite(unitPrice) && unitPrice >= 0) {
+    /** @type {Record<string, unknown>} */ (payload).unit_price = unitPrice;
+  }
   const res = await apiFetchAuth('/buyer/cart', {
     method: 'POST',
-    body: JSON.stringify({
-      inventory_id: inventoryId,
-      quantity: quantity ?? 1,
-    }),
+    body: JSON.stringify(payload),
   });
   return readJson(res);
 }
