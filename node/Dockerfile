@@ -1,20 +1,32 @@
-# Use official Node.js LTS image as base
-FROM node:20-alpine
+# Build TypeScript and production dependencies separately so devDependencies
+# (typescript, etc.) are available only in the builder stage.
+FROM node:20-alpine AS builder
 
-# Set working directory inside container
 WORKDIR /app
 
-# Copy package.json and package-lock.json first
 COPY package*.json ./
+RUN npm ci
 
-# Install dependencies
-RUN npm install --production
-
-# Copy the rest of the app
 COPY . .
+RUN npm run build
 
-# Expose the port your app runs on
+# ---
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+# Match EXPOSE; override at runtime if your platform sets PORT
+ENV PORT=8080
+
+COPY package*.json ./
+RUN npm ci --omit=dev
+
+COPY --from=builder /app/dist ./dist
+# migrate.ts and dist/database/migrate.js read SQL from this path
+COPY --from=builder /app/src/database/migrations ./src/database/migrations
+
 EXPOSE 8080
 
-# Command to run your app
-CMD ["node", "src/index.js"]
+CMD ["node", "dist/index.js"]
