@@ -230,7 +230,20 @@ export default function CartScreen({ navigation }) {
           </View>
           <Pressable
             style={styles.checkoutBtn}
-            onPress={() => navigation.navigate('cart-checkout')}
+            onPress={() =>
+              navigation.navigate('cart-checkout', {
+                checkoutSource: 'cart',
+                checkoutLines: lines.map((l) => ({
+                  key: l.id,
+                  cartItemId: l.cartItemId,
+                  title: l.title,
+                  image: l.image,
+                  unitPrice: l.unitPrice,
+                  qty: l.qty,
+                  variantLabel: l.size && l.size !== '—' ? l.size : '',
+                })),
+              })
+            }
             accessibilityRole="button"
             accessibilityLabel="Go to checkout"
           >

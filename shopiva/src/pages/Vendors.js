@@ -1,3 +1,4 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -14,9 +15,11 @@ import {
   View,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import ShopPolicyViewerModal from '../components/ShopPolicyViewerModal';
 import { ShopOverflowMenu } from '../components/ShopOverflowMenu';
-import { getVendorsOnMapByCategory, getStorefrontProducts } from '../api';
+import { getVendorsOnMapByCategory, getStorefrontProducts, getStorefrontShop } from '../api';
 import { formatNaira } from '../utils/formatNaira';
+import { extractCustomerPolicySections } from '../utils/shopPoliciesForCustomer';
 
 const WINDOW_W = Dimensions.get('window').width;
 const WINDOW_H = Dimensions.get('window').height;
@@ -412,6 +415,11 @@ export default function VendorScreen({ route, navigation }) {
   const [locationFilter, setLocationFilter] = useState(/** @type {string | null} */ (null));
   /** @type {Record<string, { loading: boolean; items: { key: string; uri: string; priceLabel: string }[] }>} */
   const [slugPreviews, setSlugPreviews] = useState({});
+  const [vendorPolicyModalVisible, setVendorPolicyModalVisible] = useState(false);
+  const [vendorPolicyLoading, setVendorPolicyLoading] = useState(false);
+  const [vendorPolicyTitle, setVendorPolicyTitle] = useState('');
+  const [vendorPolicyClauses, setVendorPolicyClauses] = useState(/** @type {{ title: string; content: string }[]} */ ([]));
+  const [vendorPolicyEmptyMessage, setVendorPolicyEmptyMessage] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -463,13 +471,15 @@ export default function VendorScreen({ route, navigation }) {
               if (cancelled) return;
               const list = Array.isArray(products) ? products : [];
               const items = list.slice(0, 8).map((p, idx) => {
-                const raw = p?.raw && typeof p.raw === 'object' ? p.raw : {};
                 const id = String(p?.id ?? idx);
-                const thumb = String(p?.thumbnail ?? '').trim();
-                const imgs = Array.isArray(raw.images) ? raw.images : [];
-                const uri = thumb || (typeof imgs[0] === 'string' ? imgs[0].trim() : '');
-                const price = Number(p?.price) || 0;
-                const priceLabel = formatNaira(price);
+                const uri = String(p?.thumbnail ?? '').trim();
+                const minPrice = Number(p?.minPrice) || 0;
+                const maxPrice = Number(p?.maxPrice) || minPrice;
+                const hasVariants = Boolean(p?.hasVariants);
+                const priceLabel =
+                  hasVariants && minPrice !== maxPrice
+                    ? `${formatNaira(minPrice)} – ${formatNaira(maxPrice)}`
+                    : formatNaira(minPrice);
                 return { key: id, uri, priceLabel };
               });
               setSlugPreviews((prev) => ({ ...prev, [slug]: { loading: false, items } }));
@@ -498,7 +508,53 @@ export default function VendorScreen({ route, navigation }) {
     }
   }, [route.params?.openVendorFilter, navigation]);
 
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setFilterVisible(false);
+        setMenuVendor(null);
+        setVendorPolicyModalVisible(false);
+        setVendorPolicyLoading(false);
+      };
+    }, []),
+  );
+
   const closeVendorMenu = useCallback(() => setMenuVendor(null), []);
+
+  const openVendorShopPolicy = useCallback(async () => {
+    const v = menuVendor;
+    if (!v || typeof v !== 'object') return;
+    const row = /** @type {Record<string, unknown>} */ (v);
+    const slug = String(row.slug ?? '').trim();
+    const shopLabel = String(row.name ?? 'Shop').trim() || 'Shop';
+    closeVendorMenu();
+    if (!slug) {
+      Alert.alert('Shopiva', 'This shop cannot load policies (missing link).');
+      return;
+    }
+    setVendorPolicyTitle(`${shopLabel} — Shop policies`);
+    setVendorPolicyClauses([]);
+    setVendorPolicyEmptyMessage('');
+    setVendorPolicyLoading(true);
+    setVendorPolicyModalVisible(true);
+    try {
+      const res = await getStorefrontShop(slug);
+      const sp = res.shopPolicies;
+      const sections = extractCustomerPolicySections(
+        sp && typeof sp === 'object' ? /** @type {Record<string, unknown>} */ (sp) : null,
+      );
+      const clauses = [...sections.delivery, ...sections.refund, ...sections.custom];
+      setVendorPolicyClauses(clauses);
+      setVendorPolicyEmptyMessage(
+        clauses.length ? '' : 'This shop has not published shop policies on Shopiva yet.',
+      );
+    } catch (e) {
+      setVendorPolicyClauses([]);
+      setVendorPolicyEmptyMessage(e instanceof Error ? e.message : 'Could not load shop policies.');
+    } finally {
+      setVendorPolicyLoading(false);
+    }
+  }, [menuVendor, closeVendorMenu]);
 
   const menuSlug = menuVendor ? String(menuVendor.slug ?? '').trim() : '';
   const menuHeaderImage =
@@ -555,6 +611,21 @@ export default function VendorScreen({ route, navigation }) {
         closeVendorMenu();
         Alert.alert('Report shop', 'Thanks for the report. Our team will review it.');
       }}
+      onViewShopPolicy={openVendorShopPolicy}
+    />
+  );
+
+  const vendorPolicySheet = (
+    <ShopPolicyViewerModal
+      visible={vendorPolicyModalVisible}
+      loading={vendorPolicyLoading}
+      onClose={() => {
+        setVendorPolicyModalVisible(false);
+        setVendorPolicyLoading(false);
+      }}
+      title={vendorPolicyTitle}
+      clauses={vendorPolicyClauses}
+      emptyMessage={vendorPolicyEmptyMessage}
     />
   );
 
@@ -594,6 +665,7 @@ export default function VendorScreen({ route, navigation }) {
         </View>
         {filterSheet}
         {vendorMenuSheet}
+        {vendorPolicySheet}
       </View>
     );
   }
@@ -606,6 +678,7 @@ export default function VendorScreen({ route, navigation }) {
         </View>
         {filterSheet}
         {vendorMenuSheet}
+        {vendorPolicySheet}
       </View>
     );
   }
@@ -630,6 +703,7 @@ export default function VendorScreen({ route, navigation }) {
       </View>
       {filterSheet}
       {vendorMenuSheet}
+      {vendorPolicySheet}
     </View>
   );
 }

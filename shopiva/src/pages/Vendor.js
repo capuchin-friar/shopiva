@@ -1,3 +1,4 @@
+import { useFocusEffect } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -70,31 +71,25 @@ function applyProductFilters(products, f) {
  * @param {number} index
  */
 function mapStorefrontProductToTile(p, index) {
-  const raw = p.raw && typeof p.raw === 'object' ? /** @type {Record<string, unknown>} */ (p.raw) : {};
-  const id = String(p.id ?? raw.id ?? index);
-  const title = String(p.title ?? raw.name ?? 'Product').trim() || 'Product';
-  const thumb = String(p.thumbnail ?? '').trim();
-  const imgs = Array.isArray(raw.images) ? raw.images : [];
-  const firstImg = typeof imgs[0] === 'string' ? imgs[0].trim() : '';
-  const uri = thumb || firstImg || '';
-  const price = Number(p.price) || 0;
-  const currency = String(p.currency ?? 'NGN').toUpperCase();
-  const subRaw = String(raw.subcategory ?? '').trim().toLowerCase();
-  const catRaw = String(raw.category ?? '').trim().toLowerCase();
-  const subCategory = subRaw || catRaw || 'general';
-  const tags = Array.isArray(raw.tags) ? raw.tags.map((t) => String(t).toLowerCase()) : [];
-  const type = tags[0] || subCategory;
-  let gender = 'Male';
-  const brand = String(raw.brand ?? '').toLowerCase();
-  if (brand.includes('female') || tags.some((t) => t.includes('female'))) gender = 'Female';
-  else if (brand.includes('male') || tags.some((t) => t.includes('male'))) gender = 'Male';
+  const id = String(p.id ?? index);
+  const title = String(p.name ?? p.title ?? 'Product').trim() || 'Product';
+  const uri = String(p.thumbnail ?? '').trim();
+  const hasVariants = Boolean(p.hasVariants);
+  const minPrice = Number(p.minPrice) || 0;
+  const maxPrice = Number(p.maxPrice) || minPrice;
+  const gender = String(p.gender ?? 'Male');
+  const subCategory = String(p.subCategory ?? p.subcategory ?? 'general').toLowerCase();
+  const type = String(p.type ?? subCategory).toLowerCase();
 
   return {
     key: id,
     title,
     uri,
-    priceUsd: price,
-    currency,
+    hasVariants,
+    minPrice,
+    maxPrice,
+    priceUsd: minPrice,
+    currency: 'NGN',
     gender,
     subCategory,
     type,
@@ -105,8 +100,10 @@ function mapStorefrontProductToTile(p, index) {
  * @param {{ priceUsd?: number; currency?: string }} p
  */
 function formatProductTilePrice(p) {
-  const n = Number(p.priceUsd) || 0;
-  return formatNaira(n);
+  if (p.hasVariants && Number(p.minPrice) !== Number(p.maxPrice)) {
+    return `${formatNaira(Number(p.minPrice) || 0)} – ${formatNaira(Number(p.maxPrice) || 0)}`;
+  }
+  return formatNaira(Number(p.minPrice ?? p.priceUsd) || 0);
 }
 
 /**
@@ -250,7 +247,7 @@ export default function VendorShopScreen({ route, navigation }) {
       setProductsError('');
       try {
         const [shopRes, prodRes] = await Promise.all([
-          getStorefrontShop(slug).catch(() => ({ shop: {} })),
+          getStorefrontShop(slug).catch(() => ({ shop: {}, shopPolicies: null })),
           getStorefrontProducts(slug),
         ]);
         if (cancelled) return;
@@ -271,6 +268,14 @@ export default function VendorShopScreen({ route, navigation }) {
       cancelled = true;
     };
   }, [slug]);
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        setFilterOpen(false);
+      };
+    }, []),
+  );
 
   const products = apiProducts;
   const displayedProducts = useMemo(() => applyProductFilters(products, filters), [products, filters]);
@@ -775,7 +780,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   filterScroll: {
-    maxHeight: WINDOW_H * 0.48,
+    maxHeight: WINDOW_H * 0.52,
     marginBottom: 12,
   },
   filterSection: {

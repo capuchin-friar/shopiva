@@ -345,6 +345,23 @@ function walletTotals(account) {
   return { available: a, pending: p, currency, total: a + p };
 }
 
+function policyClausesFromParsed(policyObj) {
+  const p =
+    policyObj && typeof policyObj === "object" && !Array.isArray(policyObj)
+      ? policyObj
+      : {};
+  let c = p.clauses;
+  if (typeof c === "string") {
+    try {
+      const parsed = JSON.parse(c);
+      c = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      c = [];
+    }
+  }
+  return Array.isArray(c) ? c : [];
+}
+
 function policyConfigured(policies, key) {
   if (!policies) return false;
   const parseObj = (v) => {
@@ -362,7 +379,7 @@ function policyConfigured(policies, key) {
   };
 
   if (key === "custom") {
-    const raw = policies.custompolicies;
+    const raw = shopProp(policies, "custompolicies", "customPolicies");
     const c = Array.isArray(raw)
       ? raw
       : typeof raw === "string"
@@ -378,12 +395,12 @@ function policyConfigured(policies, key) {
     return Array.isArray(c) && c.length > 0;
   }
   if (key === "refund") {
-    const policy = parseObj(policies.refundpolicy);
-    return Array.isArray(policy.clauses) && policy.clauses.length > 0;
+    const raw = shopProp(policies, "refundpolicy", "refundPolicy");
+    return policyClausesFromParsed(parseObj(raw)).length > 0;
   }
   if (key === "delivery") {
-    const policy = parseObj(policies.deliverypolicy);
-    return Array.isArray(policy.clauses) && policy.clauses.length > 0;
+    const raw = shopProp(policies, "deliverypolicy", "deliveryPolicy");
+    return policyClausesFromParsed(parseObj(raw)).length > 0;
   }
   return false;
 }

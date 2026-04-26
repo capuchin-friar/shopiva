@@ -105,12 +105,19 @@ async function countLowInventoryAlerts(shop) {
     if (pid == null) return 0;
     try {
       const detail = await getStorefrontProduct(pid);
-      const invRows = Array.isArray(detail.inventory) ? detail.inventory : [];
-      return invRows.reduce((acc, inv) => {
-        const invRow = /** @type {Record<string, unknown>} */ (inv);
-        const stock = inventoryStockOf(invRow);
-        const lowAt = inventoryLowThresholdOf(invRow);
-        return acc + (stock <= lowAt ? 1 : 0);
+      const prod = detail.product && typeof detail.product === 'object' ? /** @type {Record<string, unknown>} */ (detail.product) : {};
+      const hasVariants = Boolean(prod.hasVariants);
+      if (!hasVariants) {
+        const stock = Number(prod.stock);
+        const lowAt = 5;
+        return Number.isFinite(stock) && stock <= lowAt ? 1 : 0;
+      }
+      const vars = Array.isArray(prod.variants) ? prod.variants : [];
+      return vars.reduce((acc, v) => {
+        const row = v && typeof v === 'object' ? /** @type {Record<string, unknown>} */ (v) : {};
+        const stock = Number(row.stock);
+        const lowAt = 5;
+        return acc + (Number.isFinite(stock) && stock <= lowAt ? 1 : 0);
       }, 0);
     } catch {
       return 0;

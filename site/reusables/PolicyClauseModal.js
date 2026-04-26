@@ -131,10 +131,28 @@ function parseJson(v) {
   return null;
 }
 
+function policyJsonField(policies, ...keys) {
+  if (!policies || typeof policies !== "object") return null;
+  for (const k of keys) {
+    const v = policies[k];
+    if (v != null && v !== "") return v;
+  }
+  return null;
+}
+
 function clauseList(obj) {
   const o = parseJson(obj);
-  if (!o || !Array.isArray(o.clauses)) return [];
-  return o.clauses;
+  if (!o || typeof o !== "object") return [];
+  let c = o.clauses;
+  if (typeof c === "string") {
+    try {
+      const parsed = JSON.parse(c);
+      c = Array.isArray(parsed) ? parsed : [];
+    } catch {
+      c = [];
+    }
+  }
+  return Array.isArray(c) ? c : [];
 }
 
 function customList(raw) {
@@ -200,15 +218,21 @@ export default function PolicyClauseModal({
   }, [open, onClose]);
 
   const refundClauses = useMemo(
-    () => clauseList(policies?.refundpolicy),
+    () => clauseList(policyJsonField(policies, "refundpolicy", "refundPolicy")),
     [policies]
   );
   const deliveryClauses = useMemo(
-    () => clauseList(policies?.deliverypolicy),
+    () =>
+      clauseList(
+        policyJsonField(policies, "deliverypolicy", "deliveryPolicy")
+      ),
     [policies]
   );
   const customPolicies = useMemo(
-    () => customList(policies?.custompolicies),
+    () =>
+      customList(
+        policyJsonField(policies, "custompolicies", "customPolicies")
+      ),
     [policies]
   );
 

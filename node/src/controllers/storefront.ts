@@ -12,12 +12,12 @@ export async function GetStorefrontShopController(req: Request, res: Response): 
       res.status(400).json({ error: "Slug is required" });
       return;
     }
-    const shop = await GetStorefrontShopBySlugService(slug);
-    if (!shop) {
+    const result = await GetStorefrontShopBySlugService(slug);
+    if (!result?.shop) {
       res.status(404).json({ error: "Shop not found" });
       return;
     }
-    const row = shop as Record<string, unknown>;
+    const row = result.shop as Record<string, unknown>;
     res.status(200).json({
       shop: {
         id: row.id,
@@ -28,6 +28,7 @@ export async function GetStorefrontShopController(req: Request, res: Response): 
         banner: row.banner,
         category: row.category,
       },
+      shopPolicies: result.shopPolicies,
     });
   } catch (err) {
     res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
@@ -41,12 +42,12 @@ export async function GetStorefrontProductsController(req: Request, res: Respons
       res.status(400).json({ error: "Slug is required" });
       return;
     }
-    const shop = await GetStorefrontShopBySlugService(slug);
-    if (!shop) {
+    const shopResult = await GetStorefrontShopBySlugService(slug);
+    if (!shopResult?.shop) {
       res.status(404).json({ error: "Shop not found" });
       return;
     }
-    const shopId = (shop as { id: number }).id;
+    const shopId = (shopResult.shop as { id: number }).id;
     const products = await GetStorefrontProductsByShopIdService(shopId);
     res.status(200).json({ products });
   } catch (err) {

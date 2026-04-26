@@ -92,13 +92,18 @@ export async function GetShopService(shopId: number) {
 
     const row = result[0];
     const policyRows = await shop.getShopPoliciesByShopId(shopId);
-    const pr = policyRows?.[0];
+    const pr = policyRows?.[0] as Record<string, unknown> | undefined;
     const policies =
         pr != null
             ? {
-                  deliverypolicy: pr.deliverypolicy,
-                  refundpolicy: pr.refundpolicy,
-                  custompolicies: pr.custompolicies,
+                  deliverypolicy:
+                      pr.deliverypolicy ?? pr.deliveryPolicy ?? pr.DeliveryPolicy,
+                  refundpolicy:
+                      pr.refundpolicy ?? pr.refundPolicy ?? pr.RefundPolicy,
+                  custompolicies:
+                      pr.custompolicies ??
+                      pr.customPolicies ??
+                      pr.CustomPolicies,
               }
             : null;
 

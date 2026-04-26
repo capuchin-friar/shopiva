@@ -126,6 +126,7 @@ export async function persistPaystackWebhook(rawBody: Buffer, payload: PaystackW
        RETURNING id`,
       [bodyHash, reference, event]
     );
+    
 
     if (claim.rowCount === 0) {
       await client.query("COMMIT");

@@ -12,6 +12,20 @@ const BACKEND_URL = (process.env.NEXT_PUBLIC_BACKEND_URL || "").replace(
   ""
 );
 
+/** Align policy JSON keys to snake_case expected by vendor UI (`deliverypolicy`, etc.). */
+function normalizeShopPoliciesRow(
+  p: Record<string, unknown>
+): Record<string, unknown> {
+  return {
+    ...p,
+    deliverypolicy:
+      p.deliverypolicy ?? p.deliveryPolicy ?? p.DeliveryPolicy,
+    refundpolicy: p.refundpolicy ?? p.refundPolicy ?? p.RefundPolicy,
+    custompolicies:
+      p.custompolicies ?? p.customPolicies ?? p.CustomPolicies,
+  };
+}
+
 /**
  * Vendor shop dashboard payload expected by /entrepreneur/shop/[id].
  * Composes Node routes GET /shop/:shopId/:ownerId and GET /shop/metrics/:shopId/:ownerId
@@ -95,7 +109,7 @@ export async function GET(
       const r = rawShop as Record<string, unknown>;
       const p = r.policies;
       if (p != null && typeof p === "object") {
-        policies = p as Record<string, unknown>;
+        policies = normalizeShopPoliciesRow(p as Record<string, unknown>);
       }
       if ("policies" in r) {
         const { policies: _removed, ...rest } = r;

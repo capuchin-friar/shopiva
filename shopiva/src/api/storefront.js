@@ -19,7 +19,7 @@ async function readJson(res) {
 
 /**
  * @param {string} slug
- * @returns {Promise<{ shop: Record<string, unknown> }>}
+ * @returns {Promise<{ shop: Record<string, unknown>; shopPolicies?: Record<string, unknown> | null }>}
  */
 export async function getStorefrontShop(slug) {
   const s = String(slug ?? '').trim();
@@ -41,7 +41,7 @@ export async function getStorefrontProducts(slug) {
 
 /**
  * @param {number | string} productId
- * @returns {Promise<{ product: Record<string, unknown>; inventory: unknown[] }>}
+ * @returns {Promise<{ product: Record<string, unknown>; inventory: unknown[]; shopPolicies?: Record<string, unknown> | null; productReviews?: unknown[]; reviewMetrics?: Record<string, unknown> | null }>}
  */
 export async function getStorefrontProduct(productId) {
   const id = String(productId ?? '').trim();

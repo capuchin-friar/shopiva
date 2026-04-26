@@ -471,6 +471,17 @@ export class inventory {
     return rows;
   });
 
+  /** Batch-load inventory for many products (single query; avoids N+1 on storefront listings). */
+  static getByProductIds = withErrorHandling(async (productIds: number[]): Promise<InventoryRow[]> => {
+    const ids = [...new Set(productIds.filter((x) => Number.isFinite(x) && x > 0))];
+    if (!ids.length) return [];
+    const { rows } = await (await db()).query<InventoryRow>(
+      `SELECT * FROM inventory WHERE product_id = ANY($1::int[]) ORDER BY product_id, id`,
+      [ids]
+    );
+    return rows;
+  });
+
   static getById = withErrorHandling(async (id: number): Promise<InventoryRow | null> => {
     const { rows } = await (await db()).query<InventoryRow>(
       `SELECT * FROM inventory WHERE id = $1`,

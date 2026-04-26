@@ -351,7 +351,7 @@ export class shop{
           refundpolicy.clauses = [...clauses, clause];
         }
 
-        await (await db()).query(
+        const upd = await (await db()).query(
           `UPDATE shop_policies
            SET deliverypolicy = $1::jsonb,
                refundpolicy = $2::jsonb,
@@ -365,6 +365,11 @@ export class shop{
             params.shopId,
           ]
         );
+        if ((upd.rowCount ?? 0) === 0) {
+          throw new Error(
+            "No shop_policies row for this shop; policy was not saved."
+          );
+        }
         return { updated: true };
       }
     );
@@ -381,6 +386,35 @@ export class shop{
 
         return rows;
     })
+
+    /** Public product page: visible reviews for the shop that sells the product (not hidden). */
+    static getStorefrontReviewsByShopId = withErrorHandling(
+        async (
+            shopId: number
+        ): Promise<
+            {
+                id: number;
+                rating: number;
+                title: string | null;
+                comment: string | null;
+                is_verified_purchase: boolean | null;
+                created_at: string;
+                reviewer_name: string | null;
+            }[]
+        > => {
+            const { rows } = await (await db()).query(
+                `SELECT r.id, r.rating, r.title, r.comment, r.is_verified_purchase, r.created_at,
+                        NULLIF(TRIM(CONCAT(COALESCE(u.fname, ''), ' ', COALESCE(u.lname, ''))), '') AS reviewer_name
+                 FROM shop_reviews r
+                 INNER JOIN users u ON u.id = r.reviewer_id
+                 WHERE r.shop_id = $1 AND COALESCE(r.is_hidden, false) = false
+                 ORDER BY r.created_at DESC
+                 LIMIT 40`,
+                [shopId]
+            );
+            return rows;
+        }
+    );
 
     static getShopMetricsById = withErrorHandling(async (shopId: number) => {
 

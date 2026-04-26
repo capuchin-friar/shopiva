@@ -27,6 +27,8 @@ const WINDOW_H = Dimensions.get('window').height;
  *   onNotInterested: () => void;
  *   onReport: () => void;
  *   reportLabel?: string;
+ *   onDeliveryPolicy?: () => void;
+ *   onViewShopPolicy?: () => void;
  * }} props
  */
 export function ShopOverflowMenu({
@@ -41,6 +43,8 @@ export function ShopOverflowMenu({
   onNotInterested,
   onReport,
   reportLabel = 'Report shop',
+  onDeliveryPolicy,
+  onViewShopPolicy,
 }) {
   const insets = useSafeAreaInsets();
   if (!visible) {
@@ -95,11 +99,24 @@ export function ShopOverflowMenu({
               <Icon name="storefront-outline" size={22} color="#202124" style={styles.rowIcon} />
               <Text style={styles.rowLabel}>Visit shop</Text>
             </TouchableOpacity>
-            <View style={styles.rowSep} />
-            {/* <TouchableOpacity style={styles.row} onPress={onFollow} activeOpacity={0.75}>
-              <Icon name="add-circle-outline" size={22} color="#202124" style={styles.rowIcon} />
-              <Text style={styles.rowLabel}>Follow</Text>
-            </TouchableOpacity> */}
+            {typeof onViewShopPolicy === 'function' ? (
+              <>
+                <View style={styles.rowSep} />
+                <TouchableOpacity style={styles.row} onPress={onViewShopPolicy} activeOpacity={0.75}>
+                  <Icon name="document-text-outline" size={22} color="#202124" style={styles.rowIcon} />
+                  <Text style={styles.rowLabel}>View shop policy</Text>
+                </TouchableOpacity>
+              </>
+            ) : null}
+            {typeof onDeliveryPolicy === 'function' ? (
+              <>
+                <View style={styles.rowSep} />
+                <TouchableOpacity style={styles.row} onPress={onDeliveryPolicy} activeOpacity={0.75}>
+                  <Icon name="car-outline" size={22} color="#202124" style={styles.rowIcon} />
+                  <Text style={styles.rowLabel}>Delivery policy</Text>
+                </TouchableOpacity>
+              </>
+            ) : null}
             <View style={styles.rowSep} />
             <TouchableOpacity style={styles.row} onPress={onNotInterested} activeOpacity={0.75}>
               <Icon name="thumbs-down-outline" size={22} color="#202124" style={styles.rowIcon} />
