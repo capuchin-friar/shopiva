@@ -16,7 +16,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../context/ProfileContext';
-import { isVendorRole } from '../profile/normalizeUser';
+import { isVendorAccountRole } from '../profile/normalizeUser';
 
 const BLACK = '#000000';
 const PAGE_BG = '#F7F7F8';
@@ -49,7 +49,8 @@ export default function ProfileHomeScreen() {
   const avatarUri = user?.avatarUrl?.trim() || '';
   const avatarLetter = displayName.charAt(0).toUpperCase() || '?';
   const showProBadge = user?.roleRaw === 'entrepreneur';
-  const showShopInfo = isVendorRole(user?.roleRaw);
+  /** Seller accounts only (`vendor` or `entrepreneur` in API); never show for `customer`. */
+  const showShopInfo = isVendorAccountRole(user?.roleRaw);
   const [msgNotifications, setMsgNotifications] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
   const toastOpacity = useRef(new Animated.Value(0)).current;

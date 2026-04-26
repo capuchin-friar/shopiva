@@ -16,7 +16,7 @@ import { formatNaira } from '../utils/formatNaira';
 import { deleteBuyerCartLine, fetchBuyerCart, patchBuyerCartLine } from '../api/buyer';
 
 const BG = '#F8F8F8';
-const TEAL = '#34C7B9';
+const TEAL = '#00926e';
 const BORDER = '#E0E0E0';
 const SUB = '#757575';
 

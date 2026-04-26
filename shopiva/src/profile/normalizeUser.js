@@ -96,7 +96,14 @@ export function normalizeUser(raw) {
     avatarUrl = s.startsWith('http') ? s : null;
   }
 
-  const roleRaw = String(raw.role ?? 'customer')
+  const roleSource =
+    raw.role ??
+    raw.Role ??
+    raw.userRole ??
+    raw.user_role ??
+    raw.accountType ??
+    raw.account_type;
+  const roleRaw = String(roleSource ?? 'customer')
     .trim()
     .toLowerCase();
   const roleLabel = roleRaw === 'entrepreneur' || roleRaw === 'vendor' ? 'Seller' : 'Customer';

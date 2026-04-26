@@ -31,8 +31,8 @@ export async function PaystackWebhookController(req: Request, res: Response) {
   }
 
   try {
-    const result = await persistPaystackWebhook(payload);
-    res.status(200).json({ received: true, ...result });
+    const result = await persistPaystackWebhook(raw, payload);
+    res.status(200).json(result);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("paystack webhook persist error:", msg);

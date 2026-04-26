@@ -2,8 +2,11 @@
  * Paystack webhook transaction persistence (see migrations/017_create_paystack_transactions.sql).
  */
 
+import type { Pool, PoolClient } from "pg";
 import { db } from "../config/database.js";
 import { withErrorHandling } from "../utils/errHandler.js";
+
+type SqlExecutor = Pool | PoolClient;
 
 export type PaystackTransactionRow = {
   id: number;
@@ -37,7 +40,11 @@ export type UpsertPaystackTransactionPayload = {
 };
 
 export class paystack_transaction {
-  static upsert = withErrorHandling(async (payload: UpsertPaystackTransactionPayload): Promise<PaystackTransactionRow> => {
+  /**
+   * @param executor Optional pool or transaction client; pass a client when calling inside BEGIN/COMMIT.
+   */
+  static upsert = withErrorHandling(
+    async (payload: UpsertPaystackTransactionPayload, executor?: SqlExecutor): Promise<PaystackTransactionRow> => {
     const {
       paystack_charge_id = null,
       reference,
@@ -52,9 +59,9 @@ export class paystack_transaction {
       raw_payload,
     } = payload;
 
-    const { rows } = await (
-      await db()
-    ).query<PaystackTransactionRow>(
+    const runner: SqlExecutor = executor ?? (await db());
+
+    const { rows } = await runner.query<PaystackTransactionRow>(
       `INSERT INTO paystack_transactions (
         paystack_charge_id, reference, event, amount, currency, status, channel,
         customer_email, metadata, paid_at, raw_payload
@@ -89,5 +96,6 @@ export class paystack_transaction {
     const row = rows[0];
     if (!row) throw new Error("Failed to upsert paystack transaction");
     return row;
-  });
+  }
+  );
 }

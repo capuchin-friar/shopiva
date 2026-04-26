@@ -224,3 +224,21 @@ export async function deleteShopPayoutAccount(shopId, userId) {
   const res = await apiFetchAuth(`/shop/payment/${shopId}/${userId}`, { method: 'DELETE' });
   return readJson(res);
 }
+
+/**
+ * Append a delivery / refund / custom policy clause (same contract as web PolicyClauseModal).
+ * POST /shop/patch/:shopId/policy-clause (Bearer auth; shop must belong to JWT user).
+ * @param {number | string} shopId
+ * @param {{ target: 'delivery' | 'refund' | 'custom'; title: string; content: string }} body
+ */
+export async function saveShopPolicyClause(shopId, body) {
+  const res = await apiFetchAuth(`/shop/patch/${encodeURIComponent(String(shopId))}/policy-clause`, {
+    method: 'POST',
+    body: JSON.stringify({
+      target: body.target,
+      title: String(body.title ?? '').trim(),
+      content: String(body.content ?? '').trim(),
+    }),
+  });
+  return readJson(res);
+}

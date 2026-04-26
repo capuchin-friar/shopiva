@@ -13,102 +13,18 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { usePaystack } from 'react-native-paystack-webview';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../context/ProfileContext';
 import { ShopOverflowMenu } from '../components/ShopOverflowMenu';
 import { getStorefrontProduct } from '../api/storefront';
 import { addBuyerCartLine } from '../api/buyer';
 import { isPaystackConfigured } from '../config/paystack';
+import { canUsePaystackCheckout } from '../paystack/paystackNativeGate';
 import { formatNaira } from '../utils/formatNaira';
 
 const { width: WINDOW_W } = Dimensions.get('window');
 const PURPLE = '#00926e';
 const PAD = 16;
-
-/**
- * Buy now with Paystack — only mounted when {@link isPaystackConfigured} so `usePaystack` stays under `PaystackProvider`.
- * @param {{
- *   navigation: import('@react-navigation/native').NavigationProp<Record<string, object | undefined>>;
- *   loggedIn: boolean;
- *   signOut: () => void | Promise<void>;
- *   userEmail: string;
- *   firstInventoryId: number | null;
- *   qty: number;
- *   unitPrice: number;
- *   title: string;
- *   productId: string | number | null | undefined;
- * }} props
- */
-function BuyNowPaystackButton({
-  navigation,
-  loggedIn,
-  signOut,
-  userEmail,
-  firstInventoryId,
-  qty,
-  unitPrice,
-  title,
-  productId,
-}) {
-  const { popup } = usePaystack();
-
-  const onBuy = useCallback(() => {
-    if (!loggedIn) {
-      Alert.alert('Sign in required', 'Please sign in to complete payment.', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Sign in', onPress: () => void signOut() },
-      ]);
-      return;
-    }
-    if (firstInventoryId == null) {
-      Alert.alert('Unavailable', 'This product has no purchasable variant yet.');
-      return;
-    }
-    const email = String(userEmail ?? '').trim();
-    if (!email) {
-      Alert.alert('Email required', 'Add an email to your account in Profile before paying with Paystack.');
-      return;
-    }
-    const total = Math.max(1, Math.round(Number(unitPrice) * qty));
-    const reference = `shopiva_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-
-    popup.checkout({
-      email,
-      amount: total,
-      reference,
-      metadata: {
-        custom_fields: [
-          { display_name: 'Product', variable_name: 'product_title', value: String(title).slice(0, 120) },
-          { display_name: 'Quantity', variable_name: 'quantity', value: String(qty) },
-          { display_name: 'Inventory ID', variable_name: 'inventory_id', value: String(firstInventoryId) },
-          ...(productId != null && String(productId).trim() !== ''
-            ? [{ display_name: 'Product ID', variable_name: 'product_id', value: String(productId).trim() }]
-            : []),
-        ],
-      },
-      onSuccess: (res) => {
-        const ref = res && typeof res === 'object' && 'reference' in res ? String(/** @type {{ reference?: string }} */ (res).reference) : reference;
-        Alert.alert('Payment successful', `Reference: ${ref}\n\nYour payment was completed. Order updates can be added when the server verifies this charge.`, [
-          { text: 'OK', style: 'default' },
-          { text: 'View cart', onPress: () => navigation.navigate('cart') },
-        ]);
-      },
-      onCancel: () => {},
-      onError: (err) => {
-        const msg = err && typeof err === 'object' && 'message' in err ? String(/** @type {{ message?: string }} */ (err).message) : String(err || 'Something went wrong');
-        Alert.alert('Payment error', msg);
-      },
-    });
-  }, [loggedIn, signOut, firstInventoryId, userEmail, unitPrice, qty, title, productId, popup, navigation]);
-
-  return (
-    <TouchableOpacity style={styles.buyNow} activeOpacity={0.9} onPress={onBuy}>
-      <Text style={styles.buyNowText}>Buy now</Text>
-      <Icon name="card-outline" size={22} color="#000000" style={styles.buyNowIcon} />
-    </TouchableOpacity>
-  );
-}
 
 /**
  * @param {{ route: { params?: { product?: object; vendor?: { id: number; name?: string; slug?: string }; category?: string } }; navigation: import('@react-navigation/native').NavigationProp<Record<string, object | undefined>> }} props
@@ -224,6 +140,23 @@ export default function ProductScreen({ route, navigation }) {
   const bumpQty = useCallback((delta) => {
     setQty((q) => Math.min(99, Math.max(1, q + delta)));
   }, []);
+
+  const paystackCheckoutOk = canUsePaystackCheckout();
+  const [BuyNowLazy, setBuyNowLazy] = useState(/** @type {null | import('react').ComponentType<any>} */ (null));
+
+  useEffect(() => {
+    if (!paystackCheckoutOk) {
+      setBuyNowLazy(null);
+      return;
+    }
+    let cancelled = false;
+    import('../paystack/BuyNowPaystackButton').then((m) => {
+      if (!cancelled && m.default) setBuyNowLazy(() => m.default);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [paystackCheckoutOk]);
 
   if (!vendor) {
     return (
@@ -411,8 +344,22 @@ export default function ProductScreen({ route, navigation }) {
           <Text style={styles.addCartText}>Add to cart</Text>
         </TouchableOpacity>
 
-        {isPaystackConfigured() ? (
-          <BuyNowPaystackButton
+        {!isPaystackConfigured() ? (
+          <TouchableOpacity
+            style={styles.buyNow}
+            activeOpacity={0.9}
+            onPress={() =>
+              Alert.alert(
+                'Payments',
+                'Paystack is not configured. Add PAYSTACK_PUBLIC_KEY to a `.env` file in the app root (see `.env.example`), then restart Metro with `--reset-cache`.',
+              )
+            }
+          >
+            <Text style={styles.buyNowText}>Buy now</Text>
+            <Icon name="card-outline" size={22} color="#000000" style={styles.buyNowIcon} />
+          </TouchableOpacity>
+        ) : paystackCheckoutOk && BuyNowLazy ? (
+          <BuyNowLazy
             navigation={navigation}
             loggedIn={loggedIn}
             signOut={signOut}
@@ -423,6 +370,11 @@ export default function ProductScreen({ route, navigation }) {
             title={title}
             productId={productIdParam}
           />
+        ) : paystackCheckoutOk && !BuyNowLazy ? (
+          <View style={[styles.buyNow, styles.buyNowLoading]} accessibilityLabel="Loading buy now">
+            <ActivityIndicator color="#FFFFFF" />
+            <Text style={[styles.buyNowText, styles.buyNowLoadingText]}>Buy now</Text>
+          </View>
         ) : (
           <TouchableOpacity
             style={styles.buyNow}
@@ -430,7 +382,7 @@ export default function ProductScreen({ route, navigation }) {
             onPress={() =>
               Alert.alert(
                 'Payments',
-                'Paystack is not configured. Add PAYSTACK_PUBLIC_KEY to a `.env` file in the app root (see `.env.example`), then restart Metro with `--reset-cache`.',
+                'Paystack needs the WebView native module. From the project root run `cd ios && pod install`, then clean-rebuild the iOS app in Xcode (or run `npx react-native run-ios` again). Reloading Metro only is not enough.',
               )
             }
           >
@@ -739,6 +691,12 @@ const styles = StyleSheet.create({
   },
   buyNowIcon: {
     marginLeft: 10,
+  },
+  buyNowLoading: {
+    gap: 10,
+  },
+  buyNowLoadingText: {
+    marginLeft: 0,
   },
   sectionHeading: {
     fontSize: 17,

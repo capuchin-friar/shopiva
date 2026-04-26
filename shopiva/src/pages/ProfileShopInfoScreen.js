@@ -27,7 +27,8 @@ import {
 } from '../api/shop';
 import { getProducts } from '../api/product';
 import { useProfile } from '../context/ProfileContext';
-import { isVendorRole } from '../profile/normalizeUser';
+import { isVendorAccountRole } from '../profile/normalizeUser';
+import DeliveryPolicyModal from '../components/DeliveryPolicyModal';
 import { mapOrderRowToListItem } from '../utils/buyerUi';
 import { formatNaira } from '../utils/formatNaira';
 import { getCurrentCoordinates, requestLocationPermission, reverseGeocodeToPlace } from '../utils/deviceLocation';
@@ -245,11 +246,12 @@ export default function ProfileShopInfoScreen() {
   const [modalBvn, setModalBvn] = useState(false);
   const [bvnDraft, setBvnDraft] = useState('');
   const [bvnBusy, setBvnBusy] = useState(false);
+  const [modalDeliveryPolicy, setModalDeliveryPolicy] = useState(false);
 
   const uid = user?.id;
 
   const load = useCallback(async () => {
-    if (!uid || !isVendorRole(user?.roleRaw)) {
+    if (!uid || !isVendorAccountRole(user?.roleRaw)) {
       setShopsList([]);
       setActiveShopId(0);
       setShopRow(null);
@@ -398,11 +400,25 @@ export default function ProfileShopInfoScreen() {
   const policies = shopRow?.policies;
   const deliverySet = useMemo(() => {
     if (!policies || typeof policies !== 'object') return false;
-    const d = /** @type {Record<string, unknown>} */ (policies).deliverypolicy ?? (policies).deliveryPolicy;
+    let d = /** @type {Record<string, unknown>} */ (policies).deliverypolicy ?? (policies).deliveryPolicy;
     if (d == null) return false;
-    const s = typeof d === 'string' ? d.trim() : JSON.stringify(d);
-    return s.length > 2 && s !== '{}' && s !== 'null';
+    if (typeof d === 'string') {
+      try {
+        const p = JSON.parse(d);
+        d = typeof p === 'object' && p != null ? /** @type {Record<string, unknown>} */ (p) : null;
+      } catch {
+        return false;
+      }
+    }
+    if (d == null || typeof d !== 'object') return false;
+    const clauses = d.clauses;
+    return Array.isArray(clauses) && clauses.length > 0;
   }, [shopRow?.policies]);
+
+  const onDeliveryPolicySaved = useCallback(async () => {
+    await load();
+    Alert.alert('Saved', 'Delivery policy was updated.');
+  }, [load]);
 
   const locationSummary = useMemo(() => {
     const city = String(locationState.city ?? '').trim();
@@ -527,10 +543,10 @@ export default function ProfileShopInfoScreen() {
   const cacSt = docVerificationStatus(verDocs.cacDocument ?? verDocs.businessLicense);
   const bvnSt = bvnVerificationStatus(verDocs.bvn);
 
-  if (!isVendorRole(user?.roleRaw)) {
+  if (!isVendorAccountRole(user?.roleRaw)) {
     return (
       <View style={[styles.centered, { paddingTop: insets.top + 24 }]}>
-        <Text style={styles.muted}>Shop info is only available for vendor accounts.</Text>
+        <Text style={styles.muted}>Shop info is only available for seller (vendor) accounts.</Text>
       </View>
     );
   }
@@ -732,14 +748,8 @@ export default function ProfileShopInfoScreen() {
 
           <View style={styles.sectionDivider} />
 
-          <SectionHeader
-            title="Policies"
-            onEdit={() => Alert.alert('Policies', 'Full policy editing is available from your vendor dashboard on the web.')}
-          />
-          <Pressable
-            style={styles.policyRow}
-            onPress={() => Alert.alert('Delivery policy', 'Edit delivery rules from the vendor web dashboard.')}
-          >
+          <SectionHeader title="Policies" onEdit={() => setModalDeliveryPolicy(true)} />
+          <Pressable style={styles.policyRow} onPress={() => setModalDeliveryPolicy(true)}>
             <Text style={styles.policyLabel}>Delivery policy</Text>
             <Text style={[styles.policyStatus, deliverySet && styles.policyStatusOk]}>{deliverySet ? 'Set' : 'Not set'}</Text>
             <View style={styles.iconCircle}>
@@ -930,6 +940,13 @@ export default function ProfileShopInfoScreen() {
           </View>
         </View>
       </Modal>
+
+      <DeliveryPolicyModal
+        visible={modalDeliveryPolicy && activeShopId > 0}
+        onClose={() => setModalDeliveryPolicy(false)}
+        shopId={activeShopId}
+        onSaved={onDeliveryPolicySaved}
+      />
     </KeyboardAvoidingView>
   );
 }

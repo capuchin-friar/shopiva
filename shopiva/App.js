@@ -9,10 +9,10 @@ import { useEffect } from 'react';
 import { StatusBar, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { PaystackProvider } from 'react-native-paystack-webview';
 import { WIPE_STORAGE_ON_LAUNCH } from './src/auth/devAuth';
 import { clearAllShopivaStorage } from './src/auth/session';
 import { getPaystackPublicKey, isPaystackConfigured } from './src/config/paystack';
+import { getPaystackProvider } from './src/paystack/paystackNativeGate';
 import NavigationHandler from './src/navigations/index';
 
 function App() {
@@ -26,6 +26,7 @@ function App() {
 
   const paystackPublicKey = getPaystackPublicKey();
   const paystackReady = isPaystackConfigured();
+  const PaystackProvider = paystackReady ? getPaystackProvider() : null;
 
   const appBody = (
     <>
@@ -37,7 +38,7 @@ function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        {paystackReady ? (
+        {PaystackProvider ? (
           <PaystackProvider
             publicKey={paystackPublicKey}
             currency="NGN"
