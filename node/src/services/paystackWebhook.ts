@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { Pool } from "pg";
 import { db } from "../config/database.js";
 import { paystack } from "./paystack.js";
 import { paystack_transaction } from "../models/paystack_transaction.js";
@@ -7,6 +8,30 @@ export type PaystackWebhookEnvelope = {
   event: string;
   data?: Record<string, unknown>;
 };
+
+let paystackWebhookPool: Pool | null = null;
+
+/**
+ * Webhook-only DB override:
+ * - `DB` (from .env) is used only for Paystack webhook persistence.
+ * - Fallback to shared app pool when not provided.
+ */
+async function getPaystackWebhookPool(): Promise<Pool> {
+  const webhookDb = process.env.DB?.trim();
+  if (!webhookDb) return db();
+  if (!paystackWebhookPool) {
+    paystackWebhookPool = new Pool({
+      connectionString: webhookDb,
+      max: Number(process.env.DB_POOL_MAX ?? 10),
+      idleTimeoutMillis: 30_000,
+      connectionTimeoutMillis: 10_000,
+    });
+    paystackWebhookPool.on("error", (err) => {
+      console.error("Unexpected paystack webhook database pool error:", err);
+    });
+  }
+  return paystackWebhookPool;
+}
 
 /** HMAC SHA512 of raw body; must match Paystack `x-paystack-signature`. */
 export function verifyPaystackWebhookSignature(rawBody: Buffer, signatureHeader: string | undefined): boolean {
@@ -114,7 +139,7 @@ export async function persistPaystackWebhook(rawBody: Buffer, payload: PaystackW
     raw_payload: payload as unknown as Record<string, unknown>,
   };
 
-  const pool = await db();
+  const pool = await getPaystackWebhookPool();
   const client = await pool.connect();
   try {
     await client.query("BEGIN");

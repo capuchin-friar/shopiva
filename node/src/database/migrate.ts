@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
+import { pgPoolConfigFromEnv } from "../config/database.js";
 
 dotenv.config();
 
@@ -22,15 +23,13 @@ interface Migration {
 }
 
 async function runMigrations() {
-  const dbConfig = {
-    user: process.env.DB_USER || "postgres",
-    password: process.env.DB_PASSWORD || "postgres",
-    host: process.env.DB_HOST || "localhost",
-    port: parseInt(process.env.DB_PORT || "5432"),
-    database: process.env.DB_NAME || "postgres",
-  };
-
-  console.log(`🔌 Connecting to database: ${dbConfig.database}@${dbConfig.host}:${dbConfig.port}`);
+  const dbConfig = pgPoolConfigFromEnv();
+  if ("connectionString" in dbConfig && dbConfig.connectionString) {
+    console.log("🔌 Connecting to database via connection string (DB/DATABASE_URL)");
+  } else {
+    const c = dbConfig as { database?: string; host?: string; port?: number };
+    console.log(`🔌 Connecting to database: ${c.database ?? "?"}@${c.host ?? "?"}:${c.port ?? "?"}`);
+  }
 
   const pool = new Pool(dbConfig);
 

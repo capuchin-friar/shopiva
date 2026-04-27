@@ -2,17 +2,31 @@ import { Pool, type PoolConfig } from "pg";
 
 let pool: Pool | undefined;
 
-function poolConfigFromEnv(): PoolConfig {
+/** Shared by app + migration scripts. Prefer URL vars in hosted environments. */
+export function pgPoolConfigFromEnv(): PoolConfig {
+  const connectionString = process.env.DB?.trim() || process.env.DATABASE_URL?.trim();
+  const max = Number(process.env.DB_POOL_MAX ?? 10);
+  const idleTimeoutMillis = 30_000;
+  const connectionTimeoutMillis = 10_000;
+
+  if (connectionString) {
+    return {
+      connectionString,
+      max,
+      idleTimeoutMillis,
+      connectionTimeoutMillis,
+    };
+  }
+
   return {
-    user: process.env.DB_USER ?? "postgres",
-    password: process.env.DB_PASSWORD ?? "postgres",
-    host: process.env.DB_HOST ?? "localhost",
-    port: Number(process.env.DB_PORT ?? "5432"),
-    database: process.env.DB_NAME ?? "postgres",
-    /** Cap concurrent connections; each `db()` call used to leak a client. */
-    max: Number(process.env.DB_POOL_MAX ?? 10),
-    idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 10_000,
+    user: process.env.DB_USER ?? process.env.PGUSER ?? "postgres",
+    password: process.env.DB_PASSWORD ?? process.env.PGPASSWORD ?? "postgres",
+    host: process.env.DB_HOST ?? process.env.PGHOST ?? "localhost",
+    port: Number(process.env.DB_PORT ?? process.env.PGPORT ?? "5432"),
+    database: process.env.DB_NAME ?? process.env.PGDATABASE ?? "postgres",
+    max,
+    idleTimeoutMillis,
+    connectionTimeoutMillis,
   };
 }
 
@@ -23,7 +37,7 @@ function poolConfigFromEnv(): PoolConfig {
  */
 export const db = async (): Promise<Pool> => {
   if (!pool) {
-    pool = new Pool(poolConfigFromEnv());
+    pool = new Pool(pgPoolConfigFromEnv());
     pool.on("error", (err) => {
       console.error("Unexpected database pool error:", err);
     });

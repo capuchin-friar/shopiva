@@ -10,6 +10,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
+import { pgPoolConfigFromEnv } from "../config/database.js";
 
 dotenv.config();
 
@@ -18,13 +19,7 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, "..", "..");
 
 async function main(): Promise<void> {
-  const dbConfig = {
-    user: process.env.DB_USER || "postgres",
-    password: process.env.DB_PASSWORD || "postgres",
-    host: process.env.DB_HOST || "localhost",
-    port: parseInt(process.env.DB_PORT || "5432", 10),
-    database: process.env.DB_NAME || "postgres",
-  };
+  const dbConfig = pgPoolConfigFromEnv();
 
   const migrationsDir = path.join(projectRoot, "src", "database", "migrations");
   if (!fs.existsSync(migrationsDir)) {
