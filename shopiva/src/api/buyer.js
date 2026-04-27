@@ -58,6 +58,18 @@ export async function fetchBuyerCart() {
 }
 
 /**
+ * Confirm cart Paystack payment and create buyer↔vendor chat room (also clears cart server-side).
+ * @param {{ reference: string; shipping_naira?: number }} body
+ */
+export async function confirmCheckoutPayment(body) {
+  const res = await apiFetchAuth('/buyer/checkout/confirm-payment', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+  return readJson(res);
+}
+
+/**
  * @param {number} inventoryId
  * @param {number} [quantity]
  * @param {{ unitPrice?: number }} [opts] — when set (e.g. selected variant), stored as line snapshot after server validation

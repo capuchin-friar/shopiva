@@ -12,6 +12,7 @@ import {
   saveSession,
 } from '../src/auth/session';
 import { setUnauthorized401Suppressed } from '../src/auth/unauthorized';
+import { disconnectChatSocket } from '../src/socket/chatSocket';
 
 /** @typedef {'loading' | 'signedOut' | 'signedIn'} AuthStatus */
 /** @typedef {'customer' | 'vendor'} AppRole */
@@ -324,6 +325,11 @@ export const setActiveRoleThunk = createAsyncThunk('auth/setActiveRole', async (
   }
   dispatch(setActiveRoleSync(next));
   await saveActiveRole(next);
+  try {
+    disconnectChatSocket();
+  } catch {
+    /* ignore */
+  }
 });
 
 export const setPreAuthChoiceThunk = createAsyncThunk('auth/setPreAuthChoice', async (choice, { dispatch }) => {

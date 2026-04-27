@@ -23,10 +23,10 @@ const BORDER = '#E8EAEF';
 const SHOPS = ['Lexicon', 'Main store', 'Archive'];
 
 const SUMMARY = {
-  available: '₦40,900.00',
+  spent: '₦40,900.00',
   escrow: '₦5,000.00',
-  earnings: '₦67,400.00',
-  withdrawal: '₦15,000.00',
+  refund: '₦67,400.00',
+  // withdrawal: '₦15,000.00',
 };
 
 const MOCK_ROWS = [
@@ -177,10 +177,10 @@ export default function TransactionsScreen() {
 
         <Text style={styles.sectionLabel}>Overview</Text>
         <View style={styles.summaryGrid}>
-          <SummaryCard label="Available balance" value={SUMMARY.available} />
+          <SummaryCard label="Total spent" value={SUMMARY.spent} />
           <SummaryCard label="Pending escrow" value={SUMMARY.escrow} />
-          <SummaryCard label="Total earnings" value={SUMMARY.earnings} />
-          <SummaryCard label="Total withdrawal" value={SUMMARY.withdrawal} />
+          <SummaryCard label="Total refunds" value={SUMMARY.refund} />
+          {/* <SummaryCard label="Total withdrawal" value={SUMMARY.withdrawal} /> */}
         </View>
 
         <Text style={styles.sectionLabel}>Activity</Text>

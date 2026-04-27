@@ -22,3 +22,31 @@ export class tools{
         }, secret, options);
     }
 }
+
+
+export class socketTools{
+
+    static async toggleUserStatus(){
+        
+    }
+
+    static async getRoomMssgs(){
+
+    }
+
+    static async createMessg(){
+        
+    }
+
+    static async markMssgAsSeen(){
+        
+    }
+
+    static async getUserRooms(){
+        
+    }
+
+    static async getRoomMessages(){
+        
+    }
+}

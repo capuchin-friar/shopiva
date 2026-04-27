@@ -1,7 +1,6 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
-import ChatListScreen from '../pages/ChatList';
-import ChatRoomScreen from '../pages/ChatRoom';
+import { CustomerChatListScreen, CustomerChatRoomScreen } from '../pages/chat/roleChatScreens';
 
 const HEADER = '#075E54';
 
@@ -25,19 +24,12 @@ const CHAT_ROOM_OPTIONS = {
   contentStyle: { backgroundColor: '#ECE5DD' },
 };
 
+/** Customer-mode chat only (`vendor` stack uses `VendorChat.js`). */
 export function ChatStackScreen() {
   return (
     <ChatStack.Navigator>
-      <ChatStack.Screen
-        name="chat-list"
-        component={ChatListScreen}
-        options={CHAT_LIST_OPTIONS}
-      />
-      <ChatStack.Screen
-        name="chat-room"
-        component={ChatRoomScreen}
-        options={CHAT_ROOM_OPTIONS}
-      />
+      <ChatStack.Screen name="chat-list" component={CustomerChatListScreen} options={CHAT_LIST_OPTIONS} />
+      <ChatStack.Screen name="chat-room" component={CustomerChatRoomScreen} options={CHAT_ROOM_OPTIONS} />
     </ChatStack.Navigator>
   );
 }

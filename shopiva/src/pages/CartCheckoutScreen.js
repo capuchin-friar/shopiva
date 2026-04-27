@@ -288,7 +288,8 @@ export default function CartCheckoutScreen({ navigation }) {
       setFormBanner('A valid email is required for Paystack checkout.');
       return;
     }
-    const payableAmount = Math.max(1, Math.round(Number(total)));
+    /** Paystack amount for NGN must be in kobo (multiply naira × 100). */
+    const payableAmount = Math.max(100, Math.round(Number(total)));
     const reference = `shopiva_cart_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
     const firstLine = checkoutLines[0];
 
@@ -320,7 +321,7 @@ export default function CartCheckoutScreen({ navigation }) {
           reference: refStr,
           subtotal,
           shipping: shippingCost,
-          total: payableAmount,
+          total: total,
           itemCount: checkoutLines.length,
         });
       },
@@ -331,7 +332,7 @@ export default function CartCheckoutScreen({ navigation }) {
           reason: 'Payment was cancelled before completion.',
           subtotal,
           shipping: shippingCost,
-          total: payableAmount,
+          total,
         });
       },
       onError: (err) => {
@@ -345,7 +346,7 @@ export default function CartCheckoutScreen({ navigation }) {
           reason: msg,
           subtotal,
           shipping: shippingCost,
-          total: payableAmount,
+          total,
         });
       },
     });

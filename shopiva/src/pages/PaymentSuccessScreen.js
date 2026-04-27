@@ -1,12 +1,51 @@
-import { useMemo } from 'react';
-import { Alert, Pressable, SafeAreaView, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { confirmCheckoutPayment } from '../api/buyer';
 import { formatNaira } from '../utils/formatNaira';
+import { setLastOpenedChatRoomId } from '../utils/lastOpenedChatRoom';
 
 function normalizeAmount(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, n);
+}
+
+/** @param {string} text */
+function hueFromText(text) {
+  let h = 0;
+  for (let i = 0; i < text.length; i += 1) h = (h * 31 + text.charCodeAt(i)) % 360;
+  return Math.abs(h);
+}
+
+/**
+ * Maps API chat room row to the shape ChatRoom expects (same idea as ChatList mapRoomRow).
+ * @param {Record<string, unknown>} room
+ */
+function roomRecordToChatItem(room) {
+  const roomId = String(room.id ?? '').trim();
+  const orderId = String(room.order_id ?? '').trim();
+  const name = orderId ? `Order #${orderId}` : 'Chat';
+  return {
+    id: roomId,
+    roomId,
+    orderId,
+    name,
+    avatarHue: hueFromText(roomId || name),
+    unreadCount: 0,
+    lastAtLabel: '',
+    lastMessage: String(room.last_message ?? '').trim() || 'No messages yet',
+  };
 }
 
 /**
@@ -18,6 +57,15 @@ export default function PaymentSuccessScreen({ navigation, route }) {
   const total = normalizeAmount(route?.params?.total || subtotal + shipping);
   const itemCount = Math.max(0, Number(route?.params?.itemCount) || 0);
   const reference = String(route?.params?.reference || '').trim();
+
+  const [confirmEntries, setConfirmEntries] = useState(
+    /** @type {Array<{ room: Record<string, unknown>; vendor_user_id?: number; existing?: boolean }>} */ ([]),
+  );
+  const [confirmLoading, setConfirmLoading] = useState(/** @type {boolean} */ (false));
+  const [confirmError, setConfirmError] = useState('');
+
+  const hasConfirmedChats = confirmEntries.length > 0;
+  const multiShopCheckout = confirmEntries.length > 1;
 
   const paidLabel = useMemo(() => formatNaira(total), [total]);
   const parentTabNav = navigation.getParent();
@@ -36,6 +84,58 @@ export default function PaymentSuccessScreen({ navigation, route }) {
     ];
     return lines.join('\n');
   }, [reference, itemCount, subtotal, shipping, paidLabel]);
+
+  const runConfirm = useCallback(async () => {
+    if (!reference) {
+      setConfirmError('Missing payment reference.');
+      return;
+    }
+    setConfirmLoading(true);
+    setConfirmError('');
+    try {
+      const data = await confirmCheckoutPayment({
+        reference,
+        shipping_naira: shipping,
+      });
+      const rawRooms = Array.isArray(data?.rooms) ? data.rooms : [];
+      /** @type {Array<{ room: Record<string, unknown>; vendor_user_id?: number; existing?: boolean }>} */
+      let entries = [];
+      if (rawRooms.length) {
+        entries = rawRooms
+          .map((row) => {
+            if (!row || typeof row !== 'object') return null;
+            const r = /** @type {Record<string, unknown>} */ (row);
+            const room = r.room && typeof r.room === 'object' ? /** @type {Record<string, unknown>} */ (r.room) : null;
+            if (!room || !String(room.id ?? '').trim()) return null;
+            return {
+              room,
+              vendor_user_id: typeof r.vendor_user_id === 'number' ? r.vendor_user_id : Number(r.vendor_user_id),
+              existing: Boolean(r.existing),
+            };
+          })
+          .filter((x) => x != null);
+      } else if (data?.room && typeof data.room === 'object') {
+        const room = /** @type {Record<string, unknown>} */ (data.room);
+        if (String(room.id ?? '').trim()) {
+          entries = [{ room, vendor_user_id: Number(data.vendor_user_id), existing: Boolean(data.existing) }];
+        }
+      }
+      if (!entries.length) {
+        throw new Error('Server did not return chat room(s).');
+      }
+      setConfirmEntries(entries);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setConfirmError(msg);
+    } finally {
+      setConfirmLoading(false);
+    }
+  }, [reference, shipping]);
+
+  useEffect(() => {
+    if (!reference) return;
+    void runConfirm();
+  }, [reference, shipping, runConfirm]);
 
   const onShareReceipt = async () => {
     try {
@@ -60,6 +160,41 @@ export default function PaymentSuccessScreen({ navigation, route }) {
     }
   };
 
+  const onContinueChat = async () => {
+    if (!hasConfirmedChats) {
+      Alert.alert(
+        'Chat not ready',
+        confirmError || 'We could not open your seller chat yet. Try again or open Chats from the tab bar.',
+        [
+          { text: 'Retry', onPress: () => void runConfirm() },
+          { text: 'OK', style: 'cancel' },
+        ],
+      );
+      return;
+    }
+    if (multiShopCheckout) {
+      const highlightRoomIds = confirmEntries
+        .map((e) => String(e.room?.id ?? '').trim())
+        .filter(Boolean);
+      /** Pin the last room from this checkout to the top (most recent thread for this payment). */
+      const pinId = highlightRoomIds.length ? highlightRoomIds[highlightRoomIds.length - 1] : '';
+      if (pinId) await setLastOpenedChatRoomId(pinId, 'customer');
+      parentTabNav?.navigate('Chat', {
+        screen: 'chat-list',
+        params: {
+          highlightRoomIds,
+          highlightExpiresAt: Date.now() + 120000,
+        },
+      });
+      return;
+    }
+    const chatItem = roomRecordToChatItem(confirmEntries[0].room);
+    parentTabNav?.navigate('Chat', {
+      screen: 'chat-room',
+      params: { chat: chatItem },
+    });
+  };
+
   return (
     <SafeAreaView style={styles.root}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -73,6 +208,27 @@ export default function PaymentSuccessScreen({ navigation, route }) {
 
         <Text style={styles.title}>Payment Successful!</Text>
         <Text style={styles.subtitle}>Successfully paid {paidLabel}</Text>
+
+        {reference && confirmLoading ? (
+          <View style={styles.statusBanner}>
+            <ActivityIndicator color="#00926e" />
+            <Text style={styles.statusBannerText}>Setting up your seller chats…</Text>
+          </View>
+        ) : null}
+        {reference && confirmError ? (
+          <Pressable style={styles.errorBanner} onPress={() => void runConfirm()} accessibilityRole="button">
+            <Icon name="warning-outline" size={18} color="#B42318" />
+            <Text style={styles.errorBannerText} numberOfLines={3}>
+              {confirmError}
+            </Text>
+            <Text style={styles.errorRetry}>Tap to retry</Text>
+          </Pressable>
+        ) : null}
+        {reference && !confirmLoading && !confirmError && hasConfirmedChats ? (
+          <Text style={styles.readyHint}>
+            {multiShopCheckout ? `Chats with ${confirmEntries.length} sellers are ready.` : 'Seller chat is ready.'}
+          </Text>
+        ) : null}
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Details</Text>
@@ -106,12 +262,25 @@ export default function PaymentSuccessScreen({ navigation, route }) {
         </View>
 
         <Pressable
-          style={styles.primaryBtn}
-          onPress={() => parentTabNav?.navigate('Chat')}
+          style={[
+            styles.primaryBtn,
+            (confirmLoading || Boolean(reference && !hasConfirmedChats && !confirmError)) && styles.primaryBtnDisabled,
+          ]}
+          onPress={() => onContinueChat()}
           accessibilityRole="button"
+          disabled={confirmLoading || Boolean(reference && !hasConfirmedChats && !confirmError)}
         >
-          <Text style={styles.primaryBtnText}>Continue to chat</Text>
+          {confirmLoading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.primaryBtnText}>Continue to chat</Text>
+          )}
         </Pressable>
+        {reference && confirmError ? (
+          <Text style={styles.helperMuted}>
+            Your payment went through; if chat setup fails, tap the error above to retry or contact support with your reference.
+          </Text>
+        ) : null}
         <Pressable
           style={styles.secondaryBtn}
           onPress={() => parentTabNav?.navigate('Activities')}
@@ -180,6 +349,60 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#667085',
     marginBottom: 22,
+  },
+  statusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#ECFDF3',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#ABEFC6',
+  },
+  statusBannerText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#067647',
+    fontWeight: '600',
+  },
+  errorBanner: {
+    marginBottom: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    backgroundColor: '#FEF3F2',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    gap: 4,
+  },
+  errorBannerText: {
+    fontSize: 13,
+    color: '#B42318',
+    marginTop: 4,
+  },
+  errorRetry: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#B42318',
+    textDecorationLine: 'underline',
+  },
+  readyHint: {
+    textAlign: 'center',
+    fontSize: 14,
+    color: '#067647',
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  helperMuted: {
+    fontSize: 12,
+    color: '#667085',
+    textAlign: 'center',
+    marginBottom: 10,
+    marginTop: -4,
+    paddingHorizontal: 4,
   },
   card: {
     backgroundColor: '#FFFFFF',
@@ -252,6 +475,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     height: 52,
     marginBottom: 10,
+  },
+  primaryBtnDisabled: {
+    opacity: 0.65,
   },
   primaryBtnText: {
     color: '#FFFFFF',

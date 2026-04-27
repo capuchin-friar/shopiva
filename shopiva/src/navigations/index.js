@@ -73,6 +73,7 @@ function NavigationTree() {
             'home',
             'profile-main',
             'chat-list',
+            'vendor-chat-list',
             // 'order-list',
             // 'dispute-list',
             'Home',

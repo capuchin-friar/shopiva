@@ -175,4 +175,47 @@ export class paystack {
         return `${prefix}-${timestamp}-${randomPart}`;
     }
 
+    /**
+     * Verify a Paystack transaction by reference (NGN amounts are in **kobo** in `data.amount`).
+     * @see https://paystack.com/docs/api/#transaction-verify
+     */
+    static async verifyTransaction(reference: string): Promise<Record<string, unknown>> {
+        const ref = String(reference ?? "").trim();
+        if (!ref) {
+            throw new Error("reference is required");
+        }
+        const secret = paystack.secretKey();
+        if (!secret) {
+            throw new Error("PAYSTACK_SECRET_KEY is not configured");
+        }
+        const path = `/transaction/verify/${encodeURIComponent(ref)}`;
+        const options = {
+            hostname: "api.paystack.co",
+            port: 443,
+            path,
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${secret}`,
+            },
+        };
+        return new Promise((resolve, reject) => {
+            const req = https.request(options, (res) => {
+                let data = "";
+                res.on("data", (chunk) => {
+                    data += chunk;
+                });
+                res.on("end", () => {
+                    try {
+                        const parsed = JSON.parse(data) as Record<string, unknown>;
+                        resolve(parsed);
+                    } catch {
+                        reject(new Error("Invalid JSON response from Paystack verify"));
+                    }
+                });
+            });
+            req.on("error", (err) => reject(err));
+            req.end();
+        });
+    }
+
 }

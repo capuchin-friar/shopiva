@@ -13,6 +13,7 @@ import {
   PatchBuyerCartLineController,
   PostBuyerCartController,
 } from "../controllers/buyer/cart.js";
+import { PostBuyerCheckoutConfirmPaymentController } from "../controllers/buyer/checkout.js";
 
 const BuyerRouter = express.Router();
 
@@ -20,6 +21,8 @@ BuyerRouter.get("/buyer/cart", verifyToken, GetBuyerCartController);
 BuyerRouter.post("/buyer/cart", verifyToken, PostBuyerCartController);
 BuyerRouter.patch("/buyer/cart/:cartItemId", verifyToken, PatchBuyerCartLineController);
 BuyerRouter.delete("/buyer/cart/:cartItemId", verifyToken, DeleteBuyerCartLineController);
+
+BuyerRouter.post("/buyer/checkout/confirm-payment", verifyToken, PostBuyerCheckoutConfirmPaymentController);
 
 BuyerRouter.get("/buyer/orders", verifyToken, GetBuyerOrdersController);
 BuyerRouter.get("/buyer/orders/:orderId", verifyToken, GetBuyerOrderByIdController);

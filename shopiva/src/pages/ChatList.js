@@ -1,9 +1,10 @@
-import { useCallback, useMemo } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MOCK_CHATS } from '../data/chatMocks';
+import { connectChatSocket, emitSocketAck, getChatSocket } from '../socket/chatSocket';
+import { getLastOpenedChatRoomId } from '../utils/lastOpenedChatRoom';
 
 const PAGE_BG = '#FFFFFF';
 const BLACK = '#111111';
@@ -30,22 +31,75 @@ function Avatar({ name, avatarHue }) {
 }
 
 /**
- * @param {{ item: Record<string, unknown>; onPress: () => void }} p
+ * @param {string} text
  */
-function ChatRow({ item, onPress }) {
+function hueFromText(text) {
+  let h = 0;
+  for (let i = 0; i < text.length; i += 1) h = (h * 31 + text.charCodeAt(i)) % 360;
+  return Math.abs(h);
+}
+
+/** @param {unknown} value */
+function toTimeLabel(value) {
+  if (value == null) return '';
+  const d = new Date(/** @type {string | number} */ (value));
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+}
+
+/**
+ * @param {Record<string, unknown>} room
+ */
+function mapRoomRow(room) {
+  const roomId = String(room.id ?? '').trim();
+  const orderId = String(room.order_id ?? '').trim();
+  const name = orderId ? `Order #${orderId}` : 'Chat';
+  return {
+    id: roomId,
+    roomId,
+    orderId,
+    name,
+    avatarHue: hueFromText(roomId || name),
+    unreadCount: 0,
+    lastAtLabel: toTimeLabel(room.updated_at ?? room.created_at),
+    lastMessage: String(room.last_message ?? '').trim() || 'No messages yet',
+  };
+}
+
+/**
+ * @param {{ item: Record<string, unknown>; onPress: () => void; highlightKind?: 'recent' | 'purchased' | null }} p
+ */
+function ChatRow({ item, onPress, highlightKind }) {
   const unread = item.unreadCount > 0;
+  const highlighted = Boolean(highlightKind);
 
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+      style={({ pressed }) => [
+        styles.row,
+        highlighted && styles.rowHighlighted,
+        pressed && styles.rowPressed,
+      ]}
     >
       <Avatar name={item.name} avatarHue={item.avatarHue} />
       <View style={styles.rowBody}>
         <View style={styles.rowTop}>
-          <Text style={[styles.name, unread && styles.nameUnread]} numberOfLines={1}>
-            {item.name}
-          </Text>
+          <View style={styles.nameRow}>
+            <Text style={[styles.name, unread && styles.nameUnread]} numberOfLines={1}>
+              {item.name}
+            </Text>
+            {highlightKind === 'recent' ? (
+              <View style={[styles.tagPill, styles.recentPill]}>
+                <Text style={[styles.tagPillText, styles.recentPillText]}>Recent</Text>
+              </View>
+            ) : null}
+            {highlightKind === 'purchased' ? (
+              <View style={[styles.tagPill, styles.purchasedPill]}>
+                <Text style={[styles.tagPillText, styles.purchasedPillText]}>Purchased</Text>
+              </View>
+            ) : null}
+          </View>
           <Text style={[styles.time, unread && styles.timeUnread]}>{item.lastAtLabel}</Text>
         </View>
         <View style={styles.rowBottom}>
@@ -69,9 +123,128 @@ function ListSeparator() {
   return <View style={styles.fullSep} />;
 }
 
-export default function ChatListScreen() {
-  const navigation = useNavigation();
+export default function ChatListScreen({
+  navigation,
+  route,
+  chatRoleVariant = 'customer',
+  chatRoomRouteName = 'chat-room',
+  chatListTitle = 'Chats',
+}) {
+  const storageScope = chatRoleVariant === 'vendor' ? 'vendor' : 'customer';
+  const appRolePayload = storageScope === 'vendor' ? 'vendor' : 'customer';
   const insets = useSafeAreaInsets();
+  const [rows, setRows] = useState(/** @type {Array<Record<string, unknown>>} */ ([]));
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [highlightRoomIds, setHighlightRoomIds] = useState(/** @type {Set<string>} */ (new Set()));
+  const [lastOpenedId, setLastOpenedId] = useState(/** @type {string | null} */ (null));
+
+  const loadRooms = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      await connectChatSocket();
+      const out = await emitSocketAck('get_rooms', { app_role: appRolePayload });
+      if (!out.success) {
+        setRows([]);
+        setError(out.message || 'Could not load chats');
+        return;
+      }
+      const list =
+        out.result && typeof out.result === 'object' && 'rooms' in out.result
+          ? /** @type {{ rooms?: unknown }} */ (out.result).rooms
+          : [];
+      const mapped = (Array.isArray(list) ? list : [])
+        .filter((x) => x && typeof x === 'object')
+        .map((x) => mapRoomRow(/** @type {Record<string, unknown>} */ (x)))
+        .filter((x) => x.roomId);
+      setRows(mapped);
+      try {
+        const lid = await getLastOpenedChatRoomId(storageScope);
+        setLastOpenedId(lid && String(lid).trim() ? String(lid).trim() : null);
+      } catch {
+        /* ignore */
+      }
+    } catch (e) {
+      setRows([]);
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [storageScope, appRolePayload]);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({ title: chatListTitle });
+  }, [navigation, chatListTitle]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadRooms();
+      const socket = getChatSocket();
+      const refresh = () => {
+        void loadRooms();
+      };
+      socket?.on('room_created', refresh);
+      socket?.on('message_created', refresh);
+      return () => {
+        socket?.off('room_created', refresh);
+        socket?.off('message_created', refresh);
+      };
+    }, [loadRooms]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const params = route.params && typeof route.params === 'object' ? /** @type {Record<string, unknown>} */ (route.params) : {};
+      const rawIds = params.highlightRoomIds;
+      const exp = params.highlightExpiresAt;
+      const expiresOk = typeof exp !== 'number' || Date.now() < exp;
+      const ids = Array.isArray(rawIds) ? rawIds.map((x) => String(x ?? '').trim()).filter(Boolean) : [];
+      if (!ids.length || !expiresOk) {
+        setHighlightRoomIds(new Set());
+        return undefined;
+      }
+      setHighlightRoomIds(new Set(ids));
+      const t = setTimeout(() => setHighlightRoomIds(new Set()), 14000);
+      return () => clearTimeout(t);
+    }, [route.params]),
+  );
+
+  /** Last-opened room first, then other checkout highlights, then the rest (API order). */
+  const sortedRows = useMemo(() => {
+    const used = new Set();
+    /** @type {Array<Record<string, unknown>>} */
+    const out = [];
+
+    const pushRow = (r) => {
+      const id = String(r.roomId ?? r.id ?? '').trim();
+      if (!id || used.has(id)) return;
+      out.push(r);
+      used.add(id);
+    };
+
+    if (lastOpenedId) {
+      for (const r of rows) {
+        const id = String(r.roomId ?? r.id ?? '').trim();
+        if (id === lastOpenedId) {
+          pushRow(r);
+          break;
+        }
+      }
+    }
+
+    for (const r of rows) {
+      const id = String(r.roomId ?? r.id ?? '').trim();
+      if (!id || used.has(id)) continue;
+      if (highlightRoomIds.has(id)) pushRow(r);
+    }
+
+    for (const r of rows) {
+      pushRow(r);
+    }
+
+    return out;
+  }, [rows, lastOpenedId, highlightRoomIds]);
 
   const listHeader = useMemo(
     () => (
@@ -95,10 +268,21 @@ export default function ChatListScreen() {
   );
 
   const renderItem = useCallback(
-    ({ item }) => (
-      <ChatRow item={item} onPress={() => navigation.navigate('chat-room', { chat: item })} />
-    ),
-    [navigation],
+    ({ item }) => {
+      const rid = String(item.roomId ?? item.id ?? '').trim();
+      /** @type {'recent' | 'purchased' | null} */
+      let highlightKind = null;
+      if (rid && lastOpenedId && rid === lastOpenedId) highlightKind = 'recent';
+      else if (rid && highlightRoomIds.has(rid)) highlightKind = 'purchased';
+      return (
+        <ChatRow
+          item={item}
+          highlightKind={highlightKind}
+          onPress={() => navigation.navigate(chatRoomRouteName, { chat: item })}
+        />
+      );
+    },
+    [navigation, highlightRoomIds, lastOpenedId, chatRoomRouteName],
   );
 
   const listContentStyle = useMemo(
@@ -109,13 +293,25 @@ export default function ChatListScreen() {
   return (
     <View style={styles.root}>
       <FlatList
-        data={MOCK_CHATS}
+        data={sortedRows}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
         ItemSeparatorComponent={ListSeparator}
         contentContainerStyle={listContentStyle}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={listHeader}
+        ListEmptyComponent={
+          <View style={styles.emptyWrap}>
+            {loading ? (
+              <>
+                <ActivityIndicator size="small" color="#00926e" />
+                <Text style={styles.emptyText}>Loading chats…</Text>
+              </>
+            ) : (
+              <Text style={styles.emptyText}>{error || 'No chats yet.'}</Text>
+            )}
+          </View>
+        }
       />
     </View>
   );
@@ -192,8 +388,48 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     backgroundColor: PAGE_BG,
   },
+  rowHighlighted: {
+    backgroundColor: '#ECFDF3',
+    borderLeftWidth: 4,
+    borderLeftColor: '#00926e',
+    paddingLeft: 12,
+  },
   rowPressed: {
     backgroundColor: '#F5F5F5',
+  },
+  nameRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minWidth: 0,
+    paddingRight: 12,
+  },
+  tagPill: {
+    flexShrink: 0,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  tagPillText: {
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  recentPill: {
+    backgroundColor: '#E0F2FE',
+    borderColor: '#38BDF8',
+  },
+  recentPillText: {
+    color: '#0369A1',
+  },
+  purchasedPill: {
+    backgroundColor: '#D1FAE5',
+    borderColor: '#6EE7B7',
+  },
+  purchasedPillText: {
+    color: '#047857',
   },
   avatar: {
     width: 52,
@@ -221,10 +457,11 @@ const styles = StyleSheet.create({
   },
   name: {
     flex: 1,
+    flexShrink: 1,
     fontSize: 17,
     fontWeight: '500',
     color: BLACK,
-    paddingRight: 12,
+    minWidth: 0,
   },
   nameUnread: {
     fontWeight: '700',
@@ -265,5 +502,15 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '700',
+  },
+  emptyWrap: {
+    alignItems: 'center',
+    paddingVertical: 24,
+  },
+  emptyText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: MUTED,
+    textAlign: 'center',
   },
 });

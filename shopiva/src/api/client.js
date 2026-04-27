@@ -1,4 +1,4 @@
-import { getStoredAccessToken } from '../auth/session';
+import { getStoredAccessToken, getStoredActiveRole } from '../auth/session';
 import { notifyUnauthorized } from '../auth/unauthorized';
 import { getApiBaseUrl } from './config';
 
@@ -9,12 +9,17 @@ import { getApiBaseUrl } from './config';
  */
 export async function apiFetchAuth(path, options = {}) {
   const token = await getStoredAccessToken();
+  const appRole = await getStoredActiveRole();
   const prev = options.headers && typeof options.headers === 'object' && !(options.headers instanceof Headers)
     ? /** @type {Record<string, string>} */ ({ ...options.headers })
     : {};
   const headers = { ...prev };
   if (token) {
     headers.Authorization = `Bearer ${token}`;
+  }
+  /** Lets the API scope responses if a route supports dual identity (same account, buyer vs seller context). */
+  if (!headers['X-Shopiva-App-Role'] && !headers['x-shopiva-app-role']) {
+    headers['X-Shopiva-App-Role'] = appRole === 'vendor' ? 'vendor' : 'customer';
   }
   const res = await apiFetch(path, { ...options, headers });
   if (token && res.status === 401) {
@@ -54,6 +59,7 @@ export async function apiFetch(path, options = {}) {
  */
 export async function apiFetchAuthMultipart(path, options = {}) {
   const token = await getStoredAccessToken();
+  const appRole = await getStoredActiveRole();
   const prev =
     options.headers && typeof options.headers === 'object' && !(options.headers instanceof Headers)
       ? /** @type {Record<string, string>} */ ({ ...options.headers })
@@ -61,6 +67,9 @@ export async function apiFetchAuthMultipart(path, options = {}) {
   const headers = { Accept: 'application/json', ...prev };
   if (token) {
     headers.Authorization = `Bearer ${token}`;
+  }
+  if (!headers['X-Shopiva-App-Role'] && !headers['x-shopiva-app-role']) {
+    headers['X-Shopiva-App-Role'] = appRole === 'vendor' ? 'vendor' : 'customer';
   }
   const base = getApiBaseUrl();
   const normalized = path.startsWith('/') ? path : `/${path}`;

@@ -1,6 +1,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  ActivityIndicator,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -11,9 +12,11 @@ import {
   View,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getSeedMessages } from '../data/chatMocks';
+import { useProfile } from '../context/ProfileContext';
+import { connectChatSocket, emitSocketAck, getChatSocket } from '../socket/chatSocket';
+import { setLastOpenedChatRoomId } from '../utils/lastOpenedChatRoom';
 
 const BG = '#ECE5DD';
 const INCOMING = '#FFFFFF';
@@ -54,15 +57,99 @@ function Bubble({ item }) {
   );
 }
 
-export default function ChatRoomScreen() {
+export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const route = useRoute();
+  const { user } = useProfile();
   const chat = route.params?.chat;
+  const roomId = String(chat?.roomId ?? chat?.id ?? '').trim();
+  const storageScope = chatRoleVariant === 'vendor' ? 'vendor' : 'customer';
+  const appRolePayload = storageScope === 'vendor' ? 'vendor' : 'customer';
+  const listBackTitle = chatRoleVariant === 'vendor' ? 'Inbox' : 'Chats';
 
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState(() => (chat ? getSeedMessages(chat.id) : []));
+  const [messages, setMessages] = useState(/** @type {Array<{ id: string; text: string; outgoing: boolean; timeLabel: string }>} */ ([]));
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
   const listRef = useRef(null);
+
+  /**
+   * @param {Record<string, unknown>} row
+   */
+  const mapMessage = useCallback(
+    (row) => {
+      const senderId = Number(row.sender);
+      const userId = Number(user?.id);
+      const outgoing = Number.isFinite(senderId) && Number.isFinite(userId) ? senderId === userId : false;
+      const d = new Date(/** @type {string | number} */ (row.created_at ?? row.updated_at ?? Date.now()));
+      const timeLabel = Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+      return {
+        id: String(row.id ?? `msg-${Date.now()}`),
+        text: String(row.content ?? '').trim(),
+        outgoing,
+        timeLabel,
+      };
+    },
+    [user?.id],
+  );
+
+  const loadMessages = useCallback(async () => {
+    if (!roomId) return;
+    setLoading(true);
+    try {
+      await connectChatSocket();
+      const out = await emitSocketAck('get_room_messages', {
+        room_id: roomId,
+        limit: 100,
+        app_role: appRolePayload,
+      });
+      if (!out.success) {
+        setMessages([]);
+        return;
+      }
+      const list =
+        out.result && typeof out.result === 'object' && 'messages' in out.result
+          ? /** @type {{ messages?: unknown }} */ (out.result).messages
+          : [];
+      const mapped = (Array.isArray(list) ? list : [])
+        .filter((x) => x && typeof x === 'object')
+        .map((x) => mapMessage(/** @type {Record<string, unknown>} */ (x)))
+        .filter((x) => x.text);
+      setMessages(mapped);
+      requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: false }));
+    } finally {
+      setLoading(false);
+    }
+  }, [roomId, mapMessage, appRolePayload]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!roomId) return () => {};
+      void setLastOpenedChatRoomId(roomId, storageScope);
+      void loadMessages();
+      const socket = getChatSocket();
+      const onIncoming = (payload) => {
+        if (!payload || typeof payload !== 'object') return;
+        const msg =
+          'message' in /** @type {Record<string, unknown>} */ (payload)
+            ? /** @type {Record<string, unknown>} */ (/** @type {Record<string, unknown>} */ (payload).message)
+            : null;
+        if (!msg || String(msg.room_id ?? '').trim() !== roomId) return;
+        const mapped = mapMessage(msg);
+        if (!mapped.text) return;
+        setMessages((prev) => {
+          if (prev.some((p) => p.id === mapped.id)) return prev;
+          return [...prev, mapped];
+        });
+        requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+      };
+      socket?.on('message_created', onIncoming);
+      return () => {
+        socket?.off('message_created', onIncoming);
+      };
+    }, [roomId, loadMessages, mapMessage, storageScope]),
+  );
 
   const headerActions = useCallback(() => {
     Alert.alert('Call', 'Voice and video calls will be available when connected.');
@@ -76,6 +163,7 @@ export default function ChatRoomScreen() {
         headerTintColor: '#FFFFFF',
         headerTitleStyle: { color: '#FFFFFF', fontWeight: '600' },
         headerShadowVisible: false,
+        headerBackTitle: listBackTitle,
         headerRight: undefined,
       });
       return;
@@ -86,7 +174,7 @@ export default function ChatRoomScreen() {
       headerTintColor: '#FFFFFF',
       headerTitleStyle: { color: '#FFFFFF', fontWeight: '600', fontSize: 18 },
       headerShadowVisible: false,
-      headerBackTitle: 'Chats',
+      headerBackTitle: listBackTitle,
       headerRight: () => (
         <View style={styles.headerRight}>
           <Pressable
@@ -108,20 +196,41 @@ export default function ChatRoomScreen() {
         </View>
       ),
     });
-  }, [navigation, chat, headerActions]);
+  }, [navigation, chat, headerActions, listBackTitle]);
 
   const onSend = useCallback(() => {
     const t = input.trim();
-    if (!t) return;
-    const now = new Date();
-    const timeLabel = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-    setMessages((prev) => [
-      ...prev,
-      { id: `local-${now.getTime()}`, text: t, outgoing: true, timeLabel },
-    ]);
-    setInput('');
-    requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
-  }, [input]);
+    if (!t || !roomId || sending) return;
+    setSending(true);
+    void (async () => {
+      try {
+        const out = await emitSocketAck('create_message', {
+          room_id: roomId,
+          type: 'text',
+          content: t,
+          app_role: appRolePayload,
+        });
+        if (!out.success) {
+          Alert.alert('Message not sent', out.message || 'Try again.');
+          return;
+        }
+        const resultMsg =
+          out.result && typeof out.result === 'object' && 'message' in out.result
+            ? /** @type {Record<string, unknown>} */ (/** @type {{ message: unknown }} */ (out.result).message)
+            : null;
+        if (resultMsg) {
+          const mapped = mapMessage(resultMsg);
+          if (mapped.text) {
+            setMessages((prev) => (prev.some((p) => p.id === mapped.id) ? prev : [...prev, mapped]));
+          }
+        }
+        setInput('');
+        requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+      } finally {
+        setSending(false);
+      }
+    })();
+  }, [input, roomId, sending, mapMessage, appRolePayload]);
 
   const renderItem = useCallback(({ item }) => <Bubble item={item} />, []);
   const keyExtractor = useCallback((m) => m.id, []);
@@ -173,11 +282,23 @@ export default function ChatRoomScreen() {
           data={messages}
           keyExtractor={keyExtractor}
           renderItem={renderItem}
-          ListHeaderComponent={listHeader}
+          ListHeaderComponent={messages.length > 0 ? listHeader : null}
           contentContainerStyle={listContentStyle}
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyMessagesWrap}>
+              {loading ? (
+                <>
+                  <ActivityIndicator size="small" color="#00926e" />
+                  <Text style={styles.emptyMessagesText}>Loading messages…</Text>
+                </>
+              ) : (
+                <Text style={styles.emptyMessagesText}>No messages yet. Say hello.</Text>
+              )}
+            </View>
+          }
         />
 
         <View style={inputBarStyle}>
@@ -211,11 +332,12 @@ export default function ChatRoomScreen() {
             {canSend ? (
               <Pressable
                 onPress={onSend}
-                style={({ pressed }) => [styles.sendBtn, pressed && styles.sendBtnPressed]}
+                style={({ pressed }) => [styles.sendBtn, (pressed || sending) && styles.sendBtnPressed]}
                 accessibilityRole="button"
                 accessibilityLabel="Send message"
+                disabled={sending}
               >
-                <Icon name="send" size={20} color="#FFFFFF" />
+                {sending ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Icon name="send" size={20} color="#FFFFFF" />}
               </Pressable>
             ) : (
               <Pressable
@@ -395,5 +517,15 @@ const styles = StyleSheet.create({
   },
   sendBtnPressed: {
     opacity: 0.88,
+  },
+  emptyMessagesWrap: {
+    paddingVertical: 24,
+    alignItems: 'center',
+  },
+  emptyMessagesText: {
+    marginTop: 8,
+    fontSize: 14,
+    color: MUTED,
+    textAlign: 'center',
   },
 });
