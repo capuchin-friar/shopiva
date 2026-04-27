@@ -2,21 +2,14 @@ import { Pool, type PoolConfig } from "pg";
 
 let pool: Pool | undefined;
 
-/** Shared by app + migration scripts. Prefer URL vars in hosted environments. */
+/**
+ * Shared by app + migration scripts (local/default DB).
+ * NOTE: `DB` is reserved for Paystack webhook override only.
+ */
 export function pgPoolConfigFromEnv(): PoolConfig {
-  const connectionString = process.env.DB?.trim() || process.env.DATABASE_URL?.trim();
   const max = Number(process.env.DB_POOL_MAX ?? 10);
   const idleTimeoutMillis = 30_000;
   const connectionTimeoutMillis = 10_000;
-
-  if (connectionString) {
-    return {
-      connectionString,
-      max,
-      idleTimeoutMillis,
-      connectionTimeoutMillis,
-    };
-  }
 
   return {
     user: process.env.DB_USER ?? process.env.PGUSER ?? "postgres",

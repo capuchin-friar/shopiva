@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Image,
@@ -16,8 +16,10 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { usePaystack } from 'react-native-paystack-webview';
 import { useProfile } from '../context/ProfileContext';
 import { fetchBuyerCart } from '../api/buyer';
+import { canUsePaystackCheckout } from '../paystack/paystackNativeGate';
 import { formatNaira } from '../utils/formatNaira';
 
 const PRIMARY = '#00926e';
@@ -126,6 +128,7 @@ export default function CartCheckoutScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { user } = useProfile();
   const route = useRoute();
+  const { popup } = usePaystack();
 
   const [cartLoading, setCartLoading] = useState(true);
   const [checkoutLines, setCheckoutLines] = useState(
@@ -144,6 +147,9 @@ export default function CartCheckoutScreen({ navigation }) {
   const [touchedSubmit, setTouchedSubmit] = useState(false);
   const [formBanner, setFormBanner] = useState('');
   const [orderSummaryOpen, setOrderSummaryOpen] = useState(false);
+  const [isPaying, setIsPaying] = useState(false);
+  const [bottomToast, setBottomToast] = useState('');
+  const toastTimerRef = useRef(/** @type {ReturnType<typeof setTimeout> | null} */ (null));
 
   useFocusEffect(
     useCallback(() => {
@@ -237,8 +243,29 @@ export default function CartCheckoutScreen({ navigation }) {
 
   const showErrors = touchedSubmit;
   const hasBlockingErrors = Object.keys(errors).length > 0;
+  const hasEmptyRequiredFields = useMemo(
+    () => !fullName.trim() || !email.trim() || !phone.trim() || !street.trim() || !city.trim() || !zip.trim(),
+    [fullName, email, phone, street, city, zip],
+  );
 
-  const onContinue = useCallback(() => {
+  const showBottomToast = useCallback((message) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setBottomToast(message);
+    toastTimerRef.current = setTimeout(() => {
+      setBottomToast('');
+      toastTimerRef.current = null;
+    }, 2600);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    },
+    [],
+  );
+
+  const onPaystackCheckout = useCallback(() => {
+    if (isPaying) return;
     setTouchedSubmit(true);
     setFormBanner('');
     if (subtotal <= 0) {
@@ -249,43 +276,118 @@ export default function CartCheckoutScreen({ navigation }) {
       setFormBanner('Please complete all fields correctly before paying.');
       return;
     }
-    setFormBanner('');
-    Alert.alert(
-      'Continue to payment',
-      `Total ${formatNaira(total)} (including shipping). Hook Paystack or your server checkout here when ready.`,
-    );
-  }, [hasBlockingErrors, subtotal, total]);
+    if (!canUsePaystackCheckout()) {
+      Alert.alert(
+        'Paystack unavailable',
+        'Paystack checkout is not available in this build. Rebuild the app after linking react-native-webview, then try again.',
+      );
+      return;
+    }
+    const customerEmail = email.trim();
+    if (!customerEmail) {
+      setFormBanner('A valid email is required for Paystack checkout.');
+      return;
+    }
+    const payableAmount = Math.max(1, Math.round(Number(total)));
+    const reference = `shopiva_cart_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const firstLine = checkoutLines[0];
 
-  useLayoutEffect(() => {
-    const canShowOrder = !cartLoading && subtotal > 0 && checkoutLines.length > 0;
-    navigation.setOptions({
-      headerRight: () => (
-        <Pressable
-          onPress={() => setOrderSummaryOpen(true)}
-          disabled={!canShowOrder}
-          style={({ pressed }) => [
-            styles.headerOrderBtn,
-            !canShowOrder && styles.headerOrderBtnDisabled,
-            pressed && canShowOrder && styles.headerOrderBtnPressed,
-          ]}
-          hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-          accessibilityRole="button"
-          accessibilityLabel="View order you are paying for"
-        >
-          <Icon name="receipt-outline" size={22} color={canShowOrder ? PRIMARY : '#BDBDBD'} />
-          <Text style={[styles.headerOrderBtnLabel, !canShowOrder && styles.headerOrderBtnLabelDisabled]}>Order</Text>
-        </Pressable>
-      ),
+    const shippingSummary = `${street.trim()}, ${city.trim()}, ${zip.trim()}, ${country}`;
+    setIsPaying(true);
+    setFormBanner('');
+    popup.checkout({
+      email: customerEmail,
+      amount: payableAmount,
+      reference,
+      metadata: {
+        custom_fields: [
+          { display_name: 'Checkout type', variable_name: 'checkout_type', value: 'cart' },
+          { display_name: 'Items', variable_name: 'item_count', value: String(checkoutLines.length) },
+          { display_name: 'Delivery', variable_name: 'delivery_type', value: delivery },
+          { display_name: 'Shipping', variable_name: 'shipping_cost', value: String(shippingCost) },
+          { display_name: 'Address', variable_name: 'shipping_address', value: shippingSummary.slice(0, 200) },
+          { display_name: 'Lead item', variable_name: 'lead_item', value: String(firstLine?.title ?? 'Cart items').slice(0, 120) },
+        ],
+      },
+      onSuccess: (res) => {
+        setIsPaying(false);
+        setOrderSummaryOpen(false);
+        const refStr =
+          res && typeof res === 'object' && 'reference' in res
+            ? String(/** @type {{ reference?: string }} */ (res).reference)
+            : reference;
+        navigation.replace('payment-success', {
+          reference: refStr,
+          subtotal,
+          shipping: shippingCost,
+          total: payableAmount,
+          itemCount: checkoutLines.length,
+        });
+      },
+      onCancel: () => {
+        setIsPaying(false);
+        setOrderSummaryOpen(false);
+        navigation.replace('payment-failed', {
+          reason: 'Payment was cancelled before completion.',
+          subtotal,
+          shipping: shippingCost,
+          total: payableAmount,
+        });
+      },
+      onError: (err) => {
+        setIsPaying(false);
+        setOrderSummaryOpen(false);
+        const msg =
+          err && typeof err === 'object' && 'message' in err
+            ? String(/** @type {{ message?: string }} */ (err).message)
+            : String(err || 'Something went wrong');
+        navigation.replace('payment-failed', {
+          reason: msg,
+          subtotal,
+          shipping: shippingCost,
+          total: payableAmount,
+        });
+      },
     });
-    return () => {
-      navigation.setOptions({ headerRight: undefined });
-    };
-  }, [navigation, cartLoading, subtotal, checkoutLines.length]);
+  }, [
+    isPaying,
+    hasBlockingErrors,
+    subtotal,
+    email,
+    total,
+    checkoutLines,
+    delivery,
+    shippingCost,
+    street,
+    city,
+    zip,
+    country,
+    popup,
+    navigation,
+  ]);
+
+  const onContinue = useCallback(() => {
+    setTouchedSubmit(true);
+    setFormBanner('');
+    if (subtotal <= 0) {
+      setFormBanner('Your cart is empty. Add items before paying.');
+      return;
+    }
+    if (hasEmptyRequiredFields) {
+      showBottomToast('Please fill in all required fields.');
+      return;
+    }
+    if (hasBlockingErrors) {
+      setFormBanner('Please complete all fields correctly before continuing.');
+      return;
+    }
+    setOrderSummaryOpen(true);
+  }, [subtotal, hasEmptyRequiredFields, hasBlockingErrors, showBottomToast]);
 
   const continueToPayment = useCallback(() => {
     setOrderSummaryOpen(false);
-    onContinue();
-  }, [onContinue]);
+    onPaystackCheckout();
+  }, [onPaystackCheckout]);
 
   const inputStyle = (key) => [
     styles.input,
@@ -455,8 +557,13 @@ export default function CartCheckoutScreen({ navigation }) {
               <Text style={styles.totalWord}>Total</Text>
               <Text style={styles.totalAmount}>{formatNaira(total)}</Text>
             </View>
-            <Pressable style={styles.continueBtn} onPress={onContinue} accessibilityRole="button">
-              <Text style={styles.continueBtnText}>Continue to payment</Text>
+            <Pressable
+              style={[styles.continueBtn, isPaying ? styles.payBtnDisabled : null]}
+              onPress={onContinue}
+              disabled={isPaying}
+              accessibilityRole="button"
+            >
+              <Text style={styles.continueBtnText}>{isPaying ? 'Processing payment…' : 'Continue to payment'}</Text>
             </Pressable>
           </View>
         ) : null}
@@ -499,12 +606,13 @@ export default function CartCheckoutScreen({ navigation }) {
                 </View>
               </ScrollView>
               <Pressable
-                style={styles.orderModalContinueBtn}
+                style={[styles.orderModalContinueBtn, isPaying ? styles.payBtnDisabled : null]}
                 onPress={continueToPayment}
+                disabled={isPaying}
                 accessibilityRole="button"
                 accessibilityLabel="Continue to payment"
               >
-                <Text style={styles.orderModalContinueBtnText}>Continue to payment</Text>
+                <Text style={styles.orderModalContinueBtnText}>{isPaying ? 'Processing payment…' : 'Confirm & Pay'}</Text>
               </Pressable>
               <Pressable
                 style={styles.orderModalCloseLink}
@@ -516,6 +624,13 @@ export default function CartCheckoutScreen({ navigation }) {
             </View>
           </View>
         </Modal>
+        {bottomToast ? (
+          <View pointerEvents="none" style={[styles.toastWrap, { bottom: Math.max(insets.bottom, 14) + 84 }]}>
+            <View style={styles.toastBox}>
+              <Text style={styles.toastText}>{bottomToast}</Text>
+            </View>
+          </View>
+        ) : null}
       </View>
     </KeyboardAvoidingView>
   );
@@ -861,6 +976,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
   },
+  payBtnDisabled: {
+    opacity: 0.6,
+  },
   orderModalContinueBtnText: {
     color: '#FFFFFF',
     fontSize: 16,
@@ -875,5 +993,25 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: MUTED,
+  },
+  toastWrap: {
+    position: 'absolute',
+    left: 14,
+    right: 14,
+    alignItems: 'center',
+    zIndex: 50,
+  },
+  toastBox: {
+    maxWidth: '100%',
+    backgroundColor: 'rgba(17,17,17,0.95)',
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  toastText: {
+    color: '#FFF',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });

@@ -16,6 +16,8 @@ import VendorScreen from '../pages/Vendor';
 import ProductScreen from '../pages/Product';
 import CartScreen from '../pages/Cart';
 import CartCheckoutScreen from '../pages/CartCheckoutScreen';
+import PaymentSuccessScreen from '../pages/PaymentSuccessScreen';
+import PaymentFailedScreen from '../pages/PaymentFailedScreen';
 import { HomeStackCartIconButton } from '../components/HomeStackCartButton';
 
 /** Bundled logo for native stack header (do not use `{ uri: '../assets/...' }` for local files). */
@@ -174,6 +176,29 @@ export function HomeStackScreen() {
         component={CartCheckoutScreen}
         options={{
           title: 'Checkout',
+          headerShown: true,
+          headerTitleStyle: { fontWeight: '700' },
+          headerShadowVisible: false,
+          headerStyle: { backgroundColor: '#FFFFFF' },
+        }}
+      />
+      <HomeStack.Screen
+        name="payment-success"
+        component={PaymentSuccessScreen}
+        options={{
+          title: 'Payment Status',
+          headerShown: true,
+          headerTitleStyle: { fontWeight: '700' },
+          headerShadowVisible: false,
+          headerStyle: { backgroundColor: '#FFFFFF' },
+          headerBackVisible: false,
+        }}
+      />
+      <HomeStack.Screen
+        name="payment-failed"
+        component={PaymentFailedScreen}
+        options={{
+          title: 'Payment Status',
           headerShown: true,
           headerTitleStyle: { fontWeight: '700' },
           headerShadowVisible: false,

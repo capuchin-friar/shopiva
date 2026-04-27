@@ -16,7 +16,6 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../context/ProfileContext';
-import { isVendorAccountRole } from '../profile/normalizeUser';
 
 const BLACK = '#000000';
 const PAGE_BG = '#F7F7F8';
@@ -35,7 +34,7 @@ const AI_STYLING_TOAST_MS = 2400;
 export default function ProfileHomeScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const { signOut, isAuthenticated } = useAuth();
+  const { signOut, isAuthenticated, activeRole } = useAuth();
   const { user, loading, refresh } = useProfile();
 
   useFocusEffect(
@@ -49,8 +48,8 @@ export default function ProfileHomeScreen() {
   const avatarUri = user?.avatarUrl?.trim() || '';
   const avatarLetter = displayName.charAt(0).toUpperCase() || '?';
   const showProBadge = user?.roleRaw === 'entrepreneur';
-  /** Seller accounts only (`vendor` or `entrepreneur` in API); never show for `customer`. */
-  const showShopInfo = isVendorAccountRole(user?.roleRaw);
+  /** Show only while currently in vendor mode, even if account can switch roles. */
+  const showShopInfo = activeRole === 'vendor';
   const [msgNotifications, setMsgNotifications] = useState(false);
   const [toastVisible, setToastVisible] = useState(false);
   const toastOpacity = useRef(new Animated.Value(0)).current;

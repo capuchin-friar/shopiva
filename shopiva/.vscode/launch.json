@@ -1,23 +1,23 @@
 {
-    // Use IntelliSense to learn about possible attributes.
-    // Hover to view descriptions of existing attributes.
-    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-        {
-            "name": "Debug iOS",
-            "cwd": "${workspaceFolder}",
-            "type": "reactnative",
-            "request": "launch",
-            "platform": "ios"
-        },
-        {
-            "name": "Run iOS",
-            "cwd": "${workspaceFolder}",
-            "type": "reactnative",
-            "request": "launch",
-            "platform": "ios",
-            "enableDebug": false
-        }
+      {
+        "name": "iOS Simulator",
+        "type": "node-terminal",
+        "request": "launch",
+        "command": "npx react-native run-ios --simulator \"iPhone 16\" --no-packager"
+      },
+      {
+        "name": "iOS Device",
+        "type": "node-terminal",
+        "request": "launch",
+        "command": "npx react-native run-ios --udid 00008101-00012D023E99001E --no-packager --extra-params \"-allowProvisioningUpdates\""
+      }
+    ],
+    "compounds": [
+      {
+        "name": "iOS Sim + Device",
+        "configurations": ["iOS Simulator", "iOS Device"]
+      }
     ]
-}
+  }

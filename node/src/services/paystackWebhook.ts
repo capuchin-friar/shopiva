@@ -17,7 +17,8 @@ let paystackWebhookPool: Pool | null = null;
  * - Fallback to shared app pool when not provided.
  */
 async function getPaystackWebhookPool(): Promise<Pool> {
-  const webhookDb = process.env.DB?.trim();
+  // const webhookDb = process.env.DB?.trim();
+  const webhookDb = "postgresql://neondb_owner:npg_1xTCdDvHGk4X@ep-damp-mountain-aeunyf6d-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
   if (!webhookDb) return db();
   if (!paystackWebhookPool) {
     paystackWebhookPool = new Pool({
