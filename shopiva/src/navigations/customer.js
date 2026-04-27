@@ -7,7 +7,6 @@ import { ProfileStackScreen } from '../stacks/Profile';
 import { ChatStackScreen } from '../stacks/Chat';
 import { CustomerOrdersStackScreen } from '../stacks/CustomerOrders';
 import { ProfileProvider } from '../context/ProfileContext';
-import { TransactionStackScreen } from '../stacks/Transaction';
 
 const Tab = createBottomTabNavigator();
 
@@ -36,8 +35,6 @@ export default function CustomerTab() {
               iconName = focused ? 'pulse' : 'pulse-outline';
             } else if (route.name === 'Chat') {
               iconName = focused ? 'chatbubble' : 'chatbubble-outline';
-            } else if (route.name === 'Transactions') {
-              iconName = focused ? 'wallet' : 'wallet-outline';
             } else if (route.name === 'Profile') {
               iconName = focused ? 'person-circle' : 'person-circle-outline';
             }
@@ -54,7 +51,6 @@ export default function CustomerTab() {
         <Tab.Screen name="Home" component={HomeStackScreen} />
         <Tab.Screen name="Chat" component={ChatStackScreen} />
         <Tab.Screen name="Activities" component={CustomerOrdersStackScreen} />
-        <Tab.Screen name="Transactions" component={TransactionStackScreen} />
         <Tab.Screen name="Profile" component={ProfileStackScreen} />
       </Tab.Navigator>
     </ProfileProvider>

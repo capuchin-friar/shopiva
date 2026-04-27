@@ -144,6 +144,22 @@ export async function fetchShopOrders(shopId, userId) {
 }
 
 /**
+ * Shop ledger + overview for the Transactions tab (GET /shop/:shopId/transactions/:userId).
+ * @param {number | string} shopId
+ * @param {number | string} userId
+ * @returns {Promise<{ overview: Record<string, unknown>; transactions: unknown[] }>}
+ */
+export async function fetchShopTransactions(shopId, userId) {
+  const res = await apiFetchAuth(`/shop/${encodeURIComponent(String(shopId))}/transactions/${encodeURIComponent(String(userId))}`, {
+    method: 'GET',
+  });
+  const data = await readJson(res);
+  const overview = data.overview && typeof data.overview === 'object' ? /** @type {Record<string, unknown>} */ (data.overview) : {};
+  const transactions = Array.isArray(data.transactions) ? data.transactions : [];
+  return { overview, transactions };
+}
+
+/**
  * @param {number | string} shopId
  * @param {number | string} userId
  * @returns {Promise<Record<string, unknown> | null>}

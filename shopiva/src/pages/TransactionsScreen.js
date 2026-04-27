@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   Platform,
@@ -11,7 +12,13 @@ import {
   View,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../hooks/useAuth';
+import { useProfile } from '../context/ProfileContext';
+import { fetchBuyerOrders } from '../api/buyer';
+import { fetchOwnerShops, fetchShopTransactions } from '../api/shop';
+import { formatNaira } from '../utils/formatNaira';
 
 const BRAND = '#E85D04';
 const BG = '#F0F1F4';
@@ -20,67 +27,83 @@ const TEXT = '#111827';
 const MUTED = '#6B7280';
 const BORDER = '#E8EAEF';
 
-const SHOPS = ['Lexicon', 'Main store', 'Archive'];
+/** @param {unknown} raw */
+function normalizeShop(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = /** @type {Record<string, unknown>} */ (raw);
+  const id = Number(r.id ?? r.shop_id ?? r.shopId);
+  if (!Number.isFinite(id) || id <= 0) return null;
+  const name = String(r.name ?? r.shop_name ?? 'Shop').trim() || 'Shop';
+  return { id, name };
+}
 
-const SUMMARY = {
-  spent: '₦40,900.00',
-  escrow: '₦5,000.00',
-  refund: '₦67,400.00',
-  // withdrawal: '₦15,000.00',
-};
+/** @param {unknown} value */
+function formatTxDate(value) {
+  if (value == null) return '—';
+  const d = new Date(/** @type {string | number} */ (value));
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-NG', { year: 'numeric', month: 'short', day: 'numeric' });
+}
 
-const MOCK_ROWS = [
-  {
-    id: '1',
-    shop: 'Lexicon',
-    date: '2026-03-30',
-    type: 'Sale',
-    reference: 'ORD-50001',
-    amount: '+₦5,000.00',
-    positive: true,
-    status: 'completed',
-  },
-  {
-    id: '2',
-    shop: 'Lexicon',
-    date: '2026-03-29',
-    type: 'Payout',
-    reference: 'PAYOUT-30001',
-    amount: '-₦15,000.00',
+/** @param {string} status */
+function isPendingStatus(status) {
+  const s = String(status ?? '').toLowerCase();
+  return (
+    s.includes('pending') ||
+    s.includes('processing') ||
+    s.includes('await') ||
+    s.includes('hold') ||
+    s === 'unpaid'
+  );
+}
+
+/**
+ * @param {Record<string, unknown>} order
+ * @returns {Record<string, unknown>}
+ */
+function mapBuyerOrderRow(order) {
+  const oid = String(order.order_id ?? '').trim() || '—';
+  const amt = Number(order.amount ?? 0);
+  const st = String(order.status ?? '');
+  const pending = isPendingStatus(st);
+  return {
+    id: `buyer-ord-${oid}`,
+    shop: String(order.product ?? 'Purchase').trim() || 'Order',
+    date: formatTxDate(order.date),
+    type: 'Purchase',
+    reference: `ORD-${oid}`,
+    amount: `−${formatNaira(amt)}`,
     positive: false,
-    status: 'completed',
-  },
-  {
-    id: '3',
-    shop: 'Lexicon',
-    date: '2026-03-28',
-    type: 'Refund',
-    reference: 'REFUND-20001',
-    amount: '-₦1,200.00',
-    positive: false,
-    status: 'pending',
-  },
-  {
-    id: '4',
-    shop: 'Lexicon',
-    date: '2026-03-27',
-    type: 'Sale',
-    reference: 'ORD-49988',
-    amount: '+₦12,400.00',
-    positive: true,
-    status: 'completed',
-  },
-  {
-    id: '5',
-    shop: 'Lexicon',
-    date: '2026-03-26',
-    type: 'Sale',
-    reference: 'ORD-49970',
-    amount: '+₦3,250.00',
-    positive: true,
-    status: 'pending',
-  },
-];
+    status: pending ? 'pending' : 'completed',
+    meta: String(order.payment ?? '').trim(),
+  };
+}
+
+/**
+ * @param {Record<string, unknown>} t
+ * @param {string} shopName
+ * @param {number} index
+ */
+function mapVendorLedgerRow(t, shopName, index) {
+  const raw = Number(t.amount ?? 0);
+  const positive = raw >= 0;
+  const absLabel = formatNaira(Math.abs(raw));
+  const amount = positive ? `+${absLabel}` : `−${absLabel}`;
+  const type = String(t.type ?? 'Entry');
+  const ref = String(t.reference ?? `TX-${index}`);
+  const pending = String(t.status ?? '').toLowerCase().includes('pending');
+  return {
+    id: `vendor-${ref}-${index}`,
+    shop: shopName,
+    date: formatTxDate(t.date),
+    type,
+    reference: ref,
+    amount,
+    positive,
+    status: pending ? 'pending' : 'completed',
+    meta: '',
+  };
+}
 
 function SummaryCard({ label, value }) {
   return (
@@ -94,7 +117,7 @@ function SummaryCard({ label, value }) {
 }
 
 function StatusBadge({ status }) {
-  const pending = status === 'pending';
+  const pending = isPendingStatus(status);
   return (
     <View style={[styles.badge, pending ? styles.badgePending : styles.badgeCompleted]}>
       <Text style={[styles.badgeText, pending ? styles.badgeTextPending : styles.badgeTextCompleted]}>
@@ -108,51 +131,132 @@ function typeIcon(type) {
   const t = String(type || '').toLowerCase();
   if (t === 'payout') return { name: 'arrow-up-circle-outline', color: '#7C3AED' };
   if (t === 'refund') return { name: 'return-down-back-outline', color: '#DC2626' };
+  if (t === 'purchase') return { name: 'bag-handle-outline', color: '#2563EB' };
   return { name: 'cart-outline', color: '#059669' };
 }
 
 /**
- * Transactions — summary cards + activity cards (vendor & customer tabs).
+ * Transactions — live buyer orders (customer) or shop ledger (vendor).
  */
 export default function TransactionsScreen() {
   const insets = useSafeAreaInsets();
-  const [shopModalOpen, setShopModalOpen] = useState(false);
-  const [selectedShop, setSelectedShop] = useState(SHOPS[0]);
-  const [actionRow, setActionRow] = useState(/** @type {(typeof MOCK_ROWS)[number] | null} */ (null));
+  const { user } = useProfile();
+  const { activeRole, isGuest } = useAuth();
+  const uid = Number(user?.id);
 
-  const filteredRows = useMemo(
-    () => MOCK_ROWS.filter((r) => r.shop === selectedShop),
-    [selectedShop],
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [summary, setSummary] = useState({
+    card1: '—',
+    card2: '—',
+    card3: '—',
+    label1: 'Total spent',
+    label2: 'Pending',
+    label3: 'Refunds',
+  });
+  const [rows, setRows] = useState(/** @type {Array<Record<string, unknown>>} */ ([]));
+  const [shops, setShops] = useState(/** @type {Array<{ id: number; name: string }>} */ ([]));
+  const [selectedShop, setSelectedShop] = useState(/** @type {{ id: number; name: string } | null} */ (null));
+  const [shopModalOpen, setShopModalOpen] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!Number.isFinite(uid) || uid <= 0) {
+      setLoading(false);
+      setRows([]);
+      setError(isGuest ? 'Sign in to see your transactions.' : 'Profile not loaded yet.');
+      return;
+    }
+    setLoading(true);
+    setError('');
+    try {
+      if (activeRole === 'vendor') {
+        const shopListRaw = await fetchOwnerShops(uid);
+        const normalized = (Array.isArray(shopListRaw) ? shopListRaw : [])
+          .map(normalizeShop)
+          .filter((x) => x != null);
+        setShops(/** @type {typeof shops} */ (normalized));
+
+        const shopForTx =
+          normalized.find((s) => s.id === selectedShop?.id) ?? normalized[0] ?? null;
+        if (shopForTx && (selectedShop?.id !== shopForTx.id || !selectedShop)) {
+          setSelectedShop(shopForTx);
+        }
+
+        if (!shopForTx) {
+          setRows([]);
+          setSummary((s) => ({
+            ...s,
+            label1: 'Total earnings',
+            label2: 'Pending escrow',
+            label3: 'Withdrawn',
+            card1: formatNaira(0),
+            card2: formatNaira(0),
+            card3: formatNaira(0),
+          }));
+          return;
+        }
+
+        const { overview, transactions } = await fetchShopTransactions(shopForTx.id, uid);
+        const o = overview && typeof overview === 'object' ? overview : {};
+        const earnings = Number(o.total_earnings ?? 0);
+        const escrow = Number(o.pending_escrow ?? 0);
+        const withdrawn = Number(o.total_withdrawal ?? 0);
+        setSummary({
+          label1: 'Total earnings',
+          label2: 'Pending escrow',
+          label3: 'Withdrawn',
+          card1: formatNaira(earnings),
+          card2: formatNaira(escrow),
+          card3: formatNaira(withdrawn),
+        });
+        const list = Array.isArray(transactions) ? transactions : [];
+        setRows(list.map((t, i) => mapVendorLedgerRow(/** @type {Record<string, unknown>} */ (t), shopForTx.name, i)));
+      } else {
+        const { orders: rawOrders } = await fetchBuyerOrders();
+        const orders = Array.isArray(rawOrders) ? rawOrders : [];
+        let totalSpent = 0;
+        let pendingTotal = 0;
+        let pendingCount = 0;
+        for (const o of orders) {
+          const row = o && typeof o === 'object' ? /** @type {Record<string, unknown>} */ (o) : {};
+          const amt = Number(row.amount ?? 0);
+          totalSpent += amt;
+          if (isPendingStatus(row.status)) {
+            pendingTotal += amt;
+            pendingCount += 1;
+          }
+        }
+        setSummary({
+          label1: 'Total spent',
+          label2: 'Pending orders',
+          label3: 'Order count',
+          card1: formatNaira(totalSpent),
+          card2: pendingCount > 0 ? `${pendingCount} · ${formatNaira(pendingTotal)}` : '—',
+          card3: String(orders.length),
+        });
+        setRows(orders.map((o) => mapBuyerOrderRow(/** @type {Record<string, unknown>} */ (o))));
+        setShops([]);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setRows([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [uid, activeRole, isGuest, selectedShop?.id]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
   );
 
-  const closeActions = useCallback(() => setActionRow(null), []);
-
-  const onRowMenu = useCallback((row) => setActionRow(row), []);
-
-  const onEditTransaction = useCallback(() => {
-    if (!actionRow) return;
-    const row = actionRow;
-    closeActions();
-    Alert.alert(row.reference, 'Open transaction detail or edit memo when your API is ready.');
-  }, [actionRow, closeActions]);
-
-  const onDeleteTransaction = useCallback(() => {
-    if (!actionRow) return;
-    const row = actionRow;
-    closeActions();
-    Alert.alert(
-      'Remove from list',
-      `Hide “${row.reference}” from this view?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => Alert.alert('Removed', 'Wire to your ledger API when ready.'),
-        },
-      ],
-    );
-  }, [actionRow, closeActions]);
+  const listTitle = useMemo(() => {
+    if (activeRole === 'vendor') {
+      return selectedShop ? `Activity · ${selectedShop.name}` : 'Activity';
+    }
+    return 'Purchase history';
+  }, [activeRole, selectedShop]);
 
   return (
     <View style={[styles.root, { paddingTop: 0 }]}>
@@ -160,78 +264,90 @@ export default function TransactionsScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 28 }]}
       >
-        {/* <Text style={styles.pageIntro}>Track your sales, payouts and refunds in one place.</Text> */}
-
-        {/* <Pressable
-          style={({ pressed }) => [styles.shopFilterRow, pressed && styles.pressedOpacity]}
-          onPress={() => setShopModalOpen(true)}
-          accessibilityRole="button"
-          accessibilityLabel="Change shop"
-        >
-          <Icon name="storefront-outline" size={18} color={MUTED} />
-          <Text style={styles.shopFilterText} numberOfLines={1}>
-            Shop: {selectedShop}
-          </Text>
-          <Icon name="chevron-down" size={18} color={MUTED} />
-        </Pressable> */}
 
         <Text style={styles.sectionLabel}>Overview</Text>
         <View style={styles.summaryGrid}>
-          <SummaryCard label="Total spent" value={SUMMARY.spent} />
-          <SummaryCard label="Pending escrow" value={SUMMARY.escrow} />
-          <SummaryCard label="Total refunds" value={SUMMARY.refund} />
-          {/* <SummaryCard label="Total withdrawal" value={SUMMARY.withdrawal} /> */}
+          <SummaryCard label={summary.label1} value={summary.card1} />
+          <SummaryCard label={summary.label2} value={summary.card2} />
+          <SummaryCard label={summary.label3} value={summary.card3} />
         </View>
 
-        <Text style={styles.sectionLabel}>Activity</Text>
-        <Text style={styles.listMetaOnly}>
-          {filteredRows.length} {filteredRows.length === 1 ? 'entry' : 'entries'} · {selectedShop}
-        </Text>
+        {loading ? (
+          <View style={styles.centerBlock}>
+            <ActivityIndicator color={BRAND} />
+            <Text style={styles.centerText}>Loading transactions…</Text>
+          </View>
+        ) : null}
 
-        {filteredRows.map((row) => {
-          const icon = typeIcon(row.type);
-          const openCard = () =>
-            Alert.alert(row.reference, `${row.type} · ${row.date}\n${row.amount}`);
-          return (
-            <View key={row.id} style={styles.txCard}>
-              <View style={styles.txTop}>
-                <Pressable
-                  style={({ pressed }) => [styles.txMainPress, pressed && styles.pressedOpacity]}
-                  onPress={openCard}
-                  android_ripple={{ color: '#F3F4F6' }}
-                >
-                  <View style={[styles.txIconWrap, { backgroundColor: `${icon.color}18` }]}>
-                    <Icon name={icon.name} size={22} color={icon.color} />
+        {error ? (
+          <View style={styles.centerBlock}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
+
+        {!loading && !error ? (
+          <>
+            <Text style={styles.sectionLabel}>Activity</Text>
+            <Text style={styles.listMetaOnly}>
+              {rows.length} {rows.length === 1 ? 'entry' : 'entries'} · {listTitle}
+            </Text>
+
+            {rows.length === 0 ? (
+              <Text style={styles.emptyText}>
+                {activeRole === 'vendor' ? 'No ledger entries yet for this shop.' : 'No orders yet.'}
+              </Text>
+            ) : null}
+
+            {rows.map((row) => {
+              const icon = typeIcon(row.type);
+              const openCard = () =>
+                Alert.alert(
+                  String(row.reference),
+                  `${String(row.type)} · ${String(row.date)}\n${String(row.amount)}${row.meta ? `\n${String(row.meta)}` : ''}`,
+                );
+              return (
+                <View key={String(row.id)} style={styles.txCard}>
+                  <View style={styles.txTop}>
+                    <Pressable
+                      style={({ pressed }) => [styles.txMainPress, pressed && styles.pressedOpacity]}
+                      onPress={openCard}
+                      android_ripple={{ color: '#F3F4F6' }}
+                    >
+                      <View style={[styles.txIconWrap, { backgroundColor: `${icon.color}18` }]}>
+                        <Icon name={icon.name} size={22} color={icon.color} />
+                      </View>
+                      <View style={styles.txBody}>
+                        <Text style={styles.txType}>{String(row.type)}</Text>
+                        <Text style={styles.txRef} numberOfLines={1}>
+                          {String(row.reference)}
+                        </Text>
+                        <Text style={styles.txDate}>{String(row.date)}</Text>
+                        {row.shop ? (
+                          <Text style={styles.txShop} numberOfLines={1}>
+                            {String(row.shop)}
+                          </Text>
+                        ) : null}
+                      </View>
+                    </Pressable>
                   </View>
-                  <View style={styles.txBody}>
-                    <Text style={styles.txType}>{row.type}</Text>
-                    <Text style={styles.txRef} numberOfLines={1}>
-                      {row.reference}
+
+                  <Pressable
+                    style={({ pressed }) => [styles.txFooterPress, pressed && styles.pressedOpacity]}
+                    onPress={openCard}
+                    android_ripple={{ color: '#F3F4F6' }}
+                  >
+                    <Text
+                      style={[styles.txAmount, row.positive ? styles.amountPos : styles.amountNeg]}
+                    >
+                      {String(row.amount)}
                     </Text>
-                    <Text style={styles.txDate}>{row.date}</Text>
-                  </View>
-                </Pressable>
-                {/* <TouchableOpacity
-                  style={styles.txMenuBtn}
-                  onPress={() => onRowMenu(row)}
-                  hitSlop={10}
-                  accessibilityLabel="Transaction actions"
-                >
-                  <Icon name="ellipsis-horizontal" size={22} color="#6B7280" />
-                </TouchableOpacity> */}
-              </View>
-
-              <Pressable
-                style={({ pressed }) => [styles.txFooterPress, pressed && styles.pressedOpacity]}
-                onPress={openCard}
-                android_ripple={{ color: '#F3F4F6' }}
-              >
-                <Text style={[styles.txAmount, row.positive ? styles.amountPos : styles.amountNeg]}>{row.amount}</Text>
-                <StatusBadge status={row.status} />
-              </Pressable>
-            </View>
-          );
-        })}
+                    <StatusBadge status={String(row.status)} />
+                  </Pressable>
+                </View>
+              );
+            })}
+          </>
+        ) : null}
       </ScrollView>
 
       <Modal
@@ -244,23 +360,23 @@ export default function TransactionsScreen() {
           <View style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 20) + 8 }]}>
             <Text style={styles.modalTitle}>Shop</Text>
             <Text style={styles.modalHint}>Show transactions for</Text>
-            {SHOPS.map((name) => {
-              const selected = name === selectedShop;
+            {shops.map((s) => {
+              const selected = s.id === selectedShop?.id;
               return (
                 <Pressable
-                  key={name}
+                  key={String(s.id)}
                   style={({ pressed }) => [
                     styles.modalRow,
                     selected && styles.modalRowSelected,
                     pressed && styles.modalRowPressed,
                   ]}
                   onPress={() => {
-                    setSelectedShop(name);
+                    setSelectedShop(s);
                     setShopModalOpen(false);
                   }}
                 >
                   <Icon name="storefront-outline" size={20} color={selected ? BRAND : MUTED} style={styles.modalRowIcon} />
-                  <Text style={[styles.modalRowText, selected && styles.modalRowTextSelected]}>{name}</Text>
+                  <Text style={[styles.modalRowText, selected && styles.modalRowTextSelected]}>{s.name}</Text>
                   {selected ? <Icon name="checkmark-circle" size={22} color={BRAND} /> : <View style={styles.modalCheckSpacer} />}
                 </Pressable>
               );
@@ -270,42 +386,6 @@ export default function TransactionsScreen() {
             </TouchableOpacity>
           </View>
         </Pressable>
-      </Modal>
-
-      <Modal visible={actionRow != null} transparent animationType="slide" onRequestClose={closeActions}>
-        <View style={styles.actionSheetModalRoot}>
-          <Pressable style={styles.actionSheetBackdrop} onPress={closeActions} accessibilityLabel="Dismiss" />
-          <View style={[styles.actionSheet, { paddingBottom: Math.max(insets.bottom, 20) + 12 }]}>
-            <View style={styles.actionSheetHandle} />
-            <Text style={styles.actionSheetTitle} numberOfLines={2}>
-              {actionRow?.type ?? 'Transaction'}
-            </Text>
-            <Text style={styles.actionSheetSub} numberOfLines={1}>
-              {actionRow?.reference ?? '—'}
-            </Text>
-            <Pressable
-              style={({ pressed }) => [styles.actionSheetRow, pressed && styles.modalRowPressed]}
-              onPress={onEditTransaction}
-              accessibilityRole="button"
-              accessibilityLabel="Edit"
-            >
-              <Icon name="create-outline" size={22} color={TEXT} style={styles.actionSheetRowIcon} />
-              <Text style={styles.actionSheetRowLabel}>Edit</Text>
-            </Pressable>
-            <Pressable
-              style={({ pressed }) => [styles.actionSheetRow, pressed && styles.modalRowPressed]}
-              onPress={onDeleteTransaction}
-              accessibilityRole="button"
-              accessibilityLabel="Delete"
-            >
-              <Icon name="trash-outline" size={22} color="#B91C1C" style={styles.actionSheetRowIcon} />
-              <Text style={styles.actionSheetRowLabelDanger}>Delete</Text>
-            </Pressable>
-            <TouchableOpacity style={styles.actionSheetCancel} onPress={closeActions} activeOpacity={0.85}>
-              <Text style={styles.actionSheetCancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
       </Modal>
     </View>
   );
@@ -330,12 +410,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 12,
-  },
-  pageIntro: {
-    fontSize: 15,
-    color: MUTED,
-    lineHeight: 22,
-    marginBottom: 16,
   },
   shopFilterRow: {
     flexDirection: 'row',
@@ -405,6 +479,26 @@ const styles = StyleSheet.create({
     color: MUTED,
     marginBottom: 14,
   },
+  centerBlock: {
+    paddingVertical: 24,
+    alignItems: 'center',
+  },
+  centerText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: MUTED,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#B91C1C',
+    textAlign: 'center',
+    paddingHorizontal: 12,
+  },
+  emptyText: {
+    fontSize: 15,
+    color: MUTED,
+    marginBottom: 16,
+  },
   txCard: {
     backgroundColor: CARD,
     borderRadius: 10,
@@ -440,7 +534,7 @@ const styles = StyleSheet.create({
   txType: { fontSize: 16, fontWeight: '800', color: TEXT },
   txRef: { marginTop: 4, fontSize: 14, fontWeight: '600', color: MUTED },
   txDate: { marginTop: 2, fontSize: 12, fontWeight: '600', color: '#9CA3AF' },
-  txMenuBtn: { padding: 4, marginTop: -2, marginRight: -4 },
+  txShop: { marginTop: 2, fontSize: 12, fontWeight: '600', color: '#9CA3AF' },
   txFooterPress: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -508,46 +602,4 @@ const styles = StyleSheet.create({
   modalCheckSpacer: { width: 22, height: 22 },
   modalClose: { alignItems: 'center', paddingVertical: 14, marginTop: 4 },
   modalCloseText: { fontSize: 16, fontWeight: '700', color: MUTED },
-  actionSheetModalRoot: { flex: 1, justifyContent: 'flex-end' },
-  actionSheetBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
-  },
-  actionSheet: {
-    backgroundColor: CARD,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    paddingHorizontal: 20,
-    paddingTop: 8,
-  },
-  actionSheetHandle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    borderRadius: 10,
-    backgroundColor: '#D1D5DB',
-    marginBottom: 12,
-  },
-  actionSheetTitle: { fontSize: 17, fontWeight: '800', color: TEXT, marginBottom: 4, lineHeight: 24 },
-  actionSheetSub: { fontSize: 13, color: MUTED, fontWeight: '600', marginBottom: 8 },
-  actionSheetRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 4,
-    borderRadius: 10,
-    marginBottom: 4,
-  },
-  actionSheetRowIcon: { marginRight: 14 },
-  actionSheetRowLabel: { fontSize: 17, fontWeight: '600', color: TEXT },
-  actionSheetRowLabelDanger: { fontSize: 17, fontWeight: '600', color: '#B91C1C' },
-  actionSheetCancel: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    marginTop: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: BORDER,
-  },
-  actionSheetCancelText: { fontSize: 17, fontWeight: '700', color: MUTED },
 });

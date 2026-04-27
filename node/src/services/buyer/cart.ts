@@ -6,6 +6,7 @@ import type { InventoryRow, ProductRow } from "../../models/business/product.js"
 export type CartLineJoined = {
   cart_item_id: number;
   inventory_id: number;
+  shop_id: number;
   quantity: number;
   unit_price: number;
   currency: string;
@@ -75,6 +76,7 @@ export async function listCartLinesForUser(userId: number): Promise<CartLineJoin
     `SELECT
       c.id AS cart_item_id,
       c.inventory_id,
+      p.shop_id::int AS shop_id,
       c.quantity,
       COALESCE(c.unit_price_snapshot, i.price::float8) AS unit_price,
       COALESCE(NULLIF(TRIM(i.currency::text), ''), 'NGN') AS currency,

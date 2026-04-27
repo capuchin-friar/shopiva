@@ -17,6 +17,7 @@ import SettingsChangePasswordScreen from '../pages/SettingsChangePassword';
 import SettingsWhatsappScreen from '../pages/SettingsWhatsapp';
 import SettingsPayoutScreen from '../pages/SettingsPayoutScreen';
 import ProfileShopInfoScreen from '../pages/ProfileShopInfoScreen';
+import TransactionsScreen from '../pages/TransactionsScreen';
 
 /** Lazily loaded so `react-native-maps` native module is not required until this screen mounts. */
 const SettingsLocationLazy = lazy(() => import('../pages/SettingsLocation'));
@@ -131,6 +132,27 @@ function PersonalInformationHeader({ navigation }) {
   );
 }
 
+function TransactionsHeader({ navigation }) {
+  return (
+    <View style={[styles.editProfileHeaderOuter, { paddingTop: 0 }]}>
+      <View style={styles.editProfileHeaderRow}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backPill}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Icon name="chevron-back" size={22} color="#000000" />
+        </TouchableOpacity>
+        <Text style={styles.editProfileTitle} numberOfLines={1} pointerEvents="none">
+          Transactions
+        </Text>
+        <View style={styles.headerRightSpacer} />
+      </View>
+    </View>
+  );
+}
+
 export function ProfileStackScreen() {
   const detailScreenOptions = {
     headerShown: true,
@@ -169,6 +191,16 @@ export function ProfileStackScreen() {
           headerShadowVisible: false,
           header: PersonalInformationHeader,
           contentStyle: { backgroundColor: '#FFFFFF' },
+        }}
+      />
+      <ProfileStack.Screen
+        name="profile-transactions"
+        component={TransactionsScreen}
+        options={{
+          headerShown: true,
+          headerShadowVisible: false,
+          header: TransactionsHeader,
+          contentStyle: { backgroundColor: '#F7F7F8' },
         }}
       />
       <ProfileStack.Screen

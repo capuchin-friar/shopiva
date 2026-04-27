@@ -8,7 +8,6 @@ import {
   VendorChatStackScreen,
   VendorOrdersStackScreen,
   VendorProductsStackScreen,
-  VendorTransactionsStackScreen,
   VendorProfileStackScreen,
 } from '../stacks/vendor';
 
@@ -38,7 +37,6 @@ export default function VendorTabs() {
             else if (route.name === 'Dispute') iconName = focused ? 'alert-circle' : 'alert-circle-outline';
             else if (route.name === 'Profile') iconName = focused ? 'person-circle' : 'person-circle-outline';
             else if (route.name === 'Products') iconName = focused ? 'pricetags' : 'pricetags-outline';
-            else if (route.name === 'Transactions') iconName = focused ? 'wallet' : 'wallet-outline';
             else if (route.name === 'Inventory') iconName = focused ? 'cube' : 'cube-outline';
             return <Ionicons name={iconName} size={size} color={color} />;
           },
@@ -54,7 +52,6 @@ export default function VendorTabs() {
         <Tab.Screen name="Chat" component={VendorChatStackScreen} />
         <Tab.Screen name="Activities" component={VendorOrdersStackScreen} />
         <Tab.Screen name="Products" component={VendorProductsStackScreen} />
-        <Tab.Screen name="Transactions" component={VendorTransactionsStackScreen} />
         <Tab.Screen name="Profile" component={VendorProfileStackScreen} />
       </Tab.Navigator>
     </ProfileProvider>

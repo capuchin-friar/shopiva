@@ -605,6 +605,68 @@ export class shop{
     });
 
     /**
+     * Paystack webhook rows visible to a shop: metadata.shop_id / shop_ids (from checkout),
+     * or chat room for this shop's owner with order_id = Paystack charge id.
+     * Excludes rows already mirrored in shop_account_ledger (same paystack_charge_id as source_id).
+     */
+    static getPaystackTransactionsForShopId = withErrorHandling(async (shopId: string | number, limit = 100) => {
+        const { rows } = await (await db()).query(
+            `
+            SELECT
+              pt.id,
+              pt.created_at,
+              pt.paid_at,
+              pt.event,
+              pt.reference,
+              pt.amount,
+              pt.currency,
+              pt.status,
+              pt.paystack_charge_id
+            FROM paystack_transactions pt
+            WHERE
+              (
+                NULLIF(TRIM(pt.metadata->>'shop_id'), '') IS NOT NULL
+                AND NULLIF(TRIM(pt.metadata->>'shop_id'), '') = TRIM($1::text)
+              )
+              OR (
+                NULLIF(TRIM(pt.metadata->>'shop_ids'), '') IS NOT NULL
+                AND EXISTS (
+                  SELECT 1
+                  FROM unnest(string_to_array(pt.metadata->>'shop_ids', ',')) AS s
+                  WHERE NULLIF(TRIM(s), '') IS NOT NULL
+                    AND NULLIF(TRIM(s), '') = TRIM($1::text)
+                )
+              )
+              OR (
+                pt.paystack_charge_id IS NOT NULL
+                AND EXISTS (
+                  SELECT 1
+                  FROM chat_rooms cr
+                  INNER JOIN chat_room_participants p
+                    ON p.room_id = cr.id AND p.role = 'seller'
+                  INNER JOIN shops s ON s.id = $1::bigint
+                    AND s.ownerid IS NOT NULL
+                    AND p.user_id = s.ownerid::int
+                  WHERE cr.order_id = pt.paystack_charge_id
+                )
+              )
+              AND NOT EXISTS (
+                SELECT 1
+                FROM shop_account_ledger l
+                INNER JOIN shop_accounts sa ON sa.id = l.shop_account_id
+                WHERE sa.shop_id = $1::bigint
+                  AND l.source_id IS NOT NULL
+                  AND l.source_id = pt.paystack_charge_id
+              )
+            ORDER BY COALESCE(pt.paid_at, pt.created_at) DESC NULLS LAST, pt.id DESC
+            LIMIT $2
+            `,
+            [String(shopId), Number(limit)]
+        );
+        return rows;
+    });
+
+    /**
      * Active shops matching any of the given category strings (for public map discovery).
      * Location JSON is parsed in the service layer.
      */
