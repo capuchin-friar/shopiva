@@ -1,8 +1,8 @@
 import crypto from "crypto";
 import { Pool } from "pg";
 import { db } from "../config/database.js";
-import { paystack } from "./paystack.js";
 import { paystack_transaction } from "../models/paystack_transaction.js";
+import { verifyWebhookSignature } from "./paystack/webhookSignature.js";
 
 export type PaystackWebhookEnvelope = {
   event: string;
@@ -17,8 +17,7 @@ let paystackWebhookPool: Pool | null = null;
  * - Fallback to shared app pool when not provided.
  */
 async function getPaystackWebhookPool(): Promise<Pool> {
-  // const webhookDb = process.env.DB?.trim();
-  const webhookDb = "postgresql://neondb_owner:npg_1xTCdDvHGk4X@ep-damp-mountain-aeunyf6d-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require";
+  const webhookDb = process.env.DB?.trim();
   if (!webhookDb) return db();
   if (!paystackWebhookPool) {
     paystackWebhookPool = new Pool({
@@ -34,19 +33,8 @@ async function getPaystackWebhookPool(): Promise<Pool> {
   return paystackWebhookPool;
 }
 
-/** HMAC SHA512 of raw body; must match Paystack `x-paystack-signature`. */
-export function verifyPaystackWebhookSignature(rawBody: Buffer, signatureHeader: string | undefined): boolean {
-  const secret = paystack.secretKey();
-  if (!secret) return false;
-  const sig = (signatureHeader ?? "").trim();
-  if (!sig) return false;
-  const hash = crypto.createHmac("sha512", secret).update(rawBody).digest("hex");
-  try {
-    return crypto.timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(sig, "hex"));
-  } catch {
-    return false;
-  }
-}
+/** @deprecated Use `verifyWebhookSignature` from `./paystack/webhookSignature.js` */
+export const verifyPaystackWebhookSignature = verifyWebhookSignature;
 
 function pickString(v: unknown): string | null {
   if (typeof v === "string" && v.trim()) return v.trim();
@@ -86,7 +74,7 @@ function extractCustomerEmail(data: Record<string, unknown>): string | null {
   return pickString(data.customer_email);
 }
 
-function resolveReference(data: Record<string, unknown>): string | null {
+export function resolveReference(data: Record<string, unknown>): string | null {
   const ref = pickString(data.reference);
   if (ref) return ref;
   const id = pickNumber(data.id);

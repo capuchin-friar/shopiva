@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   ActivityIndicator,
@@ -15,6 +15,13 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProfile } from '../context/ProfileContext';
+import { MessagePolicyViolationModal } from '../components/MessagePolicyViolationModal';
+import { MODERATION_CONFIG } from '../moderation/moderationConfig';
+import {
+  logMessageModerationAttempt,
+  scanConversationContext,
+  scanMessage,
+} from '../moderation/messageModeration';
 import { connectChatSocket, emitSocketAck, getChatSocket } from '../socket/chatSocket';
 import { setLastOpenedChatRoomId } from '../utils/lastOpenedChatRoom';
 
@@ -69,10 +76,43 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
   const listBackTitle = chatRoleVariant === 'vendor' ? 'Inbox' : 'Chats';
 
   const [input, setInput] = useState('');
+  /** Remount multiline TextInput after send so height collapses when cleared (RN layout quirk). */
+  const [inputKey, setInputKey] = useState(0);
   const [messages, setMessages] = useState(/** @type {Array<{ id: string; text: string; outgoing: boolean; timeLabel: string }>} */ ([]));
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [policyModalVisible, setPolicyModalVisible] = useState(false);
+  const [policyModalVariant, setPolicyModalVariant] = useState(/** @type {'single' | 'split'} */ ('single'));
+  const [moderationLockUntil, setModerationLockUntil] = useState(/** @type {number | null} */ (null));
+  const [lockRemainSec, setLockRemainSec] = useState(0);
   const listRef = useRef(null);
+  /** @type {React.MutableRefObject<Array<{ text: string; sentAt: number }>>} */
+  const outgoingSendHistoryRef = useRef([]);
+  const sessionModerationBlocksRef = useRef(0);
+
+  const moderationComposeLocked = moderationLockUntil != null && Date.now() < moderationLockUntil;
+
+  useEffect(() => {
+    if (moderationLockUntil == null) {
+      setLockRemainSec(0);
+      return undefined;
+    }
+    const tick = () => {
+      const s = Math.max(0, Math.ceil((moderationLockUntil - Date.now()) / 1000));
+      setLockRemainSec(s);
+      if (s <= 0) setModerationLockUntil(null);
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [moderationLockUntil]);
+
+  useEffect(() => {
+    outgoingSendHistoryRef.current = [];
+    sessionModerationBlocksRef.current = 0;
+    setModerationLockUntil(null);
+    setPolicyModalVariant('single');
+  }, [roomId]);
 
   /**
    * @param {Record<string, unknown>} row
@@ -175,32 +215,82 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
       headerTitleStyle: { color: '#FFFFFF', fontWeight: '600', fontSize: 18 },
       headerShadowVisible: false,
       headerBackTitle: listBackTitle,
-      headerRight: () => (
-        <View style={styles.headerRight}>
-          <Pressable
-            hitSlop={12}
-            onPress={headerActions}
-            style={styles.headerIconBtn}
-            accessibilityLabel="Video call"
-          >
-            <Icon name="videocam-outline" size={24} color="#FFFFFF" />
-          </Pressable>
-          <Pressable
-            hitSlop={12}
-            onPress={headerActions}
-            style={styles.headerIconBtn}
-            accessibilityLabel="Voice call"
-          >
-            <Icon name="call-outline" size={22} color="#FFFFFF" />
-          </Pressable>
-        </View>
-      ),
+      // headerRight: () => (
+      //   <View style={styles.headerRight}>
+      //     <Pressable
+      //       hitSlop={12}
+      //       onPress={headerActions}
+      //       style={styles.headerIconBtn}
+      //       accessibilityLabel="Video call"
+      //     >
+      //       <Icon name="videocam-outline" size={24} color="#FFFFFF" />
+      //     </Pressable>
+      //     <Pressable
+      //       hitSlop={12}
+      //       onPress={headerActions}
+      //       style={styles.headerIconBtn}
+      //       accessibilityLabel="Voice call"
+      //     >
+      //       <Icon name="call-outline" size={22} color="#FFFFFF" />
+      //     </Pressable>
+      //   </View>
+      // ),
     });
   }, [navigation, chat, headerActions, listBackTitle]);
+
+  const bumpModerationLockIfNeeded = useCallback(() => {
+    if (sessionModerationBlocksRef.current >= MODERATION_CONFIG.SESSION_BLOCKS_FOR_LOCK) {
+      setModerationLockUntil(Date.now() + MODERATION_CONFIG.CHAT_LOCK_DURATION_MS);
+    }
+  }, []);
 
   const onSend = useCallback(() => {
     const t = input.trim();
     if (!t || !roomId || sending) return;
+    if (moderationLockUntil != null && Date.now() < moderationLockUntil) return;
+
+    const single = scanMessage(t);
+    if (!single.isAllowed) {
+      sessionModerationBlocksRef.current += 1;
+      setPolicyModalVariant('single');
+      logMessageModerationAttempt({
+        violations: single.violations,
+        severityScore: single.severityScore,
+        preview: t.slice(0, 64),
+        roomId,
+        role: appRolePayload,
+        fromContext: false,
+      });
+      setPolicyModalVisible(true);
+      bumpModerationLockIfNeeded();
+      return;
+    }
+
+    const hist = outgoingSendHistoryRef.current;
+    const prevTexts = hist.map((h) => h.text);
+    const prevTs = hist.map((h) => h.sentAt);
+    const ctx = scanConversationContext(t, prevTexts, {
+      messageTimestamps: prevTs,
+      now: Date.now(),
+      sessionBlockCount: sessionModerationBlocksRef.current,
+    });
+    if (!ctx.isAllowed) {
+      sessionModerationBlocksRef.current += 1;
+      setPolicyModalVariant('split');
+      logMessageModerationAttempt({
+        violations: ctx.violations,
+        severityScore: ctx.severityScore,
+        riskScore: ctx.riskScore,
+        preview: t.slice(0, 64),
+        roomId,
+        role: appRolePayload,
+        fromContext: true,
+      });
+      setPolicyModalVisible(true);
+      bumpModerationLockIfNeeded();
+      return;
+    }
+
     setSending(true);
     void (async () => {
       try {
@@ -211,7 +301,14 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
           app_role: appRolePayload,
         });
         if (!out.success) {
-          Alert.alert('Message not sent', out.message || 'Try again.');
+          if (out.error === 'message_moderation_failed') {
+            sessionModerationBlocksRef.current += 1;
+            setPolicyModalVariant('split');
+            setPolicyModalVisible(true);
+            bumpModerationLockIfNeeded();
+          } else {
+            Alert.alert('Message not sent', out.message || 'Try again.');
+          }
           return;
         }
         const resultMsg =
@@ -224,13 +321,26 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
             setMessages((prev) => (prev.some((p) => p.id === mapped.id) ? prev : [...prev, mapped]));
           }
         }
+        const entry = { text: t, sentAt: Date.now() };
+        outgoingSendHistoryRef.current = [...outgoingSendHistoryRef.current, entry].slice(
+          -MODERATION_CONFIG.HISTORY_MAX_MESSAGES,
+        );
         setInput('');
+        setInputKey((k) => k + 1);
         requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
       } finally {
         setSending(false);
       }
     })();
-  }, [input, roomId, sending, mapMessage, appRolePayload]);
+  }, [
+    input,
+    roomId,
+    sending,
+    mapMessage,
+    appRolePayload,
+    moderationLockUntil,
+    bumpModerationLockIfNeeded,
+  ]);
 
   const renderItem = useCallback(({ item }) => <Bubble item={item} />, []);
   const keyExtractor = useCallback((m) => m.id, []);
@@ -253,14 +363,15 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
     () => [
       styles.inputBar,
       {
-        paddingBottom: Math.max(insets.bottom, 8),
+        // paddingBottom: Math.max(insets.bottom, 8),
+        paddingBottom: 8,
         paddingTop: 6,
       },
     ],
     [insets.bottom],
   );
 
-  const canSend = input.trim().length > 0;
+  const canSend = input.trim().length > 0 && !moderationComposeLocked;
 
   if (!chat) {
     return (
@@ -302,16 +413,22 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
         />
 
         <View style={inputBarStyle}>
+          {moderationComposeLocked ? (
+            <Text style={styles.moderationLockBanner}>
+              Messaging paused after repeated policy blocks. Unlocks in {lockRemainSec}s.
+            </Text>
+          ) : null}
           <View style={styles.inputRow}>
-            <Pressable
+            {/* <Pressable
               style={({ pressed }) => [styles.sideBtn, pressed && styles.sideBtnPressed]}
               onPress={() => Alert.alert('Attach', 'Photos, documents and location will be available when connected.')}
               accessibilityLabel="Attach"
             >
               <Icon name="add" size={28} color={MUTED} />
-            </Pressable>
+            </Pressable> */}
             <View style={styles.inputWrap}>
               <TextInput
+                key={inputKey}
                 style={styles.input}
                 placeholder="Message"
                 placeholderTextColor={MUTED}
@@ -320,25 +437,39 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
                 multiline
                 maxLength={4000}
                 accessibilityLabel="Message text"
+                editable={!moderationComposeLocked}
               />
-              <Pressable
+              {/* <Pressable
                 style={({ pressed }) => [styles.inlineIcon, pressed && styles.sideBtnPressed]}
                 onPress={() => Alert.alert('Stickers', 'Emoji and stickers picker will open here.')}
                 accessibilityLabel="Emoji"
               >
                 <Icon name="happy-outline" size={24} color={MUTED} />
-              </Pressable>
+              </Pressable> */}
             </View>
-            {canSend ? (
+            <Pressable
+              onPress={onSend}
+              style={({ pressed }) => [
+                styles.sendBtn,
+                (pressed || sending || moderationComposeLocked) && styles.sendBtnPressed,
+                moderationComposeLocked && styles.sendBtnDisabled,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Send message"
+              disabled={sending || moderationComposeLocked}
+            >
+              {sending ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Icon name="send" size={20} color="#FFFFFF" />}
+            </Pressable>
+            {/* {canSend ? (
               <Pressable
-                onPress={onSend}
-                style={({ pressed }) => [styles.sendBtn, (pressed || sending) && styles.sendBtnPressed]}
-                accessibilityRole="button"
-                accessibilityLabel="Send message"
-                disabled={sending}
-              >
-                {sending ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Icon name="send" size={20} color="#FFFFFF" />}
-              </Pressable>
+              onPress={onSend}
+              style={({ pressed }) => [styles.sendBtn, (pressed || sending) && styles.sendBtnPressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Send message"
+              disabled={sending}
+            >
+              {sending ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Icon name="send" size={20} color="#FFFFFF" />}
+            </Pressable>
             ) : (
               <Pressable
                 style={({ pressed }) => [styles.sendBtn, styles.micBtn, pressed && styles.sendBtnPressed]}
@@ -347,10 +478,18 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
               >
                 <Icon name="mic" size={22} color="#FFFFFF" />
               </Pressable>
-            )}
+            )} */}
           </View>
         </View>
       </View>
+      <MessagePolicyViolationModal
+        visible={policyModalVisible}
+        variant={policyModalVariant}
+        onDismiss={() => {
+          setPolicyModalVisible(false);
+          setPolicyModalVariant('single');
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -466,7 +605,7 @@ const styles = StyleSheet.create({
   },
   inputRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
     gap: 6,
   },
   sideBtn: {
@@ -517,6 +656,17 @@ const styles = StyleSheet.create({
   },
   sendBtnPressed: {
     opacity: 0.88,
+  },
+  sendBtnDisabled: {
+    opacity: 0.45,
+  },
+  moderationLockBanner: {
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#92400E',
+    paddingHorizontal: 8,
+    paddingBottom: 6,
+    textAlign: 'center',
   },
   emptyMessagesWrap: {
     paddingVertical: 24,

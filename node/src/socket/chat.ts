@@ -1,6 +1,16 @@
 import type { Namespace } from "socket.io";
 import { db } from "../config/database.js";
 import { chatModel, type ParticipantRole } from "../models/chat.js";
+import { MODERATION_CONFIG } from "../utils/moderationConfig.js";
+import {
+  getSessionModerationStrikes,
+  incrementSessionModerationStrikes,
+} from "../utils/moderationStrikes.js";
+import {
+  logModerationBlock,
+  scanConversationContext,
+  scanMessage,
+} from "../utils/messageModeration.js";
 
 type AckFn = (response: Record<string, unknown>) => void;
 
@@ -168,6 +178,77 @@ export async function handleCreateMessage(
       : payload.content != null
         ? String(payload.content)
         : null;
+
+  if (type === "text" && content) {
+    const strikes = getSessionModerationStrikes(userId, room_id);
+
+    const single = scanMessage(content);
+    if (!single.isAllowed) {
+      incrementSessionModerationStrikes(userId, room_id);
+      logModerationBlock({
+        userId,
+        roomId: room_id,
+        violations: single.violations,
+        severityScore: single.severityScore ?? 0,
+        preview: content,
+        context: false,
+      });
+      respond(ack, {
+        success: false,
+        result: {
+          violations: single.violations,
+          severityScore: single.severityScore,
+        },
+        message:
+          "This message cannot be sent because it may contain contact details or off-platform requests.",
+        error: "message_moderation_failed",
+      });
+      return;
+    }
+
+    const recent = await chatModel.listRecentTextFromSender(
+      room_id,
+      userId,
+      MODERATION_CONFIG.HISTORY_MAX_MESSAGES,
+    );
+    const prevTexts = recent
+      .map((r: { content: string | null; created_at: Date }) =>
+        String(r.content ?? "").trim(),
+      )
+      .filter((t: string) => t.length > 0);
+    const prevTs = recent.map((r: { content: string | null; created_at: Date }) =>
+      new Date(r.created_at).getTime(),
+    );
+    const ctx = scanConversationContext(content, prevTexts, {
+      messageTimestamps: prevTs,
+      now: Date.now(),
+      sessionBlockCount: strikes,
+    });
+    if (!ctx.isAllowed) {
+      incrementSessionModerationStrikes(userId, room_id);
+      logModerationBlock({
+        userId,
+        roomId: room_id,
+        violations: ctx.violations,
+        severityScore: ctx.severityScore ?? 0,
+        riskScore: ctx.riskScore ?? 0,
+        preview: content,
+        context: true,
+      });
+      respond(ack, {
+        success: false,
+        result: {
+          violations: ctx.violations,
+          severityScore: ctx.severityScore,
+          fromContext: true,
+        },
+        message:
+          "This message cannot be sent because it may contain contact details or off-platform requests.",
+        error: "message_moderation_failed",
+      });
+      return;
+    }
+  }
 
   const message = await chatModel.createMessage({
     room_id,

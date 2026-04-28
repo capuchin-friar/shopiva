@@ -68,7 +68,9 @@ function normalizeCheckoutLine(row, index = 0) {
   const qty = Math.max(1, Math.min(99, Number(r.qty) || 1));
   const image = typeof r.image === 'string' ? r.image.trim() : '';
   const cartItemId = Number(r.cartItemId);
-  const inventoryId = Number(r.inventoryId);
+  const inventoryId = Number(r.inventoryId ?? r.inventory_id);
+  const productIdRaw = r.productId ?? r.product_id;
+  const productId = Number(productIdRaw);
   const variantFromLabel = typeof r.variantLabel === 'string' ? r.variantLabel.trim() : '';
   const variantFromSku = r.sku != null && String(r.sku).trim() ? String(r.sku).trim() : '';
   const variantLabel = variantFromLabel || variantFromSku;
@@ -81,6 +83,7 @@ function normalizeCheckoutLine(row, index = 0) {
     variantLabel,
     cartItemId: Number.isFinite(cartItemId) && cartItemId > 0 ? cartItemId : undefined,
     inventoryId: Number.isFinite(inventoryId) && inventoryId > 0 ? inventoryId : undefined,
+    productId: Number.isFinite(productId) && productId > 0 ? productId : undefined,
   };
 }
 
@@ -132,7 +135,7 @@ export default function CartCheckoutScreen({ navigation }) {
 
   const [cartLoading, setCartLoading] = useState(true);
   const [checkoutLines, setCheckoutLines] = useState(
-    /** @type {Array<{ key: string; title: string; image: string; unitPrice: number; qty: number; variantLabel: string; cartItemId?: number; inventoryId?: number }>} */ ([]),
+    /** @type {Array<{ key: string; title: string; image: string; unitPrice: number; qty: number; variantLabel: string; cartItemId?: number; inventoryId?: number; productId?: number }>} */ ([]),
   );
 
   const [fullName, setFullName] = useState('');
@@ -190,6 +193,7 @@ export default function CartCheckoutScreen({ navigation }) {
                   qty: row.qty,
                   sku: row.sku,
                   inventoryId: row.inventoryId ?? row.inventory_id,
+                  productId: row.productId ?? row.product_id,
                 },
                 i,
               );
@@ -283,24 +287,74 @@ export default function CartCheckoutScreen({ navigation }) {
       );
       return;
     }
+    if (checkoutLines.some((l) => !l.inventoryId)) {
+      setFormBanner('Each cart line needs a product variant (inventory). Refresh your cart and try again.');
+      return;
+    }
     const customerEmail = email.trim();
     if (!customerEmail) {
       setFormBanner('A valid email is required for Paystack checkout.');
       return;
     }
-    /** Paystack amount for NGN must be in kobo (multiply naira × 100). */
-    const payableAmount = Math.max(100, Math.round(Number(total)));
+    /** Paystack `amount` for NGN is in kobo (smallest unit). */
+    const amountKobo = Math.max(100, Math.round(Number(total) * 100));
     const reference = `shopiva_cart_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
     const firstLine = checkoutLines[0];
 
     const shippingSummary = `${street.trim()}, ${city.trim()}, ${zip.trim()}, ${country}`;
+    const uid = Number(user?.id);
+    if (!Number.isFinite(uid) || uid <= 0) {
+      setFormBanner('You must be signed in to pay.');
+      return;
+    }
+
+    /**
+     * Must match server `parseAndValidateOrderMetadata` (used by Paystack webhook after verify).
+     * Each line: `{ inventory_id, quantity, productId?, variant? }` — inventory_id is required for cart SKUs;
+     * productId is optional cross-check for `webhookOrderFromPaystack`.
+     */
+    const paystackItems = checkoutLines.map((line) => {
+      /** @type {Record<string, unknown>} */
+      const item = {
+        inventory_id: line.inventoryId,
+        quantity: line.qty,
+      };
+      if (line.productId != null) item.productId = line.productId;
+      if (line.variantLabel) item.variant = line.variantLabel;
+      return item;
+    });
+
+    const shippingAddress = {
+      fullName: fullName.trim(),
+      email: customerEmail,
+      phone: phone.trim(),
+      street: street.trim(),
+      city: city.trim(),
+      zip: zip.trim(),
+      country,
+      delivery,
+      summary: shippingSummary,
+    };
+
+    const pricingBreakdown = {
+      currency: 'NGN',
+      totalNaira: total,
+      totalKobo: amountKobo,
+      subtotalNaira: subtotal,
+      shippingNaira: shippingCost,
+    };
+
     setIsPaying(true);
     setFormBanner('');
     popup.checkout({
       email: customerEmail,
-      amount: payableAmount,
+      amount: amountKobo,
       reference,
       metadata: {
+        userId: uid,
+        items: paystackItems,
+        shippingAddress,
+        pricingBreakdown,
         custom_fields: [
           { display_name: 'Checkout type', variable_name: 'checkout_type', value: 'cart' },
           { display_name: 'Items', variable_name: 'item_count', value: String(checkoutLines.length) },
@@ -363,6 +417,9 @@ export default function CartCheckoutScreen({ navigation }) {
     city,
     zip,
     country,
+    fullName,
+    phone,
+    user?.id,
     popup,
     navigation,
   ]);

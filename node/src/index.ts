@@ -32,7 +32,8 @@ const { json, urlencoded } = bodyParser;
 const app = express();
 
 // Paystack webhooks require the raw body for HMAC verification (must be before express.json())
-app.post("/webhooks/paystack", express.raw({ type: "application/json" }), PaystackWebhookController);
+// app.post("/webhooks/paystack", express.raw({ type: "application/json" }), PaystackWebhookController);
+app.post("/webhook/paystack", express.raw({ type: "application/json" }), PaystackWebhookController);
 
 // Middleware (must come BEFORE routes)
 // Allow frontend origin from env (e.g. CORS_ORIGIN=https://192.168.1.5:3000 or http://localhost:3000)

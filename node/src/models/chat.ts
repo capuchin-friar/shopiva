@@ -198,6 +198,32 @@ export class chatModel {
     }
   );
 
+  /** Recent text lines from one sender — oldest first (for moderation context). */
+  static listRecentTextFromSender = withErrorHandling(
+    async (
+      room_id: string,
+      sender_id: number,
+      limit: number
+    ): Promise<Pick<ChatMessageRecord, "content" | "created_at">[]> => {
+      const lim = Math.min(Math.max(1, limit), 30);
+      const { rows } = await (await db()).query<
+        Pick<ChatMessageRecord, "content" | "created_at">
+      >(
+        `SELECT content, created_at
+         FROM chat_messages
+         WHERE room_id = $1::uuid
+           AND sender = $2
+           AND type = 'text'
+           AND content IS NOT NULL
+           AND length(trim(content)) > 0
+         ORDER BY created_at DESC
+         LIMIT $3`,
+        [room_id, sender_id, lim]
+      );
+      return rows.reverse();
+    }
+  );
+
   static createMessage = withErrorHandling(
     async (input: {
       room_id: string;

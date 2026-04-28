@@ -27,6 +27,7 @@ export async function GetBuyerCartController(req: AuthRequest, res: Response): P
       id: String(r.cart_item_id),
       cartItemId: r.cart_item_id,
       inventoryId: r.inventory_id,
+      productId: r.product_id,
       shopId: r.shop_id,
       title: r.product_name,
       image: firstImageUrl(r.images),

@@ -12,13 +12,14 @@ let connectPromise = null;
  */
 function parseAck(payload) {
   if (!payload || typeof payload !== 'object') {
-    return { success: false, result: null, message: 'No response from socket server' };
+    return { success: false, result: null, message: 'No response from socket server', error: '' };
   }
   const rec = /** @type {Record<string, unknown>} */ (payload);
   return {
     success: Boolean(rec.success),
     result: rec.result ?? null,
     message: String(rec.message ?? ''),
+    error: rec.error != null ? String(rec.error) : '',
   };
 }
 
@@ -64,12 +65,12 @@ export async function connectChatSocket() {
  * @template T
  * @param {string} event
  * @param {Record<string, unknown>} payload
- * @returns {Promise<{ success: boolean; result: T | null; message: string }>}
+ * @returns {Promise<{ success: boolean; result: T | null; message: string; error: string }>}
  */
 export async function emitSocketAck(event, payload = {}) {
   const socket = await connectChatSocket();
   if (!socket) {
-    return { success: false, result: null, message: 'Sign in required' };
+    return { success: false, result: null, message: 'Sign in required', error: '' };
   }
   const base =
     payload && typeof payload === 'object' && !Array.isArray(payload)
@@ -86,6 +87,7 @@ export async function emitSocketAck(event, payload = {}) {
         success: out.success,
         result: /** @type {T | null} */ (out.result),
         message: out.message,
+        error: out.error,
       });
     });
   });
