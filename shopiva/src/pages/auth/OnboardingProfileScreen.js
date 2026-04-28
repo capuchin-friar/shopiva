@@ -14,7 +14,11 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { CommonActions } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fetchCurrentUser, updateUserPhone, updateUserProfileFields } from '../../api/user';
+import {
+  fetchCurrentUserOrStatus,
+  updateUserPhone,
+  updateUserProfileFields,
+} from '../../api/user';
 import { getStoredAccessToken, getStoredUser, saveSession } from '../../auth/session';
 import {
   getCurrentCoordinates,
@@ -109,15 +113,33 @@ export default function OnboardingProfileScreen({ navigation }) {
     }
 
     const token = await getStoredAccessToken();
-    const initialProfile = await fetchCurrentUser();
-    const stored = await getStoredUser();
-    const id =
-      (initialProfile && typeof initialProfile === 'object'
-        ? /** @type {{ id?: number }} */ (initialProfile).id
-        : undefined) ??
-      (stored && typeof stored === 'object' ? /** @type {{ id?: number }} */ (stored).id : undefined);
-    if (id == null || Number.isNaN(Number(id))) {
+    if (!token) {
       Alert.alert('Session', 'Please sign in again.');
+      return;
+    }
+
+    /** Backend may key the user id as `id`, `user_id`, or `uid` (see normalizeUser.js). */
+    const pickId = (u) => {
+      if (!u || typeof u !== 'object') return undefined;
+      const o = /** @type {Record<string, unknown>} */ (u);
+      const raw = o.id ?? o.user_id ?? o.uid;
+      const n = typeof raw === 'number' ? raw : parseInt(String(raw ?? ''), 10);
+      return Number.isFinite(n) && n > 0 ? n : undefined;
+    };
+
+    const currentUserRes = await fetchCurrentUserOrStatus();
+    if (currentUserRes.status === 401) {
+      Alert.alert('Session', 'Please sign in again.');
+      return;
+    }
+    const stored = await getStoredUser();
+    const id = pickId(currentUserRes.user) ?? pickId(stored);
+    if (id == null) {
+      Alert.alert(
+        'Profile not found',
+        currentUserRes.message ||
+          'We couldn’t load your account. Check your connection and try again.',
+      );
       return;
     }
 
@@ -149,7 +171,7 @@ export default function OnboardingProfileScreen({ navigation }) {
         return;
       }
 
-      const updatedProfile = await fetchCurrentUser();
+      const updatedProfile = (await fetchCurrentUserOrStatus()).user;
       await saveSession(token, updatedProfile ?? profileRes.user ?? phoneRes.user ?? null);
 
       navigation.dispatch(

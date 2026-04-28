@@ -25,7 +25,7 @@ interface Migration {
 async function runMigrations() {
   const dbConfig = pgPoolConfigFromEnv();
   if ("connectionString" in dbConfig && dbConfig.connectionString) {
-    console.log("🔌 Connecting to database via connection string (DB/DATABASE_URL)");
+    console.log("🔌 Connecting to database via DATABASE_URL");
   } else {
     const c = dbConfig as { database?: string; host?: string; port?: number };
     console.log(`🔌 Connecting to database: ${c.database ?? "?"}@${c.host ?? "?"}:${c.port ?? "?"}`);

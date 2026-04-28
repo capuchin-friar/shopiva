@@ -61,24 +61,24 @@ export async function SignupService(payload: NewUserDocument & { src: string; de
         throw new Error("Failed to create user");
     }
 
-    // Return user without password
-    const user = await model.findUserByEmail(payload.email);
-    const { password, ...userWithoutPassword } = user[0];
+    const users = await model.findUserByEmail(payload.email);
+    if (users.length === 0) {
+        throw new Error("Failed to load created user");
+    }
+    const created = users[0];
+    const { password, ...userWithoutPassword } = created;
 
-    // Generate JWT token
     const token = jwt.sign(
-        { id: user.id, email: user.email },
+        { id: created.id, email: created.email },
         JWT_SECRET,
         { expiresIn: "7d" }
     );
 
-    // Return user without password
-    
     return {
         token,
         user: userWithoutPassword
     };
-    
+
 }
 
 /** After OAuth verifies identity — same token + user shape as email/password sign-in. */
