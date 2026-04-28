@@ -63,7 +63,7 @@ export async function CreateShopByTokenController(req: Request, res: Response) {
             res.status(401).json({ success: false, error: "Unauthorized. Please sign in to create a shop." });
             return;
         }
-        const { name, slug: bodySlug, description, vendorType: vendorTypeBody, location: locationPayload } = req.body;
+        const { name, slug: bodySlug, description, vendorType: vendorTypeBody, category: categoryBody, location: locationPayload } = req.body;
         const nameStr = typeof name === "string" ? name.trim() : "";
         let slug = typeof bodySlug === "string" ? bodySlug.trim().toLowerCase() : "";
         if (!nameStr) {
@@ -81,6 +81,21 @@ export async function CreateShopByTokenController(req: Request, res: Response) {
         }
         if (!SLUG_REGEX.test(slug)) {
             res.status(400).json({ success: false, error: "Slug can only contain lowercase letters, numbers, and hyphens." });
+            return;
+        }
+
+        /**
+         * Category is required: matches `shops.category VARCHAR(100)` and the values
+         * shipped in the client's mvp_category.json (e.g. "fashion"). Stored lowercased
+         * so downstream filters (e.g. /discover/vendors-on-map?category=) match.
+         */
+        const categoryStr = typeof categoryBody === "string" ? categoryBody.trim().toLowerCase() : "";
+        if (!categoryStr) {
+            res.status(400).json({ success: false, error: "Category is required." });
+            return;
+        }
+        if (categoryStr.length > 100) {
+            res.status(400).json({ success: false, error: "Category must be 100 characters or less." });
             return;
         }
         const existingName = await GetShopByNameService(nameStr);
@@ -122,7 +137,7 @@ export async function CreateShopByTokenController(req: Request, res: Response) {
             slug,
             description: descriptionStr ?? null,
             logo: null,
-            category: null,
+            category: categoryStr,
             vendortype: vendorType,
             location: locationJson ?? null,
         });

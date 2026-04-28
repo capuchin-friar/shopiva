@@ -28,6 +28,7 @@ export async function hasVendorShop() {
  * @param {{
  *   name: string;
  *   vendorType: 'reseller' | 'dropshipper' | 'manufacturer';
+ *   category: string;
  *   location?: {
  *     address?: string;
  *     city?: string;
@@ -39,9 +40,14 @@ export async function hasVendorShop() {
  * }} payload
  */
 export async function createVendorShop(payload) {
+  const category = String(payload.category ?? '').trim();
+  if (!category) {
+    throw new Error('Category is required.');
+  }
   const body = {
     name: String(payload.name ?? '').trim(),
     vendorType: payload.vendorType,
+    category,
     location: payload.location ?? null,
   };
   const res = await apiFetchAuth('/shop/create', {

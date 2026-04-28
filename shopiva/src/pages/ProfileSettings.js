@@ -14,12 +14,14 @@ import {
   View,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { Dropdown } from 'react-native-element-dropdown';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../context/ProfileContext';
 import { createVendorShop, hasVendorShop } from '../api/shop';
 import { updateUserRole } from '../api/user';
+import mvpCategoryData from '../data/mvp_category.json';
 import {
   getCurrentCoordinates,
   requestLocationPermission,
@@ -38,6 +40,14 @@ const VENDOR_TYPE_OPTIONS = [
   { label: 'Manufacturer', value: 'manufacturer' },
 ];
 
+/** Category options derived from the MVP category file (same source as Home screen). */
+const CATEGORY_OPTIONS = Object.keys(mvpCategoryData)
+  .map((key) => ({
+    value: key,
+    label: key.charAt(0).toUpperCase() + key.slice(1).toLowerCase(),
+  }))
+  .sort((a, b) => a.label.localeCompare(b.label));
+
 export default function ProfileSettingsScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -48,6 +58,7 @@ export default function ProfileSettingsScreen() {
   const [setupVisible, setSetupVisible] = useState(false);
   const [shopName, setShopName] = useState('');
   const [vendorType, setVendorType] = useState(/** @type {'reseller' | 'dropshipper' | 'manufacturer'} */ ('reseller'));
+  const [category, setCategory] = useState(/** @type {string | null} */ (null));
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [stateName, setStateName] = useState('');
@@ -143,6 +154,11 @@ export default function ProfileSettingsScreen() {
       Alert.alert('Shop name', 'Enter a valid shop name.');
       return;
     }
+    const categoryValue = String(category ?? '').trim();
+    if (!categoryValue) {
+      Alert.alert('Category', 'Select a shop category.');
+      return;
+    }
     const hasTypedLocation =
       address.trim().length > 0 ||
       city.trim().length > 0 ||
@@ -159,6 +175,7 @@ export default function ProfileSettingsScreen() {
       await createVendorShop({
         name,
         vendorType,
+        category: categoryValue,
         location: {
           address: address.trim() || undefined,
           city: city.trim() || undefined,
@@ -282,6 +299,28 @@ export default function ProfileSettingsScreen() {
                   );
                 })}
               </View>
+
+              <Text style={styles.label}>
+                Category <Text style={styles.required}>*</Text>
+              </Text>
+              <Dropdown
+                style={styles.dropdown}
+                containerStyle={styles.dropdownList}
+                placeholderStyle={styles.dropdownPlaceholder}
+                selectedTextStyle={styles.dropdownSelectedText}
+                itemTextStyle={styles.dropdownItemText}
+                inputSearchStyle={styles.dropdownSearch}
+                data={CATEGORY_OPTIONS}
+                search
+                maxHeight={260}
+                labelField="label"
+                valueField="value"
+                placeholder="Select a category"
+                searchPlaceholder="Search categories..."
+                value={category}
+                onChange={(item) => setCategory(item.value)}
+                disable={submittingSetup}
+              />
 
               <View style={styles.locationHeaderRow}>
                 <Text style={styles.label}>Shop location</Text>
@@ -512,6 +551,41 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
     marginBottom: 12,
+  },
+  required: {
+    color: '#C62828',
+    fontWeight: '700',
+  },
+  dropdown: {
+    height: 46,
+    borderWidth: 1,
+    borderColor: '#E4E4E7',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#FFFFFF',
+    marginBottom: 12,
+  },
+  dropdownList: {
+    borderRadius: 10,
+    borderColor: '#E4E4E7',
+  },
+  dropdownPlaceholder: {
+    fontSize: 14,
+    color: '#A0A0A0',
+  },
+  dropdownSelectedText: {
+    fontSize: 14,
+    color: '#111111',
+  },
+  dropdownItemText: {
+    fontSize: 14,
+    color: '#111111',
+  },
+  dropdownSearch: {
+    height: 40,
+    fontSize: 14,
+    borderRadius: 8,
+    borderColor: '#E4E4E7',
   },
   chip: {
     borderWidth: 1,

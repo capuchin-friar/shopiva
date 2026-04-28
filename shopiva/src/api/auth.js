@@ -1,5 +1,5 @@
 import { apiFetch } from './client';
-import { API_DEFAULT_PORT, getApiBaseUrl } from './config';
+import { DEFAULT_API_BASE_URL, getApiBaseUrl } from './config';
 
 /**
  * Matches Shopiva Express (`shopiva/node`): `/user/signin`, `/user/signup`.
@@ -8,7 +8,11 @@ import { API_DEFAULT_PORT, getApiBaseUrl } from './config';
 
 /** @returns {string} */
 function cannotReachApiMessage() {
-  return `Cannot reach the API at ${getApiBaseUrl()}. Run the Node server (shopiva/node) on port ${API_DEFAULT_PORT} — use the same Wi‑Fi as your phone on a real device.`;
+  const base = getApiBaseUrl();
+  if (base === DEFAULT_API_BASE_URL) {
+    return `Cannot reach the Shopiva API at ${base}. Check your internet connection and try again — Render free instances may take ~30s to wake up.`;
+  }
+  return `Cannot reach the API at ${base}. Make sure the Node server (shopiva/node) is running and reachable from your device.`;
 }
 
 /**
