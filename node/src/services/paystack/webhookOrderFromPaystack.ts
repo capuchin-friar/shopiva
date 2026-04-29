@@ -1,3 +1,4 @@
+import crypto from "crypto";
 import type { PoolClient } from "pg";
 import { toJsonbTextParam } from "../../utils/pgJson.js";
 import type { PaystackVerifySuccess } from "./webhookVerifyTransaction.js";
@@ -101,6 +102,56 @@ async function columnUdtName(
   return rows[0]?.udt_name ?? null;
 }
 
+async function columnPgTypes(
+  client: PoolClient,
+  table: string,
+  column: string
+): Promise<{ data_type: string | null; udt_name: string | null }> {
+  const { rows } = await client.query<{ data_type: string; udt_name: string }>(
+    `SELECT data_type, udt_name FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`,
+    [table, column]
+  );
+  const r = rows[0];
+  return { data_type: r?.data_type ?? null, udt_name: r?.udt_name ?? null };
+}
+
+/**
+ * Human-/DB-safe order number from Paystack reference (unique per payment).
+ * Supports common schemas: varchar/text (use ref) or integer/bigint (deterministic hash).
+ */
+function deriveOrderNumberValue(
+  reference: string,
+  dataType: string | null,
+  udtName: string | null
+): string | number {
+  const ref = String(reference).trim();
+  const fallbackText = `ORD_${Date.now()}`;
+  const dt = (dataType ?? "").toLowerCase();
+  const udt = (udtName ?? "").toLowerCase();
+  if (udt === "uuid") {
+    return crypto.randomUUID();
+  }
+  const isIntFamily =
+    dt === "integer" ||
+    dt === "bigint" ||
+    dt === "smallint" ||
+    udt === "int2" ||
+    udt === "int4" ||
+    udt === "int8";
+  if (isIntFamily) {
+    let h = 2166136261;
+    for (let i = 0; i < ref.length; i++) {
+      h ^= ref.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    const n = Math.abs(h >>> 0);
+    return n === 0 ? 1 : n;
+  }
+  const text = (ref.length ? ref : fallbackText).replace(/[^\w.-]/g, "_").slice(0, 128);
+  return text.length ? text : fallbackText;
+}
+
 async function resolveShopId(client: PoolClient, lines: WebhookOrderLine[]): Promise<number | null> {
   for (const line of lines) {
     if (line.productId) {
@@ -161,6 +212,14 @@ export async function createOrderFromWebhook(
   const paymentCol = pickCol(cols, "payment_status", "payment", "payment_method");
   const shippingCol = pickCol(cols, "shipping_address", "shippingaddress");
   const currencyCol = pickCol(cols, "currency");
+  const orderNumCol = pickCol(
+    cols,
+    "ordernumber",
+    "order_number",
+    "order_no",
+    "orderno",
+    "orderNumber"
+  );
 
   if (!customerCol) {
     throw new Error("orders table: missing customer_id (or customerid) column");
@@ -206,6 +265,11 @@ export async function createOrderFromWebhook(
 
   add(customerCol, ctx.userId);
   add(payRefCol, reference);
+
+  if (orderNumCol) {
+    const typ = await columnPgTypes(client, "orders", orderNumCol);
+    add(orderNumCol, deriveOrderNumberValue(reference, typ.data_type, typ.udt_name));
+  }
 
   let parsedItems: unknown;
   try {
@@ -254,10 +318,13 @@ export async function createOrderFromWebhook(
     add(currencyCol, verified.currency);
   }
 
+  /**
+   * Requires migration `027_orders_payment_reference_unique.sql` (named UNIQUE on payment_reference).
+   */
   const insertSql = `
     INSERT INTO orders (${pieces.map((p) => p.ident).join(", ")})
     VALUES (${pieces.map((p) => p.ph).join(", ")})
-    ON CONFLICT (${safeIdent(payRefCol)}) DO NOTHING
+    ON CONFLICT ON CONSTRAINT orders_payment_reference_unique DO NOTHING
     RETURNING ${safeIdent(idCol)} AS inserted_id
   `;
 
