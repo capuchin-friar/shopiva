@@ -8,9 +8,28 @@ import { withErrorHandling } from "../utils/errHandler.js";
 
 type SqlExecutor = Pool | PoolClient;
 
-/** Stable JSON for `::jsonb` params (handles `BigInt` etc. that break `pg` object serialization). */
-function jsonbParam(value: Record<string, unknown>): string {
-  return JSON.stringify(value, (_k, v) => (typeof v === "bigint" ? v.toString() : v));
+/**
+ * Produce a **plain JSON tree** safe for PostgreSQL `jsonb` (no BigInt, Date, Buffer, cycles).
+ * Round-trip via JSON prevents malformed `jsonb` casts from odd prototypes or non-JSON types.
+ */
+function toPgJsonbValue(value: unknown): unknown {
+  if (value === undefined || value === null) return {};
+  try {
+    const raw = JSON.stringify(value, jsonReplacer);
+    if (raw === undefined) return {};
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return { _note: "serialization_fallback", at: new Date().toISOString() };
+  }
+}
+
+function jsonReplacer(_key: string, v: unknown): unknown {
+  if (v === undefined) return undefined;
+  if (typeof v === "bigint") return v.toString();
+  if (typeof v === "function" || typeof v === "symbol") return undefined;
+  if (v instanceof Date) return v.toISOString();
+  if (Buffer.isBuffer(v)) return { _type: "Buffer", base64: v.toString("base64") };
+  return v;
 }
 
 export type PaystackTransactionRow = {
@@ -66,8 +85,8 @@ export class paystack_transaction {
 
     const runner: SqlExecutor = executor ?? (await db());
 
-    const metadataJson = jsonbParam(metadata);
-    const rawPayloadJson = jsonbParam(raw_payload);
+    const metadataObj = toPgJsonbValue(metadata ?? {});
+    const rawPayloadObj = toPgJsonbValue(raw_payload);
 
     const { rows } = await runner.query<PaystackTransactionRow>(
       `INSERT INTO paystack_transactions (
@@ -96,9 +115,9 @@ export class paystack_transaction {
         status,
         channel,
         customer_email,
-        metadataJson,
+        metadataObj,
         paid_at,
-        rawPayloadJson,
+        rawPayloadObj,
       ]
     );
     const row = rows[0];

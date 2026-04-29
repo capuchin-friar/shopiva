@@ -87,6 +87,19 @@ async function decrementInventoryForLines(
   }
 }
 
+async function columnUdtName(
+  client: PoolClient,
+  table: string,
+  column: string
+): Promise<string | null> {
+  const { rows } = await client.query<{ udt_name: string }>(
+    `SELECT udt_name FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2`,
+    [table, column]
+  );
+  return rows[0]?.udt_name ?? null;
+}
+
 async function resolveShopId(client: PoolClient, lines: WebhookOrderLine[]): Promise<number | null> {
   for (const line of lines) {
     if (line.productId) {
@@ -210,7 +223,16 @@ export async function createOrderFromWebhook(
     push(paymentCol, "success");
   }
   if (shippingCol) {
-    push(shippingCol, shippingJson);
+    const udt = await columnUdtName(client, "orders", shippingCol);
+    if (udt === "jsonb" || udt === "json") {
+      const wrapped =
+        typeof ctx.shippingAddress === "string"
+          ? { address: ctx.shippingAddress }
+          : (ctx.shippingAddress as Record<string, unknown>);
+      push(shippingCol, wrapped);
+    } else {
+      push(shippingCol, shippingJson);
+    }
   }
   if (currencyCol) {
     push(currencyCol, verified.currency);
