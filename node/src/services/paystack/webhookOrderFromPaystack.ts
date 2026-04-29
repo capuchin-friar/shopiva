@@ -1,4 +1,5 @@
 import type { PoolClient } from "pg";
+import { toJsonbTextParam } from "../../utils/pgJson.js";
 import type { PaystackVerifySuccess } from "./webhookVerifyTransaction.js";
 import type { ValidatedOrderContext, WebhookOrderLine } from "./webhookMetadata.js";
 
@@ -185,69 +186,85 @@ export async function createOrderFromWebhook(
       ? ctx.shippingAddress
       : JSON.stringify(ctx.shippingAddress);
 
+  const itemsUdt = await columnUdtName(client, "orders", itemsCol);
+
   const amountNaira = Math.round(amountKobo) / 100;
   const statusPaid =
     (process.env.ORDER_WEBHOOK_STATUS_PAID ?? "paid").trim() || "paid";
 
   const idCol = pickCol(cols, "id", "order_id") ?? "id";
 
-  const columns: string[] = [];
-  const values: unknown[] = [];
+  type RowPiece = { ident: string; ph: string; val: unknown };
+  const pieces: RowPiece[] = [];
+  let pn = 1;
 
-  const push = (col: string, val: unknown) => {
-    columns.push(safeIdent(col));
-    values.push(val);
+  const add = (col: string, val: unknown, jsonTextJsonb = false) => {
+    const ph = jsonTextJsonb ? `$${pn}::text::jsonb` : `$${pn}`;
+    pn += 1;
+    pieces.push({ ident: safeIdent(col), ph, val });
   };
 
-  push(customerCol, ctx.userId);
-  push(payRefCol, reference);
+  add(customerCol, ctx.userId);
+  add(payRefCol, reference);
+
+  let parsedItems: unknown;
   try {
-    push(itemsCol, JSON.parse(itemsJson));
+    parsedItems = JSON.parse(itemsJson);
   } catch {
-    push(itemsCol, itemsJson);
+    parsedItems = itemsJson;
+  }
+  const itemsIsJson = itemsUdt === "jsonb" || itemsUdt === "json";
+  if (itemsIsJson) {
+    add(itemsCol, toJsonbTextParam(parsedItems), true);
+  } else {
+    add(
+      itemsCol,
+      typeof parsedItems === "string" ? parsedItems : JSON.stringify(parsedItems)
+    );
   }
 
   if (amountCol) {
-    push(amountCol, amountNaira);
+    add(amountCol, amountNaira);
   }
   if (statusCol) {
-    push(statusCol, statusPaid);
+    add(statusCol, statusPaid);
   }
   if (shopCol && shopId != null) {
-    push(shopCol, shopId);
+    add(shopCol, shopId);
   }
   if (productCol && ctx.items[0]?.productId) {
-    push(productCol, ctx.items[0].productId);
+    add(productCol, ctx.items[0].productId);
   }
   if (paymentCol) {
-    push(paymentCol, "success");
+    add(paymentCol, "success");
   }
   if (shippingCol) {
-    const udt = await columnUdtName(client, "orders", shippingCol);
-    if (udt === "jsonb" || udt === "json") {
+    const shipUdt = await columnUdtName(client, "orders", shippingCol);
+    if (shipUdt === "jsonb" || shipUdt === "json") {
       const wrapped =
         typeof ctx.shippingAddress === "string"
           ? { address: ctx.shippingAddress }
           : (ctx.shippingAddress as Record<string, unknown>);
-      push(shippingCol, wrapped);
+      add(shippingCol, toJsonbTextParam(wrapped), true);
     } else {
-      push(shippingCol, shippingJson);
+      add(shippingCol, shippingJson);
     }
   }
   if (currencyCol) {
-    push(currencyCol, verified.currency);
+    add(currencyCol, verified.currency);
   }
 
-  const placeholders = columns.map((_, idx) => `$${idx + 1}`).join(", ");
-
   const insertSql = `
-    INSERT INTO orders (${columns.join(", ")})
-    VALUES (${placeholders})
+    INSERT INTO orders (${pieces.map((p) => p.ident).join(", ")})
+    VALUES (${pieces.map((p) => p.ph).join(", ")})
     ON CONFLICT (${safeIdent(payRefCol)}) DO NOTHING
     RETURNING ${safeIdent(idCol)} AS inserted_id
   `;
 
-  const ins = await client.query<{ inserted_id: number | string | null }>(insertSql, values);
+  const ins = await client.query<{ inserted_id: number | string | null }>(
+    insertSql,
+    pieces.map((p) => p.val)
+  );
   let orderIdRaw = ins.rows[0]?.inserted_id;
 
   if (orderIdRaw === null || orderIdRaw === undefined) {

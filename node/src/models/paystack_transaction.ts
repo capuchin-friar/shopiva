@@ -5,32 +5,9 @@
 import type { Pool, PoolClient } from "pg";
 import { db } from "../config/database.js";
 import { withErrorHandling } from "../utils/errHandler.js";
+import { toJsonbTextParam } from "../utils/pgJson.js";
 
 type SqlExecutor = Pool | PoolClient;
-
-/**
- * Produce a **plain JSON tree** safe for PostgreSQL `jsonb` (no BigInt, Date, Buffer, cycles).
- * Round-trip via JSON prevents malformed `jsonb` casts from odd prototypes or non-JSON types.
- */
-function toPgJsonbValue(value: unknown): unknown {
-  if (value === undefined || value === null) return {};
-  try {
-    const raw = JSON.stringify(value, jsonReplacer);
-    if (raw === undefined) return {};
-    return JSON.parse(raw) as unknown;
-  } catch {
-    return { _note: "serialization_fallback", at: new Date().toISOString() };
-  }
-}
-
-function jsonReplacer(_key: string, v: unknown): unknown {
-  if (v === undefined) return undefined;
-  if (typeof v === "bigint") return v.toString();
-  if (typeof v === "function" || typeof v === "symbol") return undefined;
-  if (v instanceof Date) return v.toISOString();
-  if (Buffer.isBuffer(v)) return { _type: "Buffer", base64: v.toString("base64") };
-  return v;
-}
 
 export type PaystackTransactionRow = {
   id: number;
@@ -85,14 +62,14 @@ export class paystack_transaction {
 
     const runner: SqlExecutor = executor ?? (await db());
 
-    const metadataObj = toPgJsonbValue(metadata ?? {});
-    const rawPayloadObj = toPgJsonbValue(raw_payload);
+    const metadataText = toJsonbTextParam(metadata ?? {});
+    const rawPayloadText = toJsonbTextParam(raw_payload);
 
     const { rows } = await runner.query<PaystackTransactionRow>(
       `INSERT INTO paystack_transactions (
         paystack_charge_id, reference, event, amount, currency, status, channel,
         customer_email, metadata, paid_at, raw_payload
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11::jsonb)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::text::jsonb, $10, $11::text::jsonb)
       ON CONFLICT (reference) DO UPDATE SET
         paystack_charge_id = COALESCE(EXCLUDED.paystack_charge_id, paystack_transactions.paystack_charge_id),
         event = EXCLUDED.event,
@@ -115,9 +92,9 @@ export class paystack_transaction {
         status,
         channel,
         customer_email,
-        metadataObj,
+        metadataText,
         paid_at,
-        rawPayloadObj,
+        rawPayloadText,
       ]
     );
     const row = rows[0];
