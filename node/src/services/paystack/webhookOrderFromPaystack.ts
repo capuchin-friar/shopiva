@@ -4,10 +4,63 @@ import { toJsonbTextParam } from "../../utils/pgJson.js";
 import type { PaystackVerifySuccess } from "./webhookVerifyTransaction.js";
 import type { ValidatedOrderContext, WebhookOrderLine } from "./webhookMetadata.js";
 
-const AMOUNT_TOLERANCE_KOBO = 150;
+/** Matches `orders.status` CHECK on typical Shopiva DDL (varchar literals). */
+const ORDER_STATUS_ALLOWED = new Set([
+  "pending",
+  "confirmed",
+  "processing",
+  "shipped",
+  "in_transit",
+  "out_for_delivery",
+  "delivered",
+  "completed",
+  "cancelled",
+  "refunded",
+]);
 
 function pickCol(cols: Set<string>, ...names: string[]): string | null {
   return names.find((n) => cols.has(n)) ?? null;
+}
+
+function pickNumber(v: unknown): number | null {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim()) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+/** Paid webhook: map legacy labels (paid/success) → DB-safe status. */
+function normalizeWebhookOrderStatus(raw: string): string {
+  const s = String(raw ?? "").trim().toLowerCase();
+  if (ORDER_STATUS_ALLOWED.has(s)) return s;
+  if (s === "paid" || s === "success") return "confirmed";
+  return "confirmed";
+}
+
+/**
+ * Fill `subtotal`, `total`, `shippingcost` from Paystack verify + metadata.pricingBreakdown.
+ * Totals use verified Naira unless metadata overrides (same rules as amount checks elsewhere).
+ */
+function deriveOrderMoney(
+  ctx: ValidatedOrderContext,
+  verifiedAmountNaira: number
+): { subtotal: number; total: number; shipping: number } {
+  const p = ctx.pricing;
+  const shipping = Math.max(0, pickNumber(p.shippingNaira) ?? 0);
+
+  let total = verifiedAmountNaira;
+  const tn = pickNumber(p.totalNaira);
+  const tk = pickNumber(p.totalKobo);
+  if (tn !== null && tn >= 0) total = tn;
+  else if (tk !== null && tk >= 0) total = Math.round(tk) / 100;
+
+  let subtotal = pickNumber(p.subtotalNaira);
+  if (subtotal === null || subtotal < 0) {
+    subtotal = Math.max(0, total - shipping);
+  }
+  return { subtotal, total, shipping };
 }
 
 function safeIdent(name: string): string {
@@ -190,7 +243,6 @@ export async function createOrderFromWebhook(
 ): Promise<{ orderId: number }> {
   const { reference, verified, ctx } = input;
   const amountKobo = verified.amountKobo;
-  const expectedTolerance = AMOUNT_TOLERANCE_KOBO;
 
   const colRes = await client.query<{ column_name: string }>(
     `SELECT column_name
@@ -202,15 +254,18 @@ export async function createOrderFromWebhook(
     throw new Error("orders table has no columns (unexpected)");
   }
 
-  const customerCol = pickCol(cols, "customer_id", "customerid");
+  /* Prefer names from public.orders DDL (shopiva): customerid, shopid, shippingaddress, etc. */
+  const customerCol = pickCol(cols, "customerid", "customer_id");
+  const shopCol = pickCol(cols, "shopid", "shop_id", "shopId");
   const itemsCol = pickCol(cols, "items", "line_items", "order_lines");
-  const amountCol = pickCol(cols, "total_amount", "amount", "total", "subtotal");
+  const subtotalCol = pickCol(cols, "subtotal");
+  const totalCol = pickCol(cols, "total", "total_amount", "amount");
+  const shippingCostCol = pickCol(cols, "shippingcost", "shipping_cost");
   const statusCol = pickCol(cols, "status", "order_status");
   const payRefCol = pickCol(cols, "payment_reference", "paymentreference");
-  const shopCol = pickCol(cols, "shop_id", "shopid", "shopId");
   const productCol = pickCol(cols, "product_id", "productid");
   const paymentCol = pickCol(cols, "payment_status", "payment", "payment_method");
-  const shippingCol = pickCol(cols, "shipping_address", "shippingaddress");
+  const shippingCol = pickCol(cols, "shippingaddress", "shipping_address");
   const currencyCol = pickCol(cols, "currency");
   const orderNumCol = pickCol(
     cols,
@@ -222,7 +277,7 @@ export async function createOrderFromWebhook(
   );
 
   if (!customerCol) {
-    throw new Error("orders table: missing customer_id (or customerid) column");
+    throw new Error("orders table: missing customerid (or customer_id) column");
   }
   if (!payRefCol) {
     throw new Error("orders table: missing payment_reference column (run migration 026)");
@@ -236,7 +291,7 @@ export async function createOrderFromWebhook(
 
   const shopId = shopCol ? await resolveShopId(client, ctx.items) : null;
   if (shopCol && (shopId === null || shopId <= 0)) {
-    throw new Error("Could not resolve shop_id from order line products");
+    throw new Error("Could not resolve shopid from order line products");
   }
 
   const itemsJson = JSON.stringify(ctx.items);
@@ -248,8 +303,10 @@ export async function createOrderFromWebhook(
   const itemsUdt = await columnUdtName(client, "orders", itemsCol);
 
   const amountNaira = Math.round(amountKobo) / 100;
-  const statusPaid =
-    (process.env.ORDER_WEBHOOK_STATUS_PAID ?? "paid").trim() || "paid";
+  const money = deriveOrderMoney(ctx, amountNaira);
+  const statusPaid = normalizeWebhookOrderStatus(
+    process.env.ORDER_WEBHOOK_STATUS_PAID ?? "confirmed"
+  );
 
   const idCol = pickCol(cols, "id", "order_id") ?? "id";
 
@@ -287,8 +344,20 @@ export async function createOrderFromWebhook(
     );
   }
 
-  if (amountCol) {
-    add(amountCol, amountNaira);
+  if (subtotalCol) {
+    add(subtotalCol, money.subtotal);
+  }
+  if (totalCol) {
+    add(totalCol, money.total);
+  }
+  if (shippingCostCol) {
+    add(shippingCostCol, money.shipping);
+  }
+  if (!subtotalCol && !totalCol) {
+    const legacyAmount = pickCol(cols, "amount", "total_amount");
+    if (legacyAmount) {
+      add(legacyAmount, money.total);
+    }
   }
   if (statusCol) {
     add(statusCol, statusPaid);
