@@ -19,7 +19,7 @@ import { fetchOwnerShops } from '../../api/shop';
 import { getProducts } from '../../api/product';
 import { useProfile } from '../../context/ProfileContext';
 
-const BRAND = '#E85D04';
+const BRAND = '#00926e';
 const BG = '#F0F1F4';
 const CARD = '#FFFFFF';
 const TEXT = '#111827';

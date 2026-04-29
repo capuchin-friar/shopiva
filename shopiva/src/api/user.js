@@ -123,7 +123,14 @@ export async function updateUserPhone(userId, phone) {
 
 /**
  * @param {number} userId
- * @param {{ gender?: string; location?: { city?: string; state?: string; country?: string } }} fields
+ * @param {{
+ *   fname?: string;
+ *   lname?: string;
+ *   gender?: string;
+ *   preferredLanguage?: string;
+ *   timezone?: string;
+ *   location?: { city?: string; state?: string; country?: string }
+ * }} fields
  */
 export async function updateUserProfileFields(userId, fields) {
   const res = await apiFetchAuth(`/user/profile/update/${userId}`, {

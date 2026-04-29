@@ -348,7 +348,7 @@ export default function CartCheckoutScreen({ navigation }) {
     setFormBanner('');
     popup.checkout({
       email: customerEmail,
-      amount: amountKobo,
+      amount: amountKobo/100,
       reference,
       metadata: {
         userId: uid,

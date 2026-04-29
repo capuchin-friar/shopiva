@@ -20,7 +20,7 @@ const TEAL = '#00926e';
 const BORDER = '#E0E0E0';
 const SUB = '#757575';
 
-/** @typedef {{ id: string; cartItemId: number; title: string; image: string; size: string; colorHex: string; unitPrice: number; qty: number }} CartLine */
+/** @typedef {{ id: string; cartItemId: number; inventoryId?: number; productId?: number; title: string; image: string; size: string; colorHex: string; unitPrice: number; qty: number }} CartLine */
 
 /** Compact total in header bar (e.g. ₦18.2k). */
 function formatNairaTotalBar(n) {
@@ -115,9 +115,13 @@ export default function CartScreen({ navigation }) {
           if (cancelled) return;
             const mapped = (Array.isArray(raw) ? raw : []).map((l) => {
             const row = /** @type {Record<string, unknown>} */ (l);
+            const inventoryIdNum = Number(row.inventoryId ?? row.inventory_id);
+            const productIdNum = Number(row.productId ?? row.product_id);
             return {
               id: String(row.id ?? ''),
               cartItemId: Number(row.cartItemId),
+              inventoryId: Number.isFinite(inventoryIdNum) && inventoryIdNum > 0 ? inventoryIdNum : undefined,
+              productId: Number.isFinite(productIdNum) && productIdNum > 0 ? productIdNum : undefined,
               title: String(row.title ?? 'Item'),
               image: String(row.image ?? '').trim(),
               size: row.sku != null && String(row.sku).trim() ? String(row.sku) : '—',
@@ -236,6 +240,8 @@ export default function CartScreen({ navigation }) {
                 checkoutLines: lines.map((l) => ({
                   key: l.id,
                   cartItemId: l.cartItemId,
+                  inventoryId: l.inventoryId,
+                  productId: l.productId,
                   title: l.title,
                   image: l.image,
                   unitPrice: l.unitPrice,

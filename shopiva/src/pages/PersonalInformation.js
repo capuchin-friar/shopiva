@@ -78,11 +78,43 @@ function formatAddressFromNominatim(data) {
   return parts.join(', ');
 }
 
+/**
+ * @param {string} fullName
+ * @returns {{ fname: string; lname: string }}
+ */
+function splitFullName(fullName) {
+  const parts = String(fullName ?? '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { fname: '', lname: '' };
+  const fname = parts[0];
+  const lname = parts.length > 1 ? parts.slice(1).join(' ') : '';
+  return { fname, lname };
+}
+
+/**
+ * Build the initial editable name from a normalized profile.
+ * Prefers API-backed profileName; falls back to displayName when present
+ * (for buyers it may include the email-prefix fallback, but as a starting
+ * value for editing that's acceptable — the user can clear it).
+ * @param {{ profileName?: string; displayName?: string; email?: string } | null | undefined} u
+ */
+function initialNameFor(u) {
+  if (!u) return '';
+  const profile = String(u.profileName ?? '').trim();
+  if (profile) return profile;
+  const display = String(u.displayName ?? '').trim();
+  if (!display) return '';
+  /** Skip the email-prefix fallback so users start from a blank field rather than "akoulufabian". */
+  const email = String(u.email ?? '').trim();
+  if (email && display === email.split('@')[0]) return '';
+  return display;
+}
+
 export default function PersonalInformationScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { user, saveProfileFields, refresh } = useProfile();
 
+  const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   const [gender, setGender] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -95,9 +127,10 @@ export default function PersonalInformationScreen() {
 
   useEffect(() => {
     if (!user?.id) return;
+    setName(initialNameFor(user));
     setLocation(user.locationDisplay ?? '');
     setGender(user.gender ?? null);
-  }, [user?.id, user?.locationDisplay, user?.gender]);
+  }, [user?.id, user?.profileName, user?.displayName, user?.email, user?.locationDisplay, user?.gender]);
 
   const onSave = useCallback(async () => {
     if (!user?.id) {
@@ -105,6 +138,19 @@ export default function PersonalInformationScreen() {
       return;
     }
     const fields = {};
+
+    const trimmedName = name.trim();
+    const previousName = initialNameFor(user);
+    if (trimmedName !== previousName) {
+      if (trimmedName.length > 0 && trimmedName.length < 2) {
+        Alert.alert('Name', 'Enter at least 2 characters, or leave the field unchanged.');
+        return;
+      }
+      const { fname, lname } = splitFullName(trimmedName);
+      fields.fname = fname;
+      fields.lname = lname;
+    }
+
     const g = genderToApi(gender);
     if (g) fields.gender = g;
     const locParsed = parseLocationString(location);
@@ -112,7 +158,7 @@ export default function PersonalInformationScreen() {
       fields.location = locParsed;
     }
     if (Object.keys(fields).length === 0) {
-      Alert.alert('Nothing to save', 'Select gender and/or enter a location.');
+      Alert.alert('Nothing to save', 'Update your name, gender, or location, then try again.');
       return;
     }
     setSaving(true);
@@ -126,7 +172,7 @@ export default function PersonalInformationScreen() {
     } finally {
       setSaving(false);
     }
-  }, [user?.id, gender, location, saveProfileFields]);
+  }, [user, name, gender, location, saveProfileFields]);
 
   const onEditImage = useCallback(() => {
 
@@ -134,10 +180,6 @@ export default function PersonalInformationScreen() {
   }, []);
 
   const vendorAccount = isVendorAccountRole(user?.roleRaw);
-  /** Vendors: show API name fields only, never the email-prefix fallback from `displayName`. */
-  const nameRowValue = vendorAccount
-    ? user?.profileName?.trim() || '—'
-    : user?.displayName?.trim() || '—';
 
   const avatarUri = user?.avatarUrl?.trim() || '';
   const avatarLetterSource = vendorAccount
@@ -172,7 +214,31 @@ export default function PersonalInformationScreen() {
           </Pressable>
         </View>
 
-        <ReadOnlyRow icon="person-outline" value={nameRowValue} />
+        <View style={styles.fieldRow}>
+          <Icon name="person-outline" size={20} color={ICON_COLOR} style={styles.fieldIcon} />
+          <TextInput
+            value={name}
+            onChangeText={setName}
+            placeholder="Your name"
+            placeholderTextColor={MUTED}
+            style={styles.fieldInput}
+            autoCapitalize="words"
+            autoCorrect={false}
+            returnKeyType="done"
+            editable={!saving}
+          />
+          {name.length > 0 ? (
+            <Pressable
+              onPress={() => setName('')}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear name"
+            >
+              <Icon name="close" size={18} color={CLEAR_ICON} />
+            </Pressable>
+          ) : null}
+        </View>
+
         <ReadOnlyRow
           icon="mail-outline"
           value={user?.email}
@@ -208,17 +274,9 @@ export default function PersonalInformationScreen() {
         <ReadOnlyRow icon="shield-checkmark-outline" value={user?.roleLabel} />
 
         <Text style={styles.infoHint}>
-          {vendorAccount ? (
-            <>
-              As a seller, your name is not editable on this screen. Email and WhatsApp can be changed in{' '}
-              <Text style={styles.infoHintEm}>Settings</Text>. Edit location and gender here.
-            </>
-          ) : (
-            <>
-              Email and WhatsApp can be changed in{' '}
-              <Text style={styles.infoHintEm}>Settings</Text>. Edit location and gender here.
-            </>
-          )}
+          Edit your name, gender, and location here. Email and WhatsApp can be changed in{' '}
+          <Text style={styles.infoHintEm}>Settings</Text>.
+          {vendorAccount ? ' Your shop name is managed in Profile → Shop info.' : ''}
         </Text>
 
         <Text style={styles.securityHint}>

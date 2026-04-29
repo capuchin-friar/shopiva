@@ -28,7 +28,7 @@ const ProfileContext = createContext(
  *   savePhone: (phone: string) => Promise<{ ok: boolean; message?: string }>;
  *   saveEmail: (email: string) => Promise<{ ok: boolean; message?: string }>;
  *   savePassword: (newPassword: string) => Promise<{ ok: boolean; message?: string }>;
- *   saveProfileFields: (fields: { gender?: string; location?: { city?: string; state?: string; country?: string } }) => Promise<{ ok: boolean; message?: string }>;
+ *   saveProfileFields: (fields: { fname?: string; lname?: string; gender?: string; location?: { city?: string; state?: string; country?: string } }) => Promise<{ ok: boolean; message?: string }>;
    * }} */ (null),
 );
 

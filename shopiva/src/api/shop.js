@@ -150,6 +150,27 @@ export async function fetchShopOrders(shopId, userId) {
 }
 
 /**
+ * Inventory rows for a vendor's shop.
+ * Backend route: GET /shop/:shopId/inventory/:userId
+ * Each row mirrors `getByShopId` in `node/src/models/business/product.ts`:
+ *  { id, product_id, product_name, sku, price, currency,
+ *    quantity_available, quantity_reserved, low_stock_threshold,
+ *    location_id, is_active, created_at, updated_at }
+ *
+ * @param {number | string} shopId
+ * @param {number | string} userId
+ * @returns {Promise<Record<string, unknown>[]>}
+ */
+export async function fetchShopInventory(shopId, userId) {
+  const res = await apiFetchAuth(
+    `/shop/${encodeURIComponent(String(shopId))}/inventory/${encodeURIComponent(String(userId))}`,
+    { method: 'GET' },
+  );
+  const data = await readJson(res);
+  return Array.isArray(data.inventory) ? data.inventory : [];
+}
+
+/**
  * Shop ledger + overview for the Transactions tab (GET /shop/:shopId/transactions/:userId).
  * @param {number | string} shopId
  * @param {number | string} userId
