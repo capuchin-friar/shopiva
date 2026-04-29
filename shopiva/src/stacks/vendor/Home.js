@@ -10,56 +10,54 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-
+import HomeScreen from "../../pages/vendor/Home"
 /** Bundled logo for native stack header (do not use `{ uri: '../assets/...' }` for local files). */
-const SHOPIVA_LOGO = require('../assets/Shopiva.png');
+const SHOPIVA_LOGO = require('../../assets/Shopiva.png');
 // import { set_connect_modal } from '../../redux/modal/connect';
 // import { setUserAuthTo } from '../../redux/...';
-import {
-  HomeScreen
-} from "../../pages/vendor/Home"
+// import HomeStackCartIconButton from "../../components/HomeStackCartButton"
 const HomeStack = createNativeStackNavigator();
 
 
 
-export function HomeStackScreen(){
+export function VendorHomeStackScreen(){
 
 
     return(
         <HomeStack.Navigator>
-            <HomeStack.Screen
-                name="home"
-                component={HomeScreen}
-                options={{
-                title: 'Home',
-                headerBackVisible: false,
-                headerShadowVisible: false,
-                headerStyle: styles.homeHeaderBar,
-                headerRight: () => (
+          <HomeStack.Screen
+            name="home"
+            component={HomeScreen}
+            options={{
+              title: 'Home',
+              headerBackVisible: false,
+              headerShadowVisible: false,
+              headerStyle: styles.homeHeaderBar,
+              // headerRight: () => (
 
-                    <View>
-                        {/* <HomeStackCartIconButton
-                            size={24}
-                            color="#000000"
-                            style={styles.vendorsHomeHeaderCart}
-                        /> */}
-                    </View>
-                    
-                ),
-                headerLeft: () => (
+              //   <View>
+              //     <HomeStackCartIconButton
+              //         size={24}
+              //         color="#000000"
+              //         style={styles.vendorsHomeHeaderCart}
+              //     />
+              //   </View>
+                  
+              // ),
+              // headerLeft: () => (
 
-                    <View style={styles.homeHeaderLogoCnt}>
-                        {/* <Image
-                            source={SHOPIVA_LOGO}
-                            style={styles.homeHeaderLogo}
-                            resizeMode="contain"
-                            accessibilityIgnoresInvertColors
-                        /> */}
-                    </View>
+              //   <View style={styles.homeHeaderLogoCnt}>
+              //     <Image
+              //       source={SHOPIVA_LOGO}
+              //       style={styles.homeHeaderLogo}
+              //       resizeMode="contain"
+              //       accessibilityIgnoresInvertColors
+              //     />
+              //   </View>
 
-                ),
-                }}
-            />
+              // ),
+            }}
+          />
 
         {/* <HomeStack.Screen
             name="vendors"

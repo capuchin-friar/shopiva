@@ -3,11 +3,11 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TouchableOp
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-// import { useProfile } from '../../context/ProfileContext';
-// import { fetchOwnerShops, fetchShopOrders } from '../../api/shop';
-// import { getStorefrontProduct, getStorefrontProducts } from '../../api/storefront';
-// import { mapOrderRowToListItem } from '../../utils/buyerUi';
-// import { formatNaira } from '../../utils/formatNaira';
+import { useProfile } from '../../context/ProfileContext';
+import { fetchOwnerShops, fetchShopOrders } from '../../api/shop';
+import { getStorefrontProduct, getStorefrontProducts } from '../../api/storefront';
+import { mapOrderRowToListItem } from '../../utils/buyerUi';
+import { formatNaira } from '../../utils/formatNaira';
 
 /** Vendor-only dashboard — not shared with customer flows or `HomeStackScreen`. */
 const BRAND = '#00926E';
@@ -286,8 +286,6 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: 15 }]}>
-      
-
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
