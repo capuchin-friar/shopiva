@@ -105,18 +105,6 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
-
-    // react-native-video (Media3) + RN can both ship libc++_shared.so — pick one per ABI for packaging.
-    packaging {
-        jniLibs {
-            pickFirsts += [
-                "lib/armeabi-v7a/libc++_shared.so",
-                "lib/arm64-v8a/libc++_shared.so",
-                "lib/x86/libc++_shared.so",
-                "lib/x86_64/libc++_shared.so",
-            ]
-        }
-    }
 }
 
 dependencies {
@@ -129,13 +117,3 @@ dependencies {
         implementation jscFlavor
     }
 }
-
-// react-native-vector-icons: copy TTFs into assets so Android can resolve the font by basename (see create-icon-set.js)
-project.ext.vectoricons = [
-    iconFontNames: [
-        "Ionicons.ttf",
-        "MaterialIcons.ttf",
-        "MaterialCommunityIcons.ttf",
-    ],
-]
-apply from: file("../../node_modules/react-native-vector-icons/fonts.gradle")

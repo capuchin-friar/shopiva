@@ -110,7 +110,7 @@ export default function OrdersListScreen() {
       setLoading(true);
       setError('');
       try {
-        const { orders: rows } = await fetchBuyerOrders();
+        const { orders: rows } = role === "customer" ? await fetchBuyerOrders() : fetchVendorOrders();
         if (cancelled) return;
         const mapped = (Array.isArray(rows) ? rows : []).map((r) =>
           mapOrderRowToListItem(/** @type {Record<string, unknown>} */ (r)),
