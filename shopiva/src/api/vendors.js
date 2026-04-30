@@ -40,16 +40,17 @@ export async function getVendorsOnMapByCategory(category) {
 
 
 
-/** @returns {Promise<{ orders: unknown[] }>} */
-export async function fetchVendorOrders() {
-  const res = await apiFetchAuth('/vendor/orders');
-  return readJson(res);
-}
+// /** @returns {Promise<{ orders: unknown[] }>} */
+// export async function fetchVendorOrders(shopId, userId) {
+//   const res = await apiFetch(`/shop/${shopId}/orders/${userId}`);
+//   // console.log(res);
+//   return readJson(res);
+// }
 
 /** @returns {Promise<{ order: Record<string, unknown> }>} */
 export async function fetchVendorOrder(orderId) {
   const id = encodeURIComponent(String(orderId ?? '').trim());
   if (!id) throw new Error('orderId is required');
-  const res = await apiFetchAuth(`/vendor/orders/${id}`);
+  const res = await apiFetch(`/vendor/orders/${id}`);
   return readJson(res);
 }

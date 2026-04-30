@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Platform,
   Pressable,
@@ -14,7 +15,12 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatNaira } from '../../utils/formatNaira';
 import { fetchBuyerOrders } from '../../api/buyer';
+// import { fetchVendorOrders } from '../../api/vendors'
 import { mapOrderRowToListItem } from '../../utils/buyerUi';
+import { useSelector } from 'react-redux';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getStoredUser } from '../../auth/session';
+import { fetchOwnerShops, fetchShopOrders } from '../../api';
 
 const PAGE_BG = '#F2F2F4';
 const BLACK = '#111111';
@@ -96,13 +102,39 @@ function OrderCard({ item, onPress }) {
   );
 }
 
-export default function VendorOrderListScreen() {
+export default function OrderListScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const auth = useSelector(s => s.auth)
   const [filter, setFilter] = useState('all');
   const [orders, setOrders] = useState(/** @type {Record<string, unknown>[]} */ ([]));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+
+  /** @param {Record<string, unknown>} row */
+  function shopIdOf(row) {
+    const v = row.id ?? row.shopid ?? row.shop_id;
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+
+  /**
+   * MVP: choose only the first-created shop for dashboard metrics.
+   * @param {Record<string, unknown>[]} shops
+   * @returns {Record<string, unknown> | null}
+   */
+  function pickFirstCreatedShop(shops) {
+    if (!Array.isArray(shops) || shops.length === 0) return null;
+    return shops
+    .slice()
+    .sort((a, b) => {
+      const aa = shopCreatedAtMsOf(/** @type {Record<string, unknown>} */ (a));
+      const bb = shopCreatedAtMsOf(/** @type {Record<string, unknown>} */ (b));
+      if (aa !== bb) return aa - bb;
+      return shopIdOf(/** @type {Record<string, unknown>} */ (a)) - shopIdOf(/** @type {Record<string, unknown>} */ (b));
+    })[0] || null;
+  }
+
 
   useEffect(() => {
     let cancelled = false;
@@ -110,9 +142,25 @@ export default function VendorOrderListScreen() {
       setLoading(true);
       setError('');
       try {
-        const { orders: rows } = role === "customer" ? await fetchBuyerOrders() : fetchVendorOrders();
+        let { id: userId } = await getStoredUser();
+
+        let shops = await fetchOwnerShops(userId);
+        const firstShop = pickFirstCreatedShop(
+          shops.map((s) => /** @type {Record<string, unknown>} */ (s)),
+        );
+        const shopId = firstShop ? shopIdOf(firstShop) : 0;
+        if (!shopId) {
+          Alert.alert("no shops")
+          // setOrders([]);
+          // setOrdersTotalCount(0);
+          // setNewCustomersCount(0);
+          // setLowInventoryCount(0);
+          // setTotalSales(0);
+          return;
+        }
+        const data = auth.activeRole === "customer" ? await fetchBuyerOrders() : await fetchShopOrders(shopId, userId);
         if (cancelled) return;
-        const mapped = (Array.isArray(rows) ? rows : []).map((r) =>
+        const mapped = (Array.isArray(data) ? data : []).map((r) =>
           mapOrderRowToListItem(/** @type {Record<string, unknown>} */ (r)),
         );
         setOrders(mapped);

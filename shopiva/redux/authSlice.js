@@ -13,6 +13,7 @@ import {
 } from '../src/auth/session';
 import { setUnauthorized401Suppressed } from '../src/auth/unauthorized';
 import { disconnectChatSocket } from '../src/socket/chatSocket';
+import { Alert } from 'react-native';
 
 /** @typedef {'loading' | 'signedOut' | 'signedIn'} AuthStatus */
 /** @typedef {'customer' | 'vendor'} AppRole */
@@ -236,6 +237,7 @@ export const signInThunk = createAsyncThunk(
       const forceHome = Boolean(options?.forceHome);
       const fromSignup = Boolean(options?.fromSignup);
       const preferredRole = await getStoredActiveRole();
+      // Alert.alert(JSON.stringify(preferredRole))
       await saveSession(token, partialUser ?? null);
       let merged =
         partialUser && typeof partialUser === 'object'

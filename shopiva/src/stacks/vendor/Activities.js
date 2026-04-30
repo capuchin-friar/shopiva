@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StyleSheet, View } from 'react-native';
 import VendorActivitiesScreen from '../../pages/vendor/Activities';
 import VendorOrderScreen from '../../pages/vendor/OrdersList';
+import VendorOrderDetailScreen from '../../pages/vendor/OrderDetail';
 import VendorDisputeScreen from '../../pages/vendor/DisputesList';
 
 const VendorActivitiesStack = createNativeStackNavigator();
@@ -41,6 +42,18 @@ export function VendorActivitiesStackScreen() {
         headerBackVisible: true,
         headerShadowVisible: false,
       }}  component={VendorOrderScreen} />
+
+      <VendorActivitiesStack.Screen
+        name="order-detail"
+        component={VendorOrderDetailScreen}
+        options={{
+          headerShown: true,
+          title: 'Orders details',
+          headerBackVisible: true,
+          headerShadowVisible: false,
+        }}
+      />
+
       <VendorActivitiesStack.Screen name="Disputes" options={{
         headerShown: true,
         title: 'Disputes',

@@ -10,9 +10,9 @@ import {
   StyleSheet,
 } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-// import { parseOAuthCallbackUrl, oauthErrorMessage } from '../api/oauth';
-// import AuthBootstrap from '../auth/AuthBootstrap';
-// import { useAuth } from '../hooks/useAuth';
+import { parseOAuthCallbackUrl, oauthErrorMessage } from '../api/oauth';
+import AuthBootstrap from '../auth/AuthBootstrap';
+import { useAuth } from '../hooks/useAuth';
 import { Provider, useDispatch } from 'react-redux';
 import store from "../../redux/store"
 import Tools from "../utils/gen"
@@ -24,42 +24,42 @@ export { navigationRef, navigate } from './root';
 /** Renders inside `<Provider>` so `useDispatch` and navigation share one Redux context. */
 function NavigationTree() {
   const dispatch = useDispatch();
-  // const { signIn } = useAuth();
+  const { signIn } = useAuth();
 
-  // const handleOAuthUrl = useCallback(
-  //   async (url) => {
-  //     if (!url || !String(url).includes('shopiva://oauth')) {
-  //       return;
-  //     }
-  //     const parsed = parseOAuthCallbackUrl(String(url));
-  //     if (!parsed) {
-  //       return;
-  //     }
-  //     if (parsed.error) {
-  //       Alert.alert('Sign-in', oauthErrorMessage(parsed.error));
-  //       return;
-  //     }
-  //     if (!parsed.token) {
-  //       return;
-  //     }
-  //     try {
-  //       await signIn(parsed.token, null);
-  //     } catch (e) {
-  //       Alert.alert('Sign-in', e instanceof Error ? e.message : String(e));
-  //     }
-  //   },
-  //   [signIn],
-  // );
+  const handleOAuthUrl = useCallback(
+    async (url) => {
+      if (!url || !String(url).includes('shopiva://oauth')) {
+        return;
+      }
+      const parsed = parseOAuthCallbackUrl(String(url));
+      if (!parsed) {
+        return;
+      }
+      if (parsed.error) {
+        Alert.alert('Sign-in', oauthErrorMessage(parsed.error));
+        return;
+      }
+      if (!parsed.token) {
+        return;
+      }
+      try {
+        await signIn(parsed.token, null);
+      } catch (e) {
+        Alert.alert('Sign-in', e instanceof Error ? e.message : String(e));
+      }
+    },
+    [signIn],
+  );
 
-  // useEffect(() => {
-  //   const sub = Linking.addEventListener('url', ({ url }) => {
-  //     void handleOAuthUrl(url);
-  //   });
-  //   Linking.getInitialURL().then((url) => {
-  //     if (url) void handleOAuthUrl(url);
-  //   });
-  //   return () => sub.remove();
-  // }, [handleOAuthUrl]);
+  useEffect(() => {
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      void handleOAuthUrl(url);
+    });
+    Linking.getInitialURL().then((url) => {
+      if (url) void handleOAuthUrl(url);
+    });
+    return () => sub.remove();
+  }, [handleOAuthUrl]);
 
   return (
     <NavigationContainer
@@ -94,7 +94,7 @@ function NavigationHandler() {
       <SafeAreaView style={styles.container}>
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent={false} />
         <Provider store={store}>
-          {/* <AuthBootstrap /> */}
+          <AuthBootstrap />
           <NavigationTree />
         </Provider>
       </SafeAreaView>

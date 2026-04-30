@@ -1,3 +1,5 @@
+import { useNavigation } from "@react-navigation/native";
+import { useEffect } from "react";
 import { Dimensions, Image, StyleSheet, Text, View } from "react-native";
 // import "../assets/Shopiva.png"
 
@@ -5,6 +7,14 @@ import { Dimensions, Image, StyleSheet, Text, View } from "react-native";
 const w = Dimensions.get("screen").width;
 const h = Dimensions.get("screen").height;
 export function SplashScreen(){
+
+    let navigation = useNavigation()
+
+    useEffect(() => {
+        setTimeout(() => {
+            navigation.navigate("AuthPurpose");
+        }, 3000);
+    }, [])
 
     
 
