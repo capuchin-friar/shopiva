@@ -19,7 +19,7 @@ const UP = '#16A34A';
 export function VendorProductStackScreen() {
   return (
     <VendorProductsStack.Navigator screenOptions={{ headerShown: true }}>
-      <VendorProductsStack.Screen name="catalog" 
+      <VendorProductsStack.Screen name="Catalog" 
         options={({ navigation }) => ({
           title: 'Catalog',
           headerBackVisible: false,

@@ -285,3 +285,54 @@ export async function saveShopPolicyClause(shopId, body) {
   });
   return readJson(res);
 }
+
+/**
+ * Disputes raised against any order belonging to the vendor's shop.
+ * Backend route: GET /shop/:shopId/disputes/:userId  (role = vendor; owner-checked).
+ *
+ * Each row mirrors `BuyerDisputeRow` from `node/src/models/buyer/dispute.ts`:
+ *  { id, dispute_id, customer_id, order_id, status, reason, description,
+ *    created_at, updated_at }
+ *
+ * @param {number | string} shopId
+ * @param {number | string} userId
+ * @param {{ includeClosed?: boolean }} [opts]
+ * @returns {Promise<Record<string, unknown>[]>}
+ */
+export async function fetchShopDisputes(shopId, userId, opts = {}) {
+  const q = new URLSearchParams();
+  if (opts.includeClosed) q.set('includeClosed', 'true');
+  const qs = q.toString();
+  const res = await apiFetchAuth(
+    `/shop/${encodeURIComponent(String(shopId))}/disputes/${encodeURIComponent(String(userId))}${qs ? `?${qs}` : ''}`,
+    { method: 'GET' },
+  );
+  const data = await readJson(res);
+  return Array.isArray(data.disputes) ? data.disputes : [];
+}
+
+/**
+ * One dispute (by `dispute_ref` or numeric id) scoped to the vendor's shop.
+ * Backend route: GET /shop/:shopId/dispute/:disputeId/:userId  (role = vendor; owner-checked).
+ *
+ * @param {number | string} shopId
+ * @param {string | number} disputeId
+ * @param {number | string} userId
+ * @returns {Promise<Record<string, unknown>>}
+ */
+export async function fetchShopDispute(shopId, disputeId, userId) {
+  const sid = String(shopId).trim();
+  const did = String(disputeId ?? '').trim();
+  const uid = String(userId).trim();
+  if (!did) throw new Error('disputeId is required');
+  const res = await apiFetchAuth(
+    `/shop/${encodeURIComponent(sid)}/dispute/${encodeURIComponent(did)}/${encodeURIComponent(uid)}`,
+    { method: 'GET' },
+  );
+  const data = await readJson(res);
+  const dispute = data.dispute;
+  if (dispute == null || typeof dispute !== 'object') {
+    throw new Error('Dispute not found');
+  }
+  return /** @type {Record<string, unknown>} */ (dispute);
+}

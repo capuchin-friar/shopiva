@@ -14,7 +14,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { formatNaira } from '../../utils/formatNaira';
+import { formatNaira } from '../utils/formatNaira';
 
 const PAGE_BG = '#FFF';
 const WHITE = '#FFFFFF';
@@ -236,14 +236,22 @@ export default function OrderDetailScreen() {
   );
   const [statusOpen, setStatusOpen] = useState(false);
 
-  useLayoutEffect(() => {
-    navigation.setOptions({ headerShown: false });
-  }, [navigation]);
-
   const orderNumber = useMemo(() => {
     const n = order?.orderId ?? order?.order_id ?? '1928';
     return String(n).replace(/^ORD-/i, '');
   }, [order]);
+  
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerTitle: () => ( 
+        <View >
+          <Text style={{fontWeight: 700}}>Order #{orderNumber}</Text>
+          <StatusPill theme={payTheme} />
+        </View>
+      ),
+    });
+  }, [navigation]);
 
   const headerDate = String(order?.dateLabel ?? 'Jan 12, 2025');
   const payKey = String(order?.paymentStatus ?? 'paid').toLowerCase();
@@ -391,8 +399,8 @@ export default function OrderDetailScreen() {
   const onUpdateStatus = () => setStatusOpen(true);
 
   return (
-    <View style={[styles.root, { paddingTop: 15 }]}>
-      <View style={styles.headerBar}>
+    <View style={[styles.root, { paddingTop: 0 }]}>
+      {/* <View style={styles.headerBar}>
         <View style={styles.headerTitleRow}>
           <Text style={styles.headerTitle}>Order ID #{orderNumber}</Text>
           <StatusPill theme={payTheme} />
@@ -408,7 +416,7 @@ export default function OrderDetailScreen() {
         </Pressable>
       </View>
       <Text style={styles.headerDate}>{headerDate}</Text>
-      <View style={styles.headerDivider} />
+      <View style={styles.headerDivider} /> */}
 
       <ScrollView
         style={styles.scroll}
@@ -420,14 +428,14 @@ export default function OrderDetailScreen() {
       >
         <View style={styles.sectionHeadRow}>
           <SectionLabel>Order Summary</SectionLabel>
-          <Pressable
+          {/* <Pressable
             hitSlop={6}
             onPress={onAddProduct}
             style={({ pressed }) => [styles.linkRow, pressed && styles.pressed]}
           >
             <Text style={styles.linkText}>Add Product</Text>
             <Icon name="arrow-up-outline" size={14} color={ACCENT} style={styles.linkArrow} />
-          </Pressable>
+          </Pressable> */}
         </View>
         <View style={styles.card}>
           <SummaryRow
@@ -482,12 +490,12 @@ export default function OrderDetailScreen() {
             </Pressable>
           </View>
 
-          <View style={styles.kvRow}>
+          {/* <View style={styles.kvRow}>
             <Text style={styles.kvLabel}>Phone Number</Text>
             <Pressable onPress={onCall} hitSlop={6} style={styles.kvValueWrap}>
               <Text style={styles.kvValue}>{customer.phone}</Text>
             </Pressable>
-          </View>
+          </View> */}
 
           <View style={styles.shippingBlock}>
             <Text style={styles.shippingHeader}>Shipping Address</Text>
@@ -624,18 +632,18 @@ export default function OrderDetailScreen() {
           { paddingBottom: Math.max(insets.bottom, 12) },
         ]}
       >
-        <Pressable
+        {/* <Pressable
           onPress={onRefund}
           style={({ pressed }) => [styles.btnGhost, pressed && styles.pressed]}
         >
           <Text style={styles.btnGhostText}>Refund</Text>
-        </Pressable>
-        <Pressable
+        </Pressable> */}
+        {/* <Pressable
           onPress={onResendInvoice}
           style={({ pressed }) => [styles.btnGhost, pressed && styles.pressed]}
         >
           <Text style={styles.btnGhostText}>Resend Invoice</Text>
-        </Pressable>
+        </Pressable> */}
         <Pressable
           onPress={onUpdateStatus}
           style={({ pressed }) => [styles.btnPrimary, pressed && styles.btnPrimaryPressed]}
@@ -781,6 +789,7 @@ const styles = StyleSheet.create({
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: "center",
     gap: 6,
     paddingHorizontal: 8,
     paddingVertical: 3,

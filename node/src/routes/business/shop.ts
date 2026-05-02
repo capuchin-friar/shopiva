@@ -41,6 +41,10 @@ import {
     UpdateInventoryController,
     DeleteInventoryController,
 } from "../../controllers/business/product.js";
+import {
+    GetShopDisputesController,
+    GetShopDisputeByIdController,
+} from "../../controllers/business/disputes.js";
 
 
 // Business Router
@@ -94,6 +98,12 @@ BusinessRouter.patch(
   "/shop/:shopId/orders/:orderId/status/:id",
   authenticate,
   PatchOrderStatusController
+);
+BusinessRouter.get("/shop/:shopId/disputes/:id", authenticate, GetShopDisputesController);
+BusinessRouter.get(
+  "/shop/:shopId/dispute/:disputeId/:id",
+  authenticate,
+  GetShopDisputeByIdController
 );
 BusinessRouter.get("/shop/:shopId/product/:productId/:id", authenticate, GetProductController);
 BusinessRouter.get("/shop/:shopId/:id", authenticate, GetShopController);

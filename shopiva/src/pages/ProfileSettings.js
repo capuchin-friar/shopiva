@@ -17,11 +17,11 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { Dropdown } from 'react-native-element-dropdown';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '../../hooks/useAuth';
-import { useProfile } from '../../context/ProfileContext';
-import { createVendorShop, hasVendorShop } from '../../api/shop';
-import { updateUserRole } from '../../api/user';
-import mvpCategoryData from '../../data/mvp_category.json';
+import { useAuth } from '../hooks/useAuth';
+import { useProfile } from '../context/ProfileContext';
+import { createVendorShop, hasVendorShop } from '../api/shop';
+import { updateUserRole } from '../api/user';
+import mvpCategoryData from '../data/mvp_category.json';
 import {
   getCurrentCoordinates,
   requestLocationPermission,

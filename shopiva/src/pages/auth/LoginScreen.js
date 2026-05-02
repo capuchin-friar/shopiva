@@ -21,7 +21,7 @@ import { AUTH } from './theme';
 
 export default function LoginScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
-  const { enterGuestMode, setActiveRole } = useAuth();
+  const { enterGuestMode } = useAuth();
   const allowSkip = route?.params?.allowSkip !== false;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

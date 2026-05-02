@@ -21,7 +21,9 @@
     "seed:more-products": "npx dotenv-cli -e ./.env -- npx --yes tsx src/database/seed-products-existing-shops.ts",
     "update:shops-lagos": "npx dotenv-cli -e ./.env -- npx --yes tsx src/database/update-shops-lagos-location.ts",
     "update:shops-half-anambra": "npx dotenv-cli -e ./.env -- npx --yes tsx src/database/update-half-shops-anambra.ts",
-    "seed:cart-user": "npx dotenv-cli -e ./.env -- npx --yes tsx src/database/seed-cart-for-user.ts"
+    "seed:cart-user": "npx dotenv-cli -e ./.env -- npx --yes tsx src/database/seed-cart-for-user.ts",
+    "seed:disputes-shop": "npx dotenv-cli -e ./.env -- npx --yes tsx src/database/seed-disputes-for-shop.ts",
+    "seed:disputes-shop:local": "SEED_TARGET=local npx --yes tsx src/database/seed-disputes-for-shop.ts"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",

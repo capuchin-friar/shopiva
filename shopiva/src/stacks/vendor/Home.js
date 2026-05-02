@@ -26,7 +26,7 @@ export function VendorHomeStackScreen(){
     return(
         <HomeStack.Navigator>
           <HomeStack.Screen
-            name="home"
+            name="Home"
             component={HomeScreen}
             options={{
               title: 'Home',

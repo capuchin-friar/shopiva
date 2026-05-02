@@ -9,16 +9,15 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import ProfileScreen from '../../pages/vendor/Profile';
-// import PersonalInformationScreen from '../pages/PersonalInformation';
-import ProfileSettings from '../../pages/vendor/ProfileSettings';
-// import SettingsChangeEmailScreen from '../pages/SettingsChangeEmail';
-// import SettingsChangePasswordScreen from '../pages/SettingsChangePassword';
-// import SettingsWhatsappScreen from '../pages/SettingsWhatsapp';
-// import SettingsPayoutScreen from '../pages/SettingsPayoutScreen';
-// import ProfileShopInfoScreen from '../pages/ProfileShopInfoScreen';
-// import TransactionsScreen from '../pages/TransactionsScreen';
-
+import ProfileScreen from '../../pages/Profile';
+import ProfileSettings from '../../pages/ProfileSettings';
+import TransactionsScreen from '../../pages/TransactionsScreen';
+import ProfileShopInfoScreen from '../../pages/ProfileShopInfoScreen';
+import SettingsChangeEmailScreen from '../../pages/SettingsChangeEmail';
+import SettingsChangePasswordScreen from '../../pages/SettingsChangePassword';
+import SettingsWhatsappScreen from '../../pages/SettingsWhatsapp';
+import SettingsPayoutScreen from '../../pages/SettingsPayoutScreen';
+import PersonalInformationScreen from '../../pages/PersonalInformation';
 /** Lazily loaded so `react-native-maps` native module is not required until this screen mounts. */
 // const SettingsLocationLazy = lazy(() => import('../pages/SettingsLocation'));
 
@@ -54,7 +53,7 @@ function ProfileMainHeader({ navigation }) {
     <View style={[styles.headerContainer, { paddingTop: Math.max(0, 12) }]}>
       <Text style={styles.headerTitle}>Profile</Text>
       <TouchableOpacity
-        onPress={() => navigation.navigate('profile-settings')}
+        onPress={() => navigation.navigate('Profile-settings')}
         style={styles.iconBtn}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         accessibilityRole="button"
@@ -86,155 +85,162 @@ function ProfileSettingsHeader({ navigation }) {
   );
 }
 
-// function SettingsDetailHeader({ navigation, route }) {
-//   const insets = useSafeAreaInsets();
-//   const title = SETTINGS_ROUTE_TITLES[route.name] ?? '';
+function SettingsDetailHeader({ navigation, route }) {
+  const insets = useSafeAreaInsets();
+  const title = SETTINGS_ROUTE_TITLES[route.name] ?? '';
 
-//   return (
-//     <View style={[styles.backHeaderOuter, { paddingTop: 0 }]}>
-//       <View style={styles.backHeaderRow}>
-//         <TouchableOpacity
-//           onPress={() => navigation.goBack()}
-//           style={styles.backButton}
-//           accessibilityRole="button"
-//           accessibilityLabel="Go back"
-//         >
-//           <Icon name="chevron-back" size={25} color="#000000" />
-//         </TouchableOpacity>
-//         <Text style={styles.backHeaderTitle} numberOfLines={1}>
-//           {title}
-//         </Text>
-//       </View>
-//     </View>
-//   );
-// }
+  return (
+    <View style={[styles.backHeaderOuter, { paddingTop: 0 }]}>
+      <View style={styles.backHeaderRow}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Icon name="chevron-back" size={25} color="#000000" />
+        </TouchableOpacity>
+        <Text style={styles.backHeaderTitle} numberOfLines={1}>
+          {title}
+        </Text>
+      </View>
+    </View>
+  );
+}
 
-// function PersonalInformationHeader({ navigation }) {
-//   const insets = useSafeAreaInsets();
+function PersonalInformationHeader({ navigation }) {
+  const insets = useSafeAreaInsets();
 
-//   return (
-//     <View style={[styles.editProfileHeaderOuter, { paddingTop: 0 }]}>
-//       <View style={styles.editProfileHeaderRow}>
-//         <TouchableOpacity
-//           onPress={() => navigation.goBack()}
-//           style={styles.backPill}
-//           accessibilityRole="button"
-//           accessibilityLabel="Go back"
-//         >
-//           <Icon name="chevron-back" size={22} color="#000000" />
-//         </TouchableOpacity>
-//         <Text style={styles.editProfileTitle} numberOfLines={1} pointerEvents="none">
-//           Edit profile
-//         </Text>
-//         <View style={styles.headerRightSpacer} />
-//       </View>
-//     </View>
-//   );
-// }
+  return (
+    <View style={[styles.editProfileHeaderOuter, { paddingTop: 0 }]}>
+      <View style={styles.editProfileHeaderRow}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backPill}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Icon name="chevron-back" size={22} color="#000000" />
+        </TouchableOpacity>
+        <Text style={styles.editProfileTitle} numberOfLines={1} pointerEvents="none">
+          Edit profile
+        </Text>
+        <View style={styles.headerRightSpacer} />
+      </View>
+    </View>
+  );
+}
 
-// function TransactionsHeader({ navigation }) {
-//   return (
-//     <View style={[styles.editProfileHeaderOuter, { paddingTop: 0 }]}>
-//       <View style={styles.editProfileHeaderRow}>
-//         <TouchableOpacity
-//           onPress={() => navigation.goBack()}
-//           style={styles.backPill}
-//           accessibilityRole="button"
-//           accessibilityLabel="Go back"
-//         >
-//           <Icon name="chevron-back" size={22} color="#000000" />
-//         </TouchableOpacity>
-//         <Text style={styles.editProfileTitle} numberOfLines={1} pointerEvents="none">
-//           Transactions
-//         </Text>
-//         <View style={styles.headerRightSpacer} />
-//       </View>
-//     </View>
-//   );
-// }
+function TransactionsHeader({ navigation }) {
+  return (
+    <View style={[styles.editProfileHeaderOuter, { paddingTop: 0 }]}>
+      <View style={styles.editProfileHeaderRow}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.backPill}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Icon name="chevron-back" size={22} color="#000000" />
+        </TouchableOpacity>
+        <Text style={styles.editProfileTitle} numberOfLines={1} pointerEvents="none">
+          Transactions
+        </Text>
+        <View style={styles.headerRightSpacer} />
+      </View>
+    </View>
+  );
+}
+
 
 export function VendorProfileStackScreen() {
-//   const detailScreenOptions = {
-//     headerShown: true,
-//     headerShadowVisible: false,
-//     header: SettingsDetailHeader,
-//     contentStyle: { backgroundColor: '#F7F7F8' },
-//   };
+  const detailScreenOptions = {
+    headerShown: true,
+    headerShadowVisible: false,
+    header: SettingsDetailHeader,
+    contentStyle: { backgroundColor: '#F7F7F8' },
+  };
+
+  const profileHomeOpt = {
+    headerShown: true,
+    headerShadowVisible: false,
+    header: ProfileMainHeader,
+    contentStyle: { backgroundColor: '#F7F7F8' },
+  }
+  const profileSettingsOpt={
+    headerShown: true,
+    headerShadowVisible: false,
+    header: ProfileSettingsHeader,
+    contentStyle: { backgroundColor: '#F7F7F8' },
+  }
+  const profilePersonalInfoOpt = {
+    headerShown: true,
+    headerShadowVisible: false,
+    header: PersonalInformationHeader,
+    contentStyle: { backgroundColor: '#FFFFFF' },
+  }
+  const profileTxnOpt={
+    headerShown: true,
+    headerShadowVisible: false,
+    title: "Transaction",
+    headerBackVisible: true,
+    contentStyle: { backgroundColor: '#F7F7F8' },
+  }
+  const profileShopInfoOpt = {
+    headerShown: true,
+    headerShadowVisible: false,
+    title: "Shop info",
+    headerBackVisible: true,
+    contentStyle: { backgroundColor: '#F7F7F8' },
+  }
+  const profileEmailOpt = {
+    headerShown: true,
+    headerShadowVisible: false,
+    title: "Change email",
+    headerBackVisible: true,
+    contentStyle: { backgroundColor: '#F7F7F8' },
+  }
+  const profilePasswordOpt = {
+    headerShown: true,
+    headerShadowVisible: false,
+    title: "Password",
+    headerBackVisible: true,
+    contentStyle: { backgroundColor: '#F7F7F8' },
+  }
+  const profileWhatsappOpt = {
+    headerShown: true,
+    headerShadowVisible: false,
+    title: "WhatsApp number",
+    headerBackVisible: true,
+    contentStyle: { backgroundColor: '#F7F7F8' },
+  }
+  const profileLocationOpt = {
+    headerShown: true,
+    headerShadowVisible: false,
+    title: "Location",
+    headerBackVisible: true,
+    contentStyle: { backgroundColor: '#F7F7F8' },
+  }
+  const profilePayoutOpt = {
+    headerShown: true,
+    headerShadowVisible: false,
+    title: "Payout Details",
+    headerBackVisible: true,
+    contentStyle: { backgroundColor: '#F7F7F8' },
+  }
 
   return (
     <ProfileStack.Navigator>
-      <ProfileStack.Screen
-        name="profile"
-        component={ProfileScreen}
-        options={{
-          headerShown: true,
-          headerShadowVisible: false,
-          header: ProfileMainHeader,
-          contentStyle: { backgroundColor: '#F7F7F8' },
-        }}
-      />
-      <ProfileStack.Screen
-        name="profile-settings"
-        component={ProfileSettings}
-        options={{
-          headerShown: true,
-          headerShadowVisible: false,
-          header: ProfileSettingsHeader,
-          contentStyle: { backgroundColor: '#F7F7F8' },
-          }}
-      />
-
-      {/* 
-      <ProfileStack.Screen
-        name="profile-personal-information"
-        component={PersonalInformationScreen}
-        options={{
-          headerShown: true,
-          headerShadowVisible: false,
-          header: PersonalInformationHeader,
-          contentStyle: { backgroundColor: '#FFFFFF' },
-        }}
-      />
-      <ProfileStack.Screen
-        name="profile-transactions"
-        component={TransactionsScreen}
-        options={{
-          headerShown: true,
-          headerShadowVisible: false,
-          header: TransactionsHeader,
-          contentStyle: { backgroundColor: '#F7F7F8' },
-        }}
-      />
-      <ProfileStack.Screen
-        name="profile-shop-info"
-        component={ProfileShopInfoScreen}
-        options={detailScreenOptions}
-      />
-      <ProfileStack.Screen
-        name="profile-settings-email"
-        component={SettingsChangeEmailScreen}
-        options={detailScreenOptions}
-      />
-      <ProfileStack.Screen
-        name="profile-settings-password"
-        component={SettingsChangePasswordScreen}
-        options={detailScreenOptions}
-      />
-      <ProfileStack.Screen
-        name="profile-settings-whatsapp"
-        component={SettingsWhatsappScreen}
-        options={detailScreenOptions}
-      />
-      <ProfileStack.Screen
-        name="profile-settings-location"
-        component={SettingsLocationSuspense}
-        options={detailScreenOptions}
-      />
-      <ProfileStack.Screen
-        name="profile-settings-payout"
-        component={SettingsPayoutScreen}
-        options={detailScreenOptions}
-      /> */}
+      <ProfileStack.Screen name="Profile" component={ProfileScreen} options={profileHomeOpt} />
+      <ProfileStack.Screen name="Profile-settings" component={ProfileSettings} options={profileSettingsOpt} />
+      <ProfileStack.Screen name="profile-personal-information" component={PersonalInformationScreen} options={profilePersonalInfoOpt} />
+      <ProfileStack.Screen name="profile-transactions" component={TransactionsScreen} options={profileTxnOpt} />
+      <ProfileStack.Screen name="profile-shop-info" component={ProfileShopInfoScreen} options={profileShopInfoOpt} />
+      <ProfileStack.Screen name="profile-settings-email" component={SettingsChangeEmailScreen} options={profileEmailOpt} />
+      <ProfileStack.Screen name="profile-settings-password" component={SettingsChangePasswordScreen} options={profilePasswordOpt} />
+      <ProfileStack.Screen name="profile-settings-whatsapp" component={SettingsWhatsappScreen} options={profileWhatsappOpt} />
+      <ProfileStack.Screen name="profile-settings-location" component={SettingsLocationSuspense} options={profileLocationOpt} />
+      <ProfileStack.Screen name="profile-settings-payout" component={SettingsPayoutScreen} options={profilePayoutOpt} />
     </ProfileStack.Navigator>
   );
 }

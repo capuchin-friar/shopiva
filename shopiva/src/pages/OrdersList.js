@@ -13,14 +13,14 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { formatNaira } from '../../utils/formatNaira';
-import { fetchBuyerOrders } from '../../api/buyer';
+import { formatNaira } from '../utils/formatNaira';
+import { fetchBuyerOrders } from '../api/buyer';
 // import { fetchVendorOrders } from '../../api/vendors'
-import { mapOrderRowToListItem } from '../../utils/buyerUi';
+import { mapOrderRowToListItem } from '../utils/buyerUi';
 import { useSelector } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getStoredUser } from '../../auth/session';
-import { fetchOwnerShops, fetchShopOrders } from '../../api';
+import { getStoredUser } from '../auth/session';
+import { fetchOwnerShops, fetchShopOrders } from '../api';
 
 const PAGE_BG = '#F2F2F4';
 const BLACK = '#111111';
@@ -151,11 +151,6 @@ export default function OrderListScreen() {
         const shopId = firstShop ? shopIdOf(firstShop) : 0;
         if (!shopId) {
           Alert.alert("no shops")
-          // setOrders([]);
-          // setOrdersTotalCount(0);
-          // setNewCustomersCount(0);
-          // setLowInventoryCount(0);
-          // setTotalSales(0);
           return;
         }
         const data = auth.activeRole === "customer" ? await fetchBuyerOrders() : await fetchShopOrders(shopId, userId);
@@ -188,7 +183,7 @@ export default function OrderListScreen() {
       <OrderCard
         item={item}
         onPress={() =>
-          navigation.navigate('order-detail', {
+          navigation.navigate('Order-detail', {
             order: item,
             orderId: item.orderId,
           })

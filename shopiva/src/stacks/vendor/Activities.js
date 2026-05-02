@@ -1,9 +1,10 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StyleSheet, View } from 'react-native';
-import VendorActivitiesScreen from '../../pages/vendor/Activities';
-import VendorOrderScreen from '../../pages/vendor/OrdersList';
-import VendorOrderDetailScreen from '../../pages/vendor/OrderDetail';
-import VendorDisputeScreen from '../../pages/vendor/DisputesList';
+import VendorActivitiesScreen from '../../pages/Activities';
+import VendorOrderScreen from '../../pages/OrdersList';
+import VendorOrderDetailScreen from '../../pages/OrderDetail';
+import VendorDisputeScreen from '../../pages/DisputesList';
+import DisputeDetailScreen from '../../pages/DisputeDetail';
 
 const VendorActivitiesStack = createNativeStackNavigator();
 
@@ -17,12 +18,24 @@ const shellStyles = StyleSheet.create({
   },
 });
 
-const hubOptions = {
+const activitiesOptions = {
   headerShown: true,
   title: 'Activities',
   headerBackVisible: false,
   headerShadowVisible: false,
 };
+const orderOpt = {
+  headerShown: true,
+  title: 'Orders',
+  headerBackVisible: true,
+  headerShadowVisible: false,
+}
+const orderDetailOpt = {
+  headerShown: true,
+  title: 'Order detail',
+  headerBackVisible: true,
+  headerShadowVisible: false,
+}
 
 /**
  * Activities tab: hub + nested orders and disputes stacks (vendor).
@@ -30,29 +43,10 @@ const hubOptions = {
  */
 export function VendorActivitiesStackScreen() {
   return (
-    <VendorActivitiesStack.Navigator screenOptions={{ headerShown: false }}>
-      <VendorActivitiesStack.Screen
-        name="Activities"
-        component={VendorActivitiesScreen}
-        options={hubOptions}
-      />
-      <VendorActivitiesStack.Screen name="Orders" options={{
-        headerShown: true,
-        title: 'Orders',
-        headerBackVisible: true,
-        headerShadowVisible: false,
-      }}  component={VendorOrderScreen} />
-
-      <VendorActivitiesStack.Screen
-        name="order-detail"
-        component={VendorOrderDetailScreen}
-        options={{
-          headerShown: true,
-          title: 'Orders details',
-          headerBackVisible: true,
-          headerShadowVisible: false,
-        }}
-      />
+    <VendorActivitiesStack.Navigator>
+      <VendorActivitiesStack.Screen name="Activities" component={VendorActivitiesScreen} options={activitiesOptions} />
+      <VendorActivitiesStack.Screen name="Orders" options={orderOpt} component={VendorOrderScreen} />
+      <VendorActivitiesStack.Screen name="Order-detail"  options={orderDetailOpt} component={VendorOrderDetailScreen} />
 
       <VendorActivitiesStack.Screen name="Disputes" options={{
         headerShown: true,
@@ -60,6 +54,12 @@ export function VendorActivitiesStackScreen() {
         headerBackVisible: true,
         headerShadowVisible: false,
       }}  component={VendorDisputeScreen} /> 
+      <VendorActivitiesStack.Screen name="Dispute-detail" options={{
+        headerShown: true,
+        title: 'Dispute detail',
+        headerBackVisible: true,
+        headerShadowVisible: false,
+      }}  component={DisputeDetailScreen} /> 
     </VendorActivitiesStack.Navigator>
   );
 }

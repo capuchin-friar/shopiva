@@ -29,8 +29,8 @@ const ROOM_OPTIONS = {
 export function VendorChatStackScreen() {
   return (
     <VendorChatStack.Navigator>
-      <VendorChatStack.Screen name="vendor-chat-list" component={VendorChatListScreen} options={LIST_OPTIONS} />
-      <VendorChatStack.Screen name="vendor-chat-room" component={VendorChatRoomScreen} options={ROOM_OPTIONS} />
+      <VendorChatStack.Screen name="Chat" component={VendorChatListScreen} options={LIST_OPTIONS} />
+      <VendorChatStack.Screen name="Chat-room" component={VendorChatRoomScreen} options={ROOM_OPTIONS} />
     </VendorChatStack.Navigator>
   );
 }

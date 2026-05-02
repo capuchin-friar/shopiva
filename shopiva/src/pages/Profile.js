@@ -14,8 +14,8 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '../../hooks/useAuth';
-import { useProfile } from '../../context/ProfileContext';
+import { useAuth } from '../hooks/useAuth';
+import { useProfile } from '../context/ProfileContext';
 
 const BLACK = '#000000';
 const PAGE_BG = '#F7F7F8';
@@ -161,7 +161,7 @@ export default function ProfileScreen() {
         /> */}
         
         <View style={styles.menuDivider} />
-        <View style={styles.menuRow}>
+        {/* <View style={styles.menuRow}>
           <View style={styles.menuLeft}>
             <Icon name="notifications-outline" size={22} color={BLACK} />
             <Text style={styles.menuTitle}>Message Notification</Text>
@@ -173,7 +173,7 @@ export default function ProfileScreen() {
             thumbColor={msgNotifications ? PRO_YELLOW : '#F4F4F5'}
             ios_backgroundColor="#E5E5EA"
           />
-        </View>
+        </View> */}
         <View style={styles.menuDivider} />
         <MenuRow
           icon="person-outline"

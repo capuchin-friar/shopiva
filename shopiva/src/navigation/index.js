@@ -63,25 +63,56 @@ function NavigationTree() {
 
   return (
     <NavigationContainer
-      // ref={navigationRef}
-      // onStateChange={async () => {
-      //   const currentRoute = navigationRef.current?.getCurrentRoute();
-      //   const name = currentRoute?.name;
-      //   console.log(name);
+      ref={navigationRef}
+      onStateChange={async () => {
+        const currentRoute = navigationRef.current?.getCurrentRoute();
+        const name = currentRoute?.name;
+        console.log(name);
 
-      //   if (name) {
-      //     console.log('📍 Current screen:', name);
-      //     const rootTabRoutes = new Set([
-            
-      //     ]);
+        if (name) {
+          console.log('📍 Current screen:', name);
+          const rootTabRoutes = new Set([
 
-      //     if (rootTabRoutes.has(name)) {
-      //       dispatch(set_nested_nav({ boolean: true, id: Tools.generateId() }));
-      //     } else {
-      //       dispatch(set_nested_nav({ boolean: false, id: Tools.generateId() }));
-      //     }
-      //   }
-      // }}
+            "Home",
+            "Activities",
+            "Chat",
+            "Catalog",
+            "Profile"
+            // 'home',
+            // 'profile-main',
+            // 'chat-list',
+            // 'vendor-chat-list',
+            // 'order-list',
+            // 'dispute-list',
+            // 'Home',
+            // 'Cart',
+            // 'Orders',
+            // 'Chat',
+            // 'Dispute',
+            // 'Profile',
+            // 'Activities',
+            // 'Products',
+            // 'Inventory',
+            // 'VendorProductsHub',
+            // 'VendorProductList',
+            // 'VendorInventory',
+            // 'VendorCreateProduct',
+            // 'VendorOrdersHub',
+            // 'VendorOrderFlow',
+            // 'VendorDisputeFlow',
+            // 'VendorDashboard',
+            // 'CustomerOrdersHub',
+            // 'CustomerOrderFlow',
+            // 'CustomerDisputeFlow',
+          ]);
+
+          if (rootTabRoutes.has(name)) {
+            dispatch(set_nested_nav({ boolean: true, id: Tools.generateId() }));
+          } else {
+            dispatch(set_nested_nav({ boolean: false, id: Tools.generateId() }));
+          }
+        }
+      }}
     >
       <RootNavigator />
     </NavigationContainer>

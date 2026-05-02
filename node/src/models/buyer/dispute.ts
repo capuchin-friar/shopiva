@@ -122,4 +122,125 @@ export class dispute {
       return rows[0] ?? null;
     }
   );
+
+  /**
+   * Disputes for a vendor's shop. A dispute is "responsible to shop X" when either:
+   *   - its order_id resolves to orders.shopid = X (real buyer-flow disputes), OR
+   *   - metadata->>'shop_id' = X (hand-seeded / legacy disputes without an order link).
+   *
+   * The orders join is detected at runtime so this works whether or not the orders
+   * table exists in the current environment.
+   */
+  static getByShopId = withErrorHandling(
+    async (shopId: number, options?: { includeClosed?: boolean }): Promise<BuyerDisputeRow[]> => {
+      const dbConn = await db();
+      const includeClosed = Boolean(options?.includeClosed);
+
+      const tableRes = await dbConn.query<{ reg: string | null }>(
+        `SELECT to_regclass('public.orders')::text AS reg`
+      );
+      const ordersExists = Boolean(tableRes.rows[0]?.reg);
+
+      let ordersJoinSql = "";
+      let ordersWhereSql = "FALSE";
+      if (ordersExists) {
+        const colRes = await dbConn.query<{ column_name: string }>(
+          `SELECT column_name
+           FROM information_schema.columns
+           WHERE table_schema = 'public' AND table_name = 'orders'`
+        );
+        const cols = new Set(colRes.rows.map((r) => r.column_name));
+        const pick = (...names: string[]) => names.find((n) => cols.has(n)) ?? null;
+        const shopCol = pick("shopid", "shop_id", "shopId");
+        const orderIdCol = pick("id", "order_id") ?? "id";
+        if (shopCol) {
+          ordersJoinSql = `LEFT JOIN orders o ON o.${orderIdCol} = d.order_id`;
+          ordersWhereSql = `o.${shopCol} = $1`;
+        }
+      }
+
+      const statusFilter = includeClosed
+        ? ""
+        : `AND LOWER(d.status) <> ALL($2::text[])`;
+      const params: unknown[] = includeClosed ? [shopId] : [shopId, CLOSED_STATUSES];
+
+      const { rows } = await dbConn.query<BuyerDisputeRow>(
+        `SELECT
+          d.id,
+          d.dispute_ref AS dispute_id,
+          d.customer_id,
+          d.order_id,
+          d.status,
+          d.reason,
+          d.description,
+          d.created_at,
+          d.updated_at
+        FROM disputes d
+        ${ordersJoinSql}
+        WHERE (
+          ${ordersWhereSql}
+          OR (d.metadata ->> 'shop_id') = $1::text
+        )
+        ${statusFilter}
+        ORDER BY d.created_at DESC`,
+        params
+      );
+      return rows;
+    }
+  );
+
+  static getByShopAndDisputeId = withErrorHandling(
+    async (shopId: number, disputeId: string): Promise<BuyerDisputeRow | null> => {
+      const key = String(disputeId || "").trim();
+      if (!key) return null;
+
+      const dbConn = await db();
+
+      const tableRes = await dbConn.query<{ reg: string | null }>(
+        `SELECT to_regclass('public.orders')::text AS reg`
+      );
+      const ordersExists = Boolean(tableRes.rows[0]?.reg);
+
+      let ordersJoinSql = "";
+      let ordersWhereSql = "FALSE";
+      if (ordersExists) {
+        const colRes = await dbConn.query<{ column_name: string }>(
+          `SELECT column_name
+           FROM information_schema.columns
+           WHERE table_schema = 'public' AND table_name = 'orders'`
+        );
+        const cols = new Set(colRes.rows.map((r) => r.column_name));
+        const pick = (...names: string[]) => names.find((n) => cols.has(n)) ?? null;
+        const shopCol = pick("shopid", "shop_id", "shopId");
+        const orderIdCol = pick("id", "order_id") ?? "id";
+        if (shopCol) {
+          ordersJoinSql = `LEFT JOIN orders o ON o.${orderIdCol} = d.order_id`;
+          ordersWhereSql = `o.${shopCol} = $1`;
+        }
+      }
+
+      const { rows } = await dbConn.query<BuyerDisputeRow>(
+        `SELECT
+          d.id,
+          d.dispute_ref AS dispute_id,
+          d.customer_id,
+          d.order_id,
+          d.status,
+          d.reason,
+          d.description,
+          d.created_at,
+          d.updated_at
+        FROM disputes d
+        ${ordersJoinSql}
+        WHERE (
+          ${ordersWhereSql}
+          OR (d.metadata ->> 'shop_id') = $1::text
+        )
+          AND (d.dispute_ref = $2 OR d.id::text = $2)
+        LIMIT 1`,
+        [shopId, key]
+      );
+      return rows[0] ?? null;
+    }
+  );
 }
