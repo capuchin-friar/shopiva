@@ -360,7 +360,8 @@ export default function VendorInventoryScreen() {
                 row.currency === 'NGN'
                   ? formatNaira(row.price)
                   : `${row.currency} ${row.price.toFixed(2)}`;
-              const openCard = () => setActionRow(row);
+              const openCard = () => "";
+              {/* const openCard = () => setActionRow(row); */}
               return (
                 <View key={row.id} style={styles.card}>
                   <View style={styles.cardTop}>

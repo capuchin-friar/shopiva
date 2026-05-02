@@ -274,7 +274,7 @@ export default function TransactionsScreen() {
 
         {loading ? (
           <View style={styles.centerBlock}>
-            <ActivityIndicator color={BRAND} />
+            <ActivityIndicator color={BRAND} size={"large"} />
             <Text style={styles.centerText}>Loading transactions…</Text>
           </View>
         ) : null}
