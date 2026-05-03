@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -8,6 +8,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -32,6 +33,8 @@ import DeliveryPolicyModal from '../components/DeliveryPolicyModal';
 import { mapOrderRowToListItem } from '../utils/buyerUi';
 import { formatNaira } from '../utils/formatNaira';
 import { getCurrentCoordinates, requestLocationPermission, reverseGeocodeToPlace } from '../utils/deviceLocation';
+import mvpCategoryData from '../json/mvp_category.json';
+import { mvpCategoryRootKeys, formatMvpCategoryLabel } from '../utils/mvpCategory';
 
 const BRAND = '#0D4F3C';
 const BRAND_LIGHT = '#1A6B52';
@@ -141,6 +144,94 @@ function parseOpeningHours(raw) {
   return out;
 }
 
+/** @param {number} n */
+function pad2(n) {
+  return String(Math.max(0, Math.min(99, Math.floor(n)))).padStart(2, '0');
+}
+
+/**
+ * Parse one day's stored value (e.g. "09:00–18:00" or "Closed") into a
+ * structured shape used by the editor.
+ * @param {unknown} raw
+ * @returns {{ closed: boolean; openH: number; openM: number; closeH: number; closeM: number }}
+ */
+function parseDayHours(raw) {
+  const fallback = { closed: false, openH: 9, openM: 0, closeH: 18, closeM: 0 };
+  const s = String(raw ?? '').trim();
+  if (!s) return fallback;
+  if (/^closed$/i.test(s)) return { ...fallback, closed: true };
+  const m = s.match(/^(\d{1,2}):(\d{2})\s*[–\-]\s*(\d{1,2}):(\d{2})$/);
+  if (!m) return fallback;
+  const oh = Math.min(23, parseInt(m[1], 10));
+  const om = Math.min(59, parseInt(m[2], 10));
+  const ch = Math.min(23, parseInt(m[3], 10));
+  const cm = Math.min(59, parseInt(m[4], 10));
+  return { closed: false, openH: oh, openM: om, closeH: ch, closeM: cm };
+}
+
+/** @param {{ closed: boolean; openH: number; openM: number; closeH: number; closeM: number }} h */
+function formatDayHours(h) {
+  if (h.closed) return 'Closed';
+  return `${pad2(h.openH)}:${pad2(h.openM)}–${pad2(h.closeH)}:${pad2(h.closeM)}`;
+}
+
+/**
+ * Pull the most recent delivery clause stored on the shop row.
+ * The server keeps `policies.deliverypolicy.clauses` (newest appended last).
+ * @param {unknown} policies
+ */
+function pickLatestDeliveryClause(policies) {
+  if (!policies || typeof policies !== 'object' || Array.isArray(policies)) return null;
+  const p = /** @type {Record<string, unknown>} */ (policies);
+  let d = p.deliverypolicy ?? p.deliveryPolicy ?? null;
+  if (typeof d === 'string') {
+    try {
+      const parsed = JSON.parse(d);
+      d = parsed && typeof parsed === 'object' ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+  if (!d || typeof d !== 'object' || Array.isArray(d)) return null;
+  const clauses = /** @type {Record<string, unknown>} */ (d).clauses;
+  if (!Array.isArray(clauses) || clauses.length === 0) return null;
+  const last = clauses[clauses.length - 1];
+  if (!last || typeof last !== 'object') return null;
+  return /** @type {Record<string, unknown>} */ (last);
+}
+
+/**
+ * Parse the multi-line `content` field saved by `DeliveryPolicyModal` into an
+ * ordered list of `[label, value]` rows for display. Empty / unparsable input
+ * → `[]`.
+ *
+ * The content is generated as e.g.:
+ *   Delivery timeline: 1-2 days
+ *   Delivery location: Same city
+ *   Delivery method: Vendor self-delivery
+ *   Processing time before shipping: 1 days
+ *   If customer is not available: Customer must reschedule
+ *
+ * @param {unknown} content
+ * @returns {Array<{ label: string; value: string }>}
+ */
+function parseDeliveryContent(content) {
+  const text = typeof content === 'string' ? content : '';
+  if (!text.trim()) return [];
+  const out = [];
+  for (const line of text.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const idx = trimmed.indexOf(':');
+    if (idx <= 0) continue;
+    const label = trimmed.slice(0, idx).trim();
+    const value = trimmed.slice(idx + 1).trim();
+    if (!label || !value) continue;
+    out.push({ label, value });
+  }
+  return out;
+}
+
 /**
  * @param {Record<string, unknown>} row
  * @param {{
@@ -238,6 +329,12 @@ export default function ProfileShopInfoScreen() {
   const [modalCategory, setModalCategory] = useState(false);
   const [modalHours, setModalHours] = useState(false);
   const [hoursDraft, setHoursDraft] = useState(() => defaultOpeningHours());
+  /**
+   * Time-picker target. `null` when closed; otherwise points at the day + edge
+   * being edited so the wheel modal knows what to write back on Save.
+   * @type {[null | { dayKey: string; edge: 'open' | 'close'; initialHour: number; initialMinute: number }, Function]}
+   */
+  const [timePicker, setTimePicker] = useState(/** @type {null | { dayKey: string; edge: 'open' | 'close'; initialHour: number; initialMinute: number }} */ (null));
 
   const [verDocModal, setVerDocModal] = useState(/** @type {{ title: string; help: string; docKey: string } | null} */ (null));
   const [verPickedName, setVerPickedName] = useState('');
@@ -312,22 +409,35 @@ export default function ProfileShopInfoScreen() {
     }, [load]),
   );
 
-  const persist = useCallback(async () => {
+  /**
+   * Persist current form state to the server.
+   * Returns `true` when the save succeeded so callers (e.g. modal "Done")
+   * can dismiss themselves only on success.
+   *
+   * `overrides` lets a caller force values that haven't propagated to state yet
+   * (e.g. the opening-hours modal applies `hoursDraft` directly without waiting
+   * for the next render). When `silent`, skip the success alert (used by modal
+   * Done buttons so we don't double-prompt).
+   *
+   * @param {{ silent?: boolean; openingHours?: Record<string, string> }} [opts]
+   */
+  const persist = useCallback(async (opts) => {
     if (!uid || !shopRow || !activeShopId) {
       Alert.alert('Shop', 'No shop to update.');
-      return;
+      return false;
     }
     if (!name.trim()) {
       Alert.alert('Shop name', 'Enter a shop name.');
-      return;
+      return false;
     }
     if (!slug.trim()) {
       Alert.alert('Shop URL', 'Enter a shop slug.');
-      return;
+      return false;
     }
     setSaving(true);
     try {
-      const locPayload = { ...locationState, openingHours };
+      const hoursToSave = opts?.openingHours ?? openingHours;
+      const locPayload = { ...locationState, openingHours: hoursToSave };
       const body = buildUpdateBody(shopRow, {
         name,
         slug,
@@ -340,9 +450,11 @@ export default function ProfileShopInfoScreen() {
       await updateVendorShop(activeShopId, uid, body);
       await refresh().catch(() => {});
       await load();
-      Alert.alert('Saved', 'Your shop has been updated.');
+      if (!opts?.silent) Alert.alert('Saved', 'Your shop has been updated.');
+      return true;
     } catch (e) {
       Alert.alert('Could not save', e instanceof Error ? e.message : String(e));
+      return false;
     } finally {
       setSaving(false);
     }
@@ -361,6 +473,23 @@ export default function ProfileShopInfoScreen() {
     load,
     refresh,
   ]);
+
+  /**
+   * Generic helper used by every editing modal's "Done" button:
+   * persist current form state and only close the modal on success.
+   * @param {() => void} closeModal
+   * @param {{ openingHours?: Record<string, string> }} [overrides]
+   */
+  const persistAndClose = useCallback(
+    async (closeModal, overrides) => {
+      const ok = await persist({ silent: true, ...overrides });
+      if (ok) {
+        closeModal();
+        Alert.alert('Saved', 'Your shop has been updated.');
+      }
+    },
+    [persist],
+  );
 
   const onSelectShop = useCallback(
     (id) => {
@@ -398,22 +527,14 @@ export default function ProfileShopInfoScreen() {
   }, []);
 
   const policies = shopRow?.policies;
-  const deliverySet = useMemo(() => {
-    if (!policies || typeof policies !== 'object') return false;
-    let d = /** @type {Record<string, unknown>} */ (policies).deliverypolicy ?? (policies).deliveryPolicy;
-    if (d == null) return false;
-    if (typeof d === 'string') {
-      try {
-        const p = JSON.parse(d);
-        d = typeof p === 'object' && p != null ? /** @type {Record<string, unknown>} */ (p) : null;
-      } catch {
-        return false;
-      }
-    }
-    if (d == null || typeof d !== 'object') return false;
-    const clauses = d.clauses;
-    return Array.isArray(clauses) && clauses.length > 0;
-  }, [shopRow?.policies]);
+  /** Most recent delivery clause (or null). Memoised on the policies blob. */
+  const deliveryClause = useMemo(() => pickLatestDeliveryClause(policies), [policies]);
+  const deliverySet = deliveryClause != null;
+  /** Parsed `[label, value]` rows for display when a delivery policy exists. */
+  const deliveryRows = useMemo(() => {
+    if (!deliveryClause) return [];
+    return parseDeliveryContent(deliveryClause.content);
+  }, [deliveryClause]);
 
   const onDeliveryPolicySaved = useCallback(async () => {
     await load();
@@ -543,6 +664,12 @@ export default function ProfileShopInfoScreen() {
   const cacSt = docVerificationStatus(verDocs.cacDocument ?? verDocs.businessLicense);
   const bvnSt = bvnVerificationStatus(verDocs.bvn);
 
+  /** Top-level keys from `src/json/mvp_category.json` (e.g. `["fashion"]`). */
+  const categoryOptions = useMemo(
+    () => mvpCategoryRootKeys(/** @type {Record<string, unknown>} */ (mvpCategoryData)),
+    [],
+  );
+
   if (!isVendorAccountRole(user?.roleRaw)) {
     return (
       <View style={[styles.centered, { paddingTop: insets.top + 24 }]}>
@@ -633,13 +760,14 @@ export default function ProfileShopInfoScreen() {
           <View style={styles.chipWrap}>
             {category.trim() ? (
               <View style={styles.chip}>
-                <Text style={styles.chipText}>{category.trim()}</Text>
+                <Text style={styles.chipText}>{formatMvpCategoryLabel(category)}</Text>
               </View>
             ) : (
               <Text style={styles.placeholderLine}>No category set</Text>
             )}
           </View>
 
+          {/* Availability section disabled — not in scope for now.
           <View style={styles.sectionDivider} />
 
           <SectionHeader title="Availability" onEdit={() => { setHoursDraft({ ...openingHours }); setModalHours(true); }} />
@@ -647,12 +775,16 @@ export default function ProfileShopInfoScreen() {
             <Text style={[styles.th, { flex: 1 }]}>Day</Text>
             <Text style={[styles.th, { flex: 1.2 }]}>Hours</Text>
           </View>
-          {DAYS.map(({ key, label }) => (
-            <View key={key} style={styles.tableRow}>
-              <Text style={styles.td}>{label}</Text>
-              <Text style={styles.tdMuted}>{openingHours[key] ?? '—'}</Text>
-            </View>
-          ))}
+          {DAYS.map(({ key, label }) => {
+            const display = formatDayHours(parseDayHours(openingHours[key]));
+            return (
+              <View key={key} style={styles.tableRow}>
+                <Text style={styles.td}>{label}</Text>
+                <Text style={styles.tdMuted}>{display}</Text>
+              </View>
+            );
+          })}
+          */}
 
           <View style={styles.sectionDivider} />
 
@@ -748,14 +880,38 @@ export default function ProfileShopInfoScreen() {
 
           <View style={styles.sectionDivider} />
 
-          <SectionHeader title="Policies" onEdit={() => setModalDeliveryPolicy(true)} />
+          {/* <SectionHeader title="Policies" onEdit={() => setModalDeliveryPolicy(true)} /> */}
           <Pressable style={styles.policyRow} onPress={() => setModalDeliveryPolicy(true)}>
             <Text style={styles.policyLabel}>Delivery policy</Text>
-            <Text style={[styles.policyStatus, deliverySet && styles.policyStatusOk]}>{deliverySet ? 'Set' : 'Not set'}</Text>
+            {/* <Text style={[styles.policyStatus, deliverySet && styles.policyStatusOk]}>{deliverySet ? 'Set' : 'Not set'}</Text> */}
             <View style={styles.iconCircle}>
               <Icon name="create-outline" size={18} color={BRAND} />
             </View>
           </Pressable>
+          {deliverySet ? (
+            <View style={styles.policyDetailCard}>
+              {deliveryClause?.title ? (
+                <Text style={styles.policyDetailTitle} numberOfLines={2}>
+                  {String(deliveryClause.title)}
+                </Text>
+              ) : null}
+              {deliveryRows.length === 0 ? (
+                <Text style={styles.placeholderLine}>Delivery policy is set, but no readable details were saved.</Text>
+              ) : (
+                deliveryRows.map((row, i) => (
+                  <View
+                    key={`${row.label}-${i}`}
+                    style={[styles.kv, i === deliveryRows.length - 1 && { marginBottom: 0 }]}
+                  >
+                    <Text style={styles.kvMuted}>{row.label}</Text>
+                    <Text style={styles.kvVal} numberOfLines={2}>
+                      {row.value}
+                    </Text>
+                  </View>
+                ))
+              )}
+            </View>
+          ) : null}
 
           <Pressable
             style={({ pressed }) => [styles.saveBtn, pressed && styles.saveBtnPressed, saving && styles.saveBtnDisabled]}
@@ -794,8 +950,9 @@ export default function ProfileShopInfoScreen() {
       <FormModal
         visible={modalBasics}
         title="Shop details"
-        onClose={() => setModalBasics(false)}
-        onSave={() => setModalBasics(false)}
+        saving={saving}
+        onClose={() => !saving && setModalBasics(false)}
+        onSave={() => persistAndClose(() => setModalBasics(false))}
       >
         <Text style={styles.modalLabel}>Shop name</Text>
         <TextInput value={name} onChangeText={setName} style={styles.modalInput} placeholder="Shop name" />
@@ -812,7 +969,13 @@ export default function ProfileShopInfoScreen() {
         <TextInput value={contactPhone} onChangeText={setContactPhone} style={styles.modalInput} keyboardType="phone-pad" />
       </FormModal>
 
-      <FormModal visible={modalDesc} title="Description" onClose={() => setModalDesc(false)} onSave={() => setModalDesc(false)}>
+      <FormModal
+        visible={modalDesc}
+        title="Description"
+        saving={saving}
+        onClose={() => !saving && setModalDesc(false)}
+        onSave={() => persistAndClose(() => setModalDesc(false))}
+      >
         <TextInput
           value={description}
           onChangeText={setDescription}
@@ -826,25 +989,132 @@ export default function ProfileShopInfoScreen() {
       <FormModal
         visible={modalCategory}
         title="Category"
-        onClose={() => setModalCategory(false)}
-        onSave={() => setModalCategory(false)}
+        saving={saving}
+        onClose={() => !saving && setModalCategory(false)}
+        onSave={() => persistAndClose(() => setModalCategory(false))}
       >
-        <TextInput value={category} onChangeText={setCategory} style={styles.modalInput} placeholder="e.g. Fashion" />
+        {categoryOptions.length === 0 ? (
+          <Text style={styles.placeholderLine}>No categories available.</Text>
+        ) : (
+          categoryOptions.map((opt) => {
+            const selected = category.trim().toLowerCase() === opt.toLowerCase();
+            return (
+              <Pressable
+                key={opt}
+                style={[styles.pickerItem, selected && styles.pickerItemSelected]}
+                onPress={() => setCategory(opt)}
+              >
+                <Text style={styles.pickerItemText}>{formatMvpCategoryLabel(opt)}</Text>
+                {selected ? <Icon name="checkmark-circle" size={22} color={BRAND} /> : null}
+              </Pressable>
+            );
+          })
+        )}
       </FormModal>
 
-      <FormModal visible={modalHours} title="Opening hours" onClose={() => setModalHours(false)} onSave={() => { setOpeningHours({ ...hoursDraft }); setModalHours(false); }}>
-        {DAYS.map(({ key, label }) => (
-          <View key={key} style={styles.hourRow}>
-            <Text style={styles.hourLabel}>{label}</Text>
-            <TextInput
-              value={hoursDraft[key] ?? ''}
-              onChangeText={(t) => setHoursDraft((h) => ({ ...h, [key]: t }))}
-              style={styles.hourInput}
-              placeholder="09:00–18:00"
-            />
-          </View>
-        ))}
+      {/* Availability editing disabled — not in scope for now.
+      <FormModal
+        visible={modalHours}
+        title="Opening hours"
+        saving={saving}
+        onClose={() => !saving && setModalHours(false)}
+        onSave={async () => {
+          const next = { ...hoursDraft };
+          setOpeningHours(next);
+          await persistAndClose(() => setModalHours(false), { openingHours: next });
+        }}
+      >
+        {DAYS.map(({ key, label }) => {
+          const parsed = parseDayHours(hoursDraft[key]);
+          return (
+            <View key={key} style={styles.hourRow}>
+              <Text style={styles.hourLabel}>{label}</Text>
+              {parsed.closed ? (
+                <Text style={styles.hourClosedBadge}>Closed</Text>
+              ) : (
+                <>
+                  <Pressable
+                    style={styles.hourTimeBtn}
+                    onPress={() =>
+                      setTimePicker({
+                        dayKey: key,
+                        edge: 'open',
+                        initialHour: parsed.openH,
+                        initialMinute: parsed.openM,
+                      })
+                    }
+                    accessibilityLabel={`Open time for ${label}`}
+                  >
+                    <Text style={styles.hourTimeBtnText}>
+                      {pad2(parsed.openH)}:{pad2(parsed.openM)}
+                    </Text>
+                  </Pressable>
+                  <Text style={styles.hourArrow}>→</Text>
+                  <Pressable
+                    style={styles.hourTimeBtn}
+                    onPress={() =>
+                      setTimePicker({
+                        dayKey: key,
+                        edge: 'close',
+                        initialHour: parsed.closeH,
+                        initialMinute: parsed.closeM,
+                      })
+                    }
+                    accessibilityLabel={`Close time for ${label}`}
+                  >
+                    <Text style={styles.hourTimeBtnText}>
+                      {pad2(parsed.closeH)}:{pad2(parsed.closeM)}
+                    </Text>
+                  </Pressable>
+                </>
+              )}
+              <View style={styles.switchWrap}>
+                <Text style={styles.switchLabel}>Open</Text>
+                <Switch
+                  value={!parsed.closed}
+                  onValueChange={(open) => {
+                    setHoursDraft((h) => ({
+                      ...h,
+                      [key]: formatDayHours({ ...parsed, closed: !open }),
+                    }));
+                  }}
+                  trackColor={{ false: '#D1D5DB', true: BRAND_LIGHT }}
+                  thumbColor={!parsed.closed ? BRAND : '#F4F4F5'}
+                />
+              </View>
+            </View>
+          );
+        })}
       </FormModal>
+      */}
+
+      {/* Availability time picker disabled — not in scope for now.
+      <TimePickerModal
+        visible={timePicker != null}
+        title={
+          timePicker
+            ? `${(DAYS.find((d) => d.key === timePicker.dayKey)?.label) ?? ''} — ${
+                timePicker.edge === 'open' ? 'Open time' : 'Close time'
+              }`
+            : ''
+        }
+        initialHour={timePicker?.initialHour ?? 9}
+        initialMinute={timePicker?.initialMinute ?? 0}
+        onCancel={() => setTimePicker(null)}
+        onSave={(h, m) => {
+          if (!timePicker) return;
+          setHoursDraft((draft) => {
+            const cur = parseDayHours(draft[timePicker.dayKey]);
+            const next =
+              timePicker.edge === 'open'
+                ? { ...cur, openH: h, openM: m }
+                : { ...cur, closeH: h, closeM: m };
+            return { ...draft, [timePicker.dayKey]: formatDayHours(next) };
+          });
+          setTimePicker(null);
+        }}
+      />
+      */}
 
       <Modal
         visible={Boolean(verDocModal)}
@@ -985,8 +1255,132 @@ function VerificationRow({ label, status, hasProgress, onPress }) {
   );
 }
 
-/** @param {{ visible: boolean; title: string; children: unknown; onClose: () => void; onSave: () => void }} props */
-function FormModal({ visible, title, children, onClose, onSave }) {
+const WHEEL_ITEM_HEIGHT = 40;
+const WHEEL_VISIBLE_ITEMS = 5; // odd → centred selection
+const WHEEL_PADDING = WHEEL_ITEM_HEIGHT * Math.floor(WHEEL_VISIBLE_ITEMS / 2);
+
+/**
+ * Vertical wheel-style picker built on a snapping ScrollView (no native dep).
+ * The currently-selected value sits in the centre row, highlighted with rules
+ * above/below. Selection commits on momentum-end so taps outside the wheel
+ * don't fight the scroll.
+ *
+ * @param {{
+ *   data: number[];
+ *   value: number;
+ *   onChange: (n: number) => void;
+ * }} props
+ */
+function WheelColumn({ data, value, onChange }) {
+  const scrollRef = useRef(/** @type {ScrollView | null} */ (null));
+  const idx = Math.max(0, data.indexOf(value));
+
+  // Keep the centred row in sync when `value` changes from outside (e.g. when
+  // the user taps Open/Close on a different day).
+  useEffect(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+    node.scrollTo({ y: idx * WHEEL_ITEM_HEIGHT, animated: false });
+  }, [idx]);
+
+  return (
+    <View style={styles.wheelCol}>
+      <ScrollView
+        ref={scrollRef}
+        showsVerticalScrollIndicator={false}
+        snapToInterval={WHEEL_ITEM_HEIGHT}
+        decelerationRate="fast"
+        bounces={false}
+        nestedScrollEnabled
+        contentContainerStyle={{ paddingVertical: WHEEL_PADDING }}
+        onMomentumScrollEnd={(e) => {
+          const y = e.nativeEvent.contentOffset.y;
+          const i = Math.max(0, Math.min(data.length - 1, Math.round(y / WHEEL_ITEM_HEIGHT)));
+          const next = data[i];
+          if (next != null && next !== value) onChange(next);
+        }}
+      >
+        {data.map((d) => {
+          const selected = d === value;
+          return (
+            <View key={d} style={styles.wheelItem}>
+              <Text style={[styles.wheelItemText, selected && styles.wheelItemTextSelected]}>
+                {pad2(d)}
+              </Text>
+            </View>
+          );
+        })}
+      </ScrollView>
+      <View pointerEvents="none" style={styles.wheelHighlight} />
+    </View>
+  );
+}
+
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, i) => i);
+const MINUTE_OPTIONS = Array.from({ length: 12 }, (_, i) => i * 5); // 00, 05, 10, …, 55
+
+/**
+ * Bottom-sheet style time picker used by the opening-hours editor. Caller
+ * passes the initial `(h, m)` and we hand back the new pair on Save. We snap
+ * minutes to the nearest 5-minute increment so the wheel always lands on a
+ * value that exists in `MINUTE_OPTIONS`.
+ *
+ * @param {{
+ *   visible: boolean;
+ *   title: string;
+ *   initialHour: number;
+ *   initialMinute: number;
+ *   onCancel: () => void;
+ *   onSave: (h: number, m: number) => void;
+ * }} props
+ */
+function TimePickerModal({ visible, title, initialHour, initialMinute, onCancel, onSave }) {
+  const insets = useSafeAreaInsets();
+  const snapMinute = (m) => {
+    const idx = Math.round(m / 5);
+    return MINUTE_OPTIONS[Math.max(0, Math.min(MINUTE_OPTIONS.length - 1, idx))];
+  };
+  const [hour, setHour] = useState(initialHour);
+  const [minute, setMinute] = useState(snapMinute(initialMinute));
+
+  // Reset wheels every time the modal is reopened.
+  useEffect(() => {
+    if (!visible) return;
+    setHour(initialHour);
+    setMinute(snapMinute(initialMinute));
+  }, [visible, initialHour, initialMinute]);
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
+      <View style={styles.formModalRoot}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} />
+        <View style={[styles.formModalCard, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+          <Text style={styles.modalTitle}>{title}</Text>
+          <Text style={styles.timePreview}>
+            {pad2(hour)}:{pad2(minute)}
+          </Text>
+          <View style={styles.wheelRow}>
+            <WheelColumn data={HOUR_OPTIONS} value={hour} onChange={setHour} />
+            <Text style={styles.wheelColon}>:</Text>
+            <WheelColumn data={MINUTE_OPTIONS} value={minute} onChange={setMinute} />
+          </View>
+          <Text style={styles.timeHelper}>Scroll each column to choose hour and minute.</Text>
+          <View style={styles.modalActions}>
+            <Pressable onPress={onCancel} style={styles.modalGhostBtn}>
+              <Text style={styles.modalGhostText}>Cancel</Text>
+            </Pressable>
+            <Pressable onPress={() => onSave(hour, minute)} style={styles.modalPrimaryBtn}>
+              <Text style={styles.modalPrimaryText}>Set time</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+/** @param {{ visible: boolean; title: string; children: unknown; onClose: () => void; onSave: () => void; saving?: boolean }} props */
+function FormModal({ visible, title, children, onClose, onSave, saving }) {
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.formModalRoot}>
@@ -995,11 +1389,19 @@ function FormModal({ visible, title, children, onClose, onSave }) {
           <Text style={styles.modalTitle}>{title}</Text>
           {children}
           <View style={styles.modalActions}>
-            <Pressable onPress={onClose} style={styles.modalGhostBtn}>
+            <Pressable onPress={onClose} style={styles.modalGhostBtn} disabled={saving}>
               <Text style={styles.modalGhostText}>Cancel</Text>
             </Pressable>
-            <Pressable onPress={onSave} style={styles.modalPrimaryBtn}>
-              <Text style={styles.modalPrimaryText}>Done</Text>
+            <Pressable
+              onPress={onSave}
+              style={[styles.modalPrimaryBtn, saving && styles.saveBtnDisabled]}
+              disabled={saving}
+            >
+              {saving ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.modalPrimaryText}>Done</Text>
+              )}
             </Pressable>
           </View>
         </View>
@@ -1219,9 +1621,25 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     gap: 10,
   },
-  policyLabel: { flex: 1, fontSize: 15, fontWeight: '500', color: BLACK },
+  policyLabel: { flex: 1, fontSize: 18, fontWeight: '600', color: BLACK },
   policyStatus: { fontSize: 14, color: MUTED, marginRight: 4 },
   policyStatusOk: { color: GREEN_OK, fontWeight: '600' },
+  policyDetailCard: {
+    backgroundColor: '#F8FAF7',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: BORDER,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  policyDetailTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: BLACK,
+    marginBottom: 8,
+  },
   saveBtn: {
     marginTop: 20,
     backgroundColor: BRAND,
@@ -1290,8 +1708,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   modalPrimaryText: { color: '#FFFFFF', fontWeight: '700', fontSize: 16 },
-  hourRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 10 },
-  hourLabel: { width: 100, fontSize: 14, color: BLACK },
+  hourRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 10 },
+  hourLabel: { width: 84, fontSize: 14, color: BLACK, fontWeight: '500' },
   hourInput: {
     flex: 1,
     borderWidth: 1,
@@ -1300,5 +1718,105 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     fontSize: 14,
+  },
+  hourTimeBtn: {
+    flex: 1,
+    height: 38,
+    borderWidth: 1,
+    borderColor: BORDER,
+    borderRadius: 8,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hourTimeBtnDisabled: {
+    backgroundColor: '#F3F4F6',
+    borderColor: '#EAEAEA',
+  },
+  hourTimeBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: BLACK,
+  },
+  hourTimeBtnTextDisabled: {
+    color: MUTED,
+    fontWeight: '500',
+  },
+  hourArrow: {
+    fontSize: 14,
+    color: MUTED,
+    marginHorizontal: 4,
+  },
+  hourClosedBadge: {
+    flex: 1,
+    paddingVertical: 8,
+    fontSize: 14,
+    color: MUTED,
+    fontStyle: 'italic',
+  },
+  switchWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  switchLabel: {
+    fontSize: 12,
+    color: MUTED,
+  },
+  wheelRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  wheelCol: {
+    width: 80,
+    height: WHEEL_ITEM_HEIGHT * WHEEL_VISIBLE_ITEMS,
+    overflow: 'hidden',
+  },
+  wheelItem: {
+    height: WHEEL_ITEM_HEIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  wheelItemText: {
+    fontSize: 18,
+    color: MUTED,
+    fontVariant: ['tabular-nums'],
+  },
+  wheelItemTextSelected: {
+    color: BLACK,
+    fontWeight: '700',
+  },
+  wheelHighlight: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: WHEEL_ITEM_HEIGHT * Math.floor(WHEEL_VISIBLE_ITEMS / 2),
+    height: WHEEL_ITEM_HEIGHT,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: BORDER,
+    backgroundColor: 'rgba(13,79,60,0.04)',
+  },
+  wheelColon: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: BLACK,
+  },
+  timePreview: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: BLACK,
+    textAlign: 'center',
+    marginVertical: 6,
+    fontVariant: ['tabular-nums'],
+  },
+  timeHelper: {
+    fontSize: 12,
+    color: MUTED,
+    textAlign: 'center',
+    marginTop: 8,
   },
 });

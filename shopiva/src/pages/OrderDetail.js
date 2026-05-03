@@ -235,6 +235,10 @@ export default function OrderDetailScreen() {
     String(order?.status ?? 'delivered').toLowerCase(),
   );
   const [statusOpen, setStatusOpen] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
+
+  const openActions = useCallback(() => setActionsOpen(true), []);
+  const closeActions = useCallback(() => setActionsOpen(false), []);
 
   const orderNumber = useMemo(() => {
     const n = order?.orderId ?? order?.order_id ?? '1928';
@@ -246,12 +250,23 @@ export default function OrderDetailScreen() {
     navigation.setOptions({
       headerTitle: () => ( 
         <View >
-          <Text style={{fontWeight: 700}}>Order #{orderNumber}</Text>
+          <Text style={{fontWeight: 700, fontSize: 18}}>Order #{orderNumber}</Text>
           <StatusPill theme={payTheme} />
         </View>
       ),
+      headerRight: () => (
+        <Pressable
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          onPress={openActions}
+          style={({ pressed }) => [styles.headerEllipsis, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel="More order actions"
+        >
+          <Icon name="ellipsis-horizontal" size={22} color={TEXT} />
+        </Pressable>
+      ),
     });
-  }, [navigation]);
+  }, [navigation, orderNumber, openActions]);
 
   const headerDate = String(order?.dateLabel ?? 'Jan 12, 2025');
   const payKey = String(order?.paymentStatus ?? 'paid').toLowerCase();
@@ -398,6 +413,64 @@ export default function OrderDetailScreen() {
 
   const onUpdateStatus = () => setStatusOpen(true);
 
+  const ORDER_ACTIONS = [
+    {
+      key: 'Message',
+      label: 'Message customer',
+      icon: 'mail-outline',
+      onPress: () => {
+        closeActions();
+        onMail();
+      },
+    },
+    // {
+    //   key: 'call',
+    //   label: 'Call customer',
+    //   icon: 'call-outline',
+    //   onPress: () => {
+    //     closeActions();
+    //     onCall();
+    //   },
+    // },
+    {
+      key: 'status',
+      label: 'Update status',
+      icon: 'refresh-outline',
+      onPress: () => {
+        closeActions();
+        onUpdateStatus();
+      },
+    },
+    {
+      key: 'invoice',
+      label: 'Download invoice',
+      icon: 'download-outline',
+      onPress: () => {
+        closeActions();
+        onDownloadInvoice();
+      },
+    },
+    // {
+    //   key: 'resend',
+    //   label: 'Resend invoice',
+    //   icon: 'paper-plane-outline',
+    //   onPress: () => {
+    //     closeActions();
+    //     onResendInvoice();
+    //   },
+    // },
+    {
+      key: 'refund',
+      label: 'Refund order',
+      icon: 'return-up-back-outline',
+      onPress: () => {
+        closeActions();
+        onRefund();
+      },
+      destructive: true,
+    },
+  ];
+
   return (
     <View style={[styles.root, { paddingTop: 0 }]}>
       {/* <View style={styles.headerBar}>
@@ -470,24 +543,6 @@ export default function OrderDetailScreen() {
                 {customer.email}
               </Text>
             </View>
-            <Pressable
-              onPress={onMail}
-              hitSlop={10}
-              style={({ pressed }) => [styles.headIcon, pressed && styles.pressed]}
-              accessibilityRole="button"
-              accessibilityLabel="Email customer"
-            >
-              <Icon name="mail-outline" size={20} color={TEXT} />
-              <View style={styles.headIconDot} />
-            </Pressable>
-            <Pressable
-              hitSlop={10}
-              style={({ pressed }) => [styles.headIcon, pressed && styles.pressed]}
-              accessibilityRole="button"
-              accessibilityLabel="More actions"
-            >
-              <Icon name="ellipsis-vertical" size={18} color={TEXT} />
-            </Pressable>
           </View>
 
           {/* <View style={styles.kvRow}>
@@ -651,6 +706,49 @@ export default function OrderDetailScreen() {
           <Text style={styles.btnPrimaryText}>Update Status</Text>
         </Pressable>
       </View>
+
+      <Modal
+        visible={actionsOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={closeActions}
+      >
+        <View style={styles.sheetRoot}>
+          <Pressable style={styles.sheetDismiss} onPress={closeActions} />
+          <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Order actions</Text>
+            {ORDER_ACTIONS.map((action) => (
+              <Pressable
+                key={action.key}
+                onPress={action.onPress}
+                style={({ pressed }) => [styles.sheetRow, pressed && styles.sheetRowPressed]}
+              >
+                <Icon
+                  name={action.icon}
+                  size={22}
+                  color={action.destructive ? '#C62828' : TEXT}
+                  style={styles.sheetRowIcon}
+                />
+                <Text
+                  style={[
+                    styles.sheetRowText,
+                    action.destructive && styles.sheetRowTextDestructive,
+                  ]}
+                >
+                  {action.label}
+                </Text>
+              </Pressable>
+            ))}
+            <Pressable
+              onPress={closeActions}
+              style={({ pressed }) => [styles.sheetCloseRow, pressed && styles.sheetRowPressed]}
+            >
+              <Text style={styles.sheetCloseText}>Close</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
 
       <Modal
         visible={statusOpen}
@@ -1189,5 +1287,29 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: TEXT,
+  },
+  sheetRowIcon: {
+    width: 22,
+    textAlign: 'center',
+  },
+  sheetRowTextDestructive: {
+    color: '#C62828',
+  },
+  sheetCloseRow: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    marginTop: 4,
+  },
+  sheetCloseText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: MUTED,
+  },
+  headerEllipsis: {
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    marginRight: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });

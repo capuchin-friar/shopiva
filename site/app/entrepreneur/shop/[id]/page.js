@@ -842,6 +842,7 @@ export default function ShopByIdPage() {
                     {detailLoading ? "…" : categoryDisplay}
                   </p>
                 </div>
+                {/* Availability section disabled — not in scope for now.
                 <div className="shop-cnt-body-left-shop-availability">
                   <div className="shop-cnt-body-left-shop-availability-head">
                     <span><h5>Availability</h5></span>
@@ -882,6 +883,7 @@ export default function ShopByIdPage() {
                     detailLoading={detailLoading}
                   />
                 </div>
+                */}
                 <div className="shop-cnt-body-left-shop-verification">
                   <div className="shop-cnt-body-left-shop-verification-head">
                     <span><h5>Verification</h5></span>
@@ -1309,6 +1311,7 @@ export default function ShopByIdPage() {
                       {detailLoading ? "…" : categoryDisplay}
                     </p>
                   </div>
+                  {/* Availability section disabled — not in scope for now.
                   <div className="shop-cnt-body-left-shop-availability">
                     <div className="shop-cnt-body-left-shop-availability-head">
                       <span><h5>Availability</h5></span>
@@ -1349,6 +1352,7 @@ export default function ShopByIdPage() {
                       detailLoading={detailLoading}
                     />
                   </div>
+                  */}
                   <div className="shop-cnt-body-right-shop-description">
                   <div className="shop-cnt-body-right-shop-description-head">
                     <h5>Description</h5>

@@ -14,8 +14,11 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 import { formatNaira } from '../utils/formatNaira';
 import { fetchBuyerDispute } from '../api/buyer';
+import { fetchOwnerShops, fetchShopDispute } from '../api';
+import { getStoredUser } from '../auth/session';
 import { mapBuyerDisputeRow } from '../utils/buyerUi';
 
 const PAGE_BG = '#F5F5F5';
@@ -49,20 +52,28 @@ function normalizeDispute(dispute) {
     dispute.buyerReceivedItem !== undefined && dispute.buyerReceivedItem !== null
       ? Boolean(dispute.buyerReceivedItem)
       : true;
-  const lineItem = dispute.lineItem ?? {
-    name: dispute.title ?? 'Item',
-    qty: 1,
-    unitPriceRupees: 0,
-    totalRupees: 0,
+  const incomingLineItem = dispute.lineItem ?? null;
+  const lineItem = {
+    name: incomingLineItem?.name ?? null,
+    qty: incomingLineItem?.qty ?? null,
+    unitPriceRupees: incomingLineItem?.unitPriceRupees ?? null,
+    totalRupees: incomingLineItem?.totalRupees ?? null,
   };
+  const hasLineItem =
+    dispute.hasLineItem === true ||
+    lineItem.name != null ||
+    lineItem.qty != null ||
+    lineItem.totalRupees != null;
   return {
     ...dispute,
     buyerReceivedItem,
-    vendorName: dispute.vendorName ?? dispute.customerName ?? '—',
+    vendorName: dispute.vendorName ?? '—',
+    customerName: dispute.customerName ?? '—',
     orderDateLabel: dispute.orderDateLabel ?? dispute.openedLabel ?? '—',
     deliveryDateLabel: dispute.deliveryDateLabel ?? '—',
     orderNumberDisplay: dispute.orderNumberDisplay ?? dispute.orderId ?? '—',
     lineItem,
+    hasLineItem,
     vendorNote:
       dispute.vendorNote ??
       dispute.customerNote ??
@@ -195,6 +206,12 @@ export default function DisputeDetailScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const route = useRoute();
+  const auth = useSelector((s) => s.auth);
+  const isCustomer = auth?.activeRole === 'customer';
+  const counterpartLabel = isCustomer ? 'Vendor' : 'Customer';
+  const summaryTitle = isCustomer ? 'Your summary' : 'Buyer’s summary';
+  const messageActionLabel = isCustomer ? 'Message vendor' : 'Message customer';
+
   const raw = route.params?.dispute;
   const disputeIdParam = route.params?.disputeId;
   const [disputeRow, setDisputeRow] = useState(raw);
@@ -211,9 +228,31 @@ export default function DisputeDetailScreen() {
     let cancelled = false;
     (async () => {
       try {
-        const { dispute: row } = await fetchBuyerDispute(id);
+        if (isCustomer) {
+          const { dispute: row } = await fetchBuyerDispute(id);
+          if (cancelled) return;
+          setDisputeRow(
+            mapBuyerDisputeRow(/** @type {Record<string, unknown>} */ (row)),
+          );
+          return;
+        }
+
+        // Vendor: resolve current user + first owned shop, then fetch dispute scoped to that shop.
+        const stored = await getStoredUser();
+        const userId = stored && /** @type {{ id?: number }} */ (stored).id;
+        if (userId == null) return;
+        const shops = await fetchOwnerShops(userId);
+        const firstShop = Array.isArray(shops) && shops.length > 0 ? shops[0] : null;
+        const shopIdRaw = firstShop
+          ? /** @type {Record<string, unknown>} */ (firstShop).id ??
+            /** @type {Record<string, unknown>} */ (firstShop).shopid ??
+            /** @type {Record<string, unknown>} */ (firstShop).shop_id
+          : null;
+        const shopId = Number(shopIdRaw);
+        if (!Number.isFinite(shopId) || shopId <= 0) return;
+        const row = await fetchShopDispute(shopId, id, userId);
         if (cancelled) return;
-        setDisputeRow(mapBuyerDisputeRow(/** @type {Record<string, unknown>} */ (row)));
+        setDisputeRow(mapBuyerDisputeRow(row));
       } catch {
         /* keep list snapshot */
       }
@@ -221,7 +260,7 @@ export default function DisputeDetailScreen() {
     return () => {
       cancelled = true;
     };
-  }, [disputeIdParam]);
+  }, [disputeIdParam, isCustomer]);
 
   const showEvidence =
     dispute != null && dispute.buyerReceivedItem === false;
@@ -240,6 +279,16 @@ export default function DisputeDetailScreen() {
       navigation.setOptions({ headerRight: undefined });
       return undefined;
     }
+    navigation.setOptions({
+      headerTitle: () => (
+        <View style={[styles.statusRow, {flexDirection: "column"}]}>
+          <Text style={styles.disputeId}>{dispute.id}</Text>
+          <View style={[styles.statusPill, { backgroundColor: pill.bg }]}>
+            <Text style={[styles.statusPillText, { color: pill.fg }]}>{statusText}</Text>
+          </View>
+        </View>
+      )
+    })
     navigation.setOptions({
       headerRight: renderHeaderRight,
     });
@@ -324,9 +373,22 @@ export default function DisputeDetailScreen() {
     onSubmitEvidenceFab();
   };
 
-  const onMessageVendor = () => {
+  const onMessageCounterpart = () => {
     closeActions();
-    Alert.alert('Message vendor', 'Chat with the seller will open here when connected.');
+    if (isCustomer) {
+      Alert.alert('Message vendor', 'Chat with the seller will open here when connected.');
+    } else {
+      Alert.alert('Message customer', 'Chat with the buyer will open here when connected.');
+    }
+  };
+
+  const onSubmitVendorResponse = () => {
+    closeActions();
+    if (isResolved) {
+      Alert.alert('Respond', 'This dispute is already resolved.');
+      return;
+    }
+    Alert.alert('Submit response', 'Vendor response form will open here when connected.');
   };
 
   /** Platform / Shopiva support (Material Icons `support-agent` — closest to “customer care” in this bundle). */
@@ -408,7 +470,7 @@ export default function DisputeDetailScreen() {
                   <Text style={styles.actionRowLabel}>Escalate dispute</Text>
                 </Pressable>
 
-                {showEvidence ? (
+                {isCustomer && showEvidence ? (
                   <Pressable
                     style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
                     onPress={onAddEvidence}
@@ -418,12 +480,22 @@ export default function DisputeDetailScreen() {
                   </Pressable>
                 ) : null}
 
+                {!isCustomer ? (
+                  <Pressable
+                    style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                    onPress={onSubmitVendorResponse}
+                  >
+                    <Icon name="create-outline" size={22} color={BLACK} />
+                    <Text style={styles.actionRowLabel}>Submit response</Text>
+                  </Pressable>
+                ) : null}
+
                 <Pressable
                   style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
-                  onPress={onMessageVendor}
+                  onPress={onMessageCounterpart}
                 >
                   <Icon name="chatbubbles-outline" size={22} color={BLACK} />
-                  <Text style={styles.actionRowLabel}>Message vendor</Text>
+                  <Text style={styles.actionRowLabel}>{messageActionLabel}</Text>
                 </Pressable>
 
                 <Pressable
@@ -434,13 +506,15 @@ export default function DisputeDetailScreen() {
                   <Text style={styles.actionRowLabel}>Contact support</Text>
                 </Pressable>
 
-                <Pressable
-                  style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
-                  onPress={onWithdraw}
-                >
-                  <Icon name="remove-circle-outline" size={22} color="#C62828" />
-                  <Text style={styles.actionRowLabelDestructive}>Withdraw dispute</Text>
-                </Pressable>
+                {isCustomer ? (
+                  <Pressable
+                    style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
+                    onPress={onWithdraw}
+                  >
+                    <Icon name="remove-circle-outline" size={22} color="#C62828" />
+                    <Text style={styles.actionRowLabelDestructive}>Withdraw dispute</Text>
+                  </Pressable>
+                ) : null}
               </>
             ) : (
               <>
@@ -480,46 +554,65 @@ export default function DisputeDetailScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.statusRow}>
-          <Text style={styles.disputeId}>{dispute.id}</Text>
-          <View style={[styles.statusPill, { backgroundColor: pill.bg }]}>
-            <Text style={[styles.statusPillText, { color: pill.fg }]}>{statusText}</Text>
-          </View>
-        </View>
-        <Text style={styles.pageHeadline}>{dispute.title}</Text>
+        
+        {/* <Text style={styles.pageHeadline}>{dispute.title}</Text> */}
 
         <View style={styles.card}>
           <View style={styles.metaGrid}>
-            <MetaCell label="Vendor" value={dispute.vendorName} />
+            <MetaCell
+              label={counterpartLabel}
+              value={isCustomer ? dispute.vendorName : dispute.customerName}
+            />
             <MetaCell label="Order date" value={dispute.orderDateLabel} />
             <MetaCell label="Delivery date" value={dispute.deliveryDateLabel} />
             <MetaCell label="Order no." value={dispute.orderNumberDisplay} valueIsLink />
           </View>
 
-          <View style={styles.tableHeader}>
-            <Text style={[styles.tableHCell, styles.tableHName]}>Item name</Text>
-            <Text style={styles.tableHCell}>Qty</Text>
-            <Text style={styles.tableHCell}>Unit</Text>
-            <Text style={styles.tableHCell}>Total</Text>
-          </View>
-          <View style={styles.tableRow}>
-            <Text style={[styles.tableCell, styles.tableHName]} numberOfLines={2}>
-              {dispute.lineItem.name}
-            </Text>
-            <Text style={styles.tableCell}>{String(dispute.lineItem.qty)}</Text>
-            <Text style={styles.tableCell}>
-              {formatNaira(dispute.lineItem.unitPriceRupees)}
-            </Text>
-            <Text style={styles.tableCellStrong}>
-              {formatNaira(dispute.lineItem.totalRupees)}
-            </Text>
-          </View>
+          {dispute.hasLineItem ? (
+            <>
+              <View style={styles.tableHeader}>
+                <Text style={[styles.tableHCell, styles.tableHName]}>Item name</Text>
+                <Text style={styles.tableHCell}>Qty</Text>
+                <Text style={styles.tableHCell}>Unit</Text>
+                <Text style={styles.tableHCell}>Total</Text>
+              </View>
+              <View style={styles.tableRow}>
+                <Text style={[styles.tableCell, styles.tableHName]} numberOfLines={2}>
+                  {dispute.lineItem.name ?? '—'}
+                </Text>
+                <Text style={styles.tableCell}>
+                  {dispute.lineItem.qty != null ? String(dispute.lineItem.qty) : '—'}
+                </Text>
+                <Text style={styles.tableCell}>
+                  {dispute.lineItem.unitPriceRupees != null
+                    ? formatNaira(dispute.lineItem.unitPriceRupees)
+                    : '—'}
+                </Text>
+                <Text style={styles.tableCellStrong}>
+                  {dispute.lineItem.totalRupees != null
+                    ? formatNaira(dispute.lineItem.totalRupees)
+                    : '—'}
+                </Text>
+              </View>
+            </>
+          ) : (
+            <View style={styles.noLineItemRow}>
+              <Icon name="cube-outline" size={18} color={MUTED} />
+              <Text style={styles.noLineItemText}>
+                No order line item linked to this dispute.
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={[styles.card, styles.cardSpaced]}>
           <View style={styles.noteHeader}>
-            <Icon name="storefront-outline" size={18} color={MUTED} />
-            <Text style={styles.noteTitle}>Your summary</Text>
+            <Icon
+              name={isCustomer ? 'storefront-outline' : 'person-outline'}
+              size={18}
+              color={MUTED}
+            />
+            <Text style={styles.noteTitle}>{summaryTitle}</Text>
           </View>
           <Text style={styles.noteBody}>{dispute.vendorNote}</Text>
         </View>
@@ -849,6 +942,21 @@ const styles = StyleSheet.create({
     color: BLACK,
     width: '18%',
     textAlign: 'right',
+  },
+  noLineItemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingTop: 12,
+    paddingBottom: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#EEEEEE',
+  },
+  noLineItemText: {
+    flex: 1,
+    fontSize: 13,
+    color: MUTED,
+    lineHeight: 19,
   },
   noteHeader: {
     flexDirection: 'row',
