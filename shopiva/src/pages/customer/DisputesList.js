@@ -14,9 +14,6 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchBuyerDisputes } from '../api/buyer';
 import { mapBuyerDisputeRow } from '../utils/buyerUi';
-import { useSelector } from 'react-redux';
-import { fetchOwnerShops, fetchShopDisputes } from '../api';
-import { getStoredUser } from '../auth/session';
 
 const PAGE_BG = '#F2F2F4';
 const BLACK = '#111111';
@@ -117,33 +114,6 @@ export default function DisputesListScreen() {
   const [disputes, setDisputes] = useState(/** @type {Record<string, unknown>[]} */ ([]));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const auth = useSelector(s => s.auth)
-
-
-  /** @param {Record<string, unknown>} row */
-  function shopIdOf(row) {
-    const v = row.id ?? row.shopid ?? row.shop_id;
-    const n = Number(v);
-    return Number.isFinite(n) && n > 0 ? n : 0;
-  }
-
-  /**
-   * MVP: choose only the first-created shop for dashboard metrics.
-   * @param {Record<string, unknown>[]} shops
-   * @returns {Record<string, unknown> | null}
-   */
-  function pickFirstCreatedShop(shops) {
-    if (!Array.isArray(shops) || shops.length === 0) return null;
-    return shops
-    .slice()
-    .sort((a, b) => {
-      const aa = shopCreatedAtMsOf(/** @type {Record<string, unknown>} */ (a));
-      const bb = shopCreatedAtMsOf(/** @type {Record<string, unknown>} */ (b));
-      if (aa !== bb) return aa - bb;
-      return shopIdOf(/** @type {Record<string, unknown>} */ (a)) - shopIdOf(/** @type {Record<string, unknown>} */ (b));
-    })[0] || null;
-  }
-
 
   useEffect(() => {
     let cancelled = false;
@@ -151,24 +121,12 @@ export default function DisputesListScreen() {
       setLoading(true);
       setError('');
       try {
-        let { id: userId } = await getStoredUser();
-        let shops = await fetchOwnerShops(userId);
-        const firstShop = pickFirstCreatedShop(
-          shops.map((s) => /** @type {Record<string, unknown>} */ (s)),
-        );
-        const shopId = firstShop ? shopIdOf(firstShop) : 0;
-        if (!shopId) {
-          Alert.alert("no shops")
-          return;
-        }
-
-        const data = auth.activeRole === "customer" ?  await fetchBuyerDisputes({
+        const { disputes: rows } = await fetchBuyerDisputes({
           includeClosed: true,
           backfill: false,
-        }) : await fetchShopDisputes(shopId, userId, {})
-
+        });
         if (cancelled) return;
-        const mapped = (Array.isArray(data) ? data : []).map((r) =>
+        const mapped = (Array.isArray(rows) ? rows : []).map((r) =>
           mapBuyerDisputeRow(/** @type {Record<string, unknown>} */ (r)),
         );
         setDisputes(mapped);
@@ -196,7 +154,7 @@ export default function DisputesListScreen() {
       <DisputeCard
         item={item}
         onPress={() =>
-          navigation.navigate('Dispute-detail', {
+          navigation.navigate('dispute-detail', {
             dispute: item,
             disputeId: item.id,
           })

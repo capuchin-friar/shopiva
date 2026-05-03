@@ -17,7 +17,7 @@ export function HomeStackCartFab() {
     <Pressable
       onPress={() => {
         if (loggedIn) {
-          navigation.navigate('cart');
+          navigation.navigate('Cart');
         } else {
           void signOut();
         }
@@ -46,7 +46,7 @@ export function HomeStackCartIconButton({
     <Pressable
       onPress={() => {
         if (loggedIn) {
-          navigation.navigate('cart');
+          navigation.navigate('Cart');
         } else {
           void signOut();
         }

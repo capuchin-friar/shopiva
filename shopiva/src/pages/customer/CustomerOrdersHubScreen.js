@@ -2,27 +2,26 @@ import { useCallback } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useSelector } from 'react-redux';
 
 /**
- * Entry for the Order tab: nested orders list and disputes (vendor-only).
+ * Entry for the Orders tab: nested order list and disputes (customer).
  */
-export default function ActivitiesScreen({ navigation }) {
+export default function CustomerOrdersHubScreen({ navigation }) {
   const insets = useSafeAreaInsets();
 
-  const auth = useSelector(s => s.auth)
-
   const goOrders = useCallback(() => {
-    navigation.navigate('Orders');
+    navigation.navigate('CustomerOrderFlow');
   }, [navigation]);
 
   const goDisputes = useCallback(() => {
-    navigation.navigate('Disputes');
+    navigation.navigate('CustomerDisputeFlow');
   }, [navigation]);
 
   return (
     <View style={[styles.root, { paddingTop: 15 }]}>
-      
+      {/* <Text style={styles.title}>Orders</Text>
+      <Text style={styles.sub}>View your purchases or open the dispute center.</Text> */}
+
       <ScrollView
         contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
@@ -32,12 +31,8 @@ export default function ActivitiesScreen({ navigation }) {
             <Icon name="receipt-outline" size={22} color="#047857" />
           </View>
           <View style={styles.optionBody}>
-            <Text style={styles.optionTitle}>Orders</Text>
-            <Text style={styles.optionDesc}>{
-              auth.activeRole === "vendors" ?
-              "View and manage customer orders":
-              "View and manage your orders"
-            }</Text>
+            <Text style={styles.optionTitle}>My orders</Text>
+            <Text style={styles.optionDesc}>Track deliveries and receipts</Text>
           </View>
           <Icon name="chevron-forward" size={22} color="#9CA3AF" />
         </TouchableOpacity>
@@ -48,11 +43,7 @@ export default function ActivitiesScreen({ navigation }) {
           </View>
           <View style={styles.optionBody}>
             <Text style={styles.optionTitle}>Disputes</Text>
-            <Text style={styles.optionDesc}>{
-              auth.activeRole === "vendors" ?
-              "Resolve issues with customers":
-              "Resolve issues with vendors"
-            }</Text>
+            <Text style={styles.optionDesc}>Get help with an order</Text>
           </View>
           <Icon name="chevron-forward" size={22} color="#9CA3AF" />
         </TouchableOpacity>
@@ -65,7 +56,7 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: '#F4F5F7',
-    paddingHorizontal: 10,
+    paddingHorizontal: 20,
   },
   title: {
     fontSize: 28,
@@ -92,7 +83,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 5,
+    borderRadius: 10,
     padding: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB',

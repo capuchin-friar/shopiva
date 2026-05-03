@@ -72,7 +72,6 @@ function NavigationTree() {
         if (name) {
           console.log('📍 Current screen:', name);
           const rootTabRoutes = new Set([
-
             "Home",
             "Activities",
             "Chat",

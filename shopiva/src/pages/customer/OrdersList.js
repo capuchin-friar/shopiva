@@ -12,59 +12,51 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fetchBuyerDisputes } from '../api/buyer';
-import { mapBuyerDisputeRow } from '../utils/buyerUi';
-import { useSelector } from 'react-redux';
-import { fetchOwnerShops, fetchShopDisputes } from '../api';
-import { getStoredUser } from '../auth/session';
+import { formatNaira } from '../utils/formatNaira';
+import { fetchBuyerOrders } from '../api/buyer';
+import { mapOrderRowToListItem } from '../utils/buyerUi';
 
 const PAGE_BG = '#F2F2F4';
 const BLACK = '#111111';
 const MUTED = '#8E8E93';
 const WHITE = '#FFFFFF';
+
 const FILTERS = [
   { key: 'all', label: 'All' },
-  { key: 'open', label: 'Open' },
-  { key: 'under_review', label: 'Under review' },
-  { key: 'resolved', label: 'Resolved' },
+  { key: 'pending', label: 'Pending' },
+  { key: 'processing', label: 'Processing' },
+  { key: 'delivered', label: 'Delivered' },
 ];
 
 const STATUS_THEME = {
-  open: {
-    pillBg: '#FFF3E0',
+  pending: {
+    pillBg: '#E8F5C8',
+    pillText: '#5C6C1A',
+    iconBg: '#E8F5C8',
+    icon: 'time-outline',
+    iconColor: '#5C6C1A',
+  },
+  processing: {
+    pillBg: '#FFF0E0',
     pillText: '#C45C00',
-    iconBg: '#FFF3E0',
-    icon: 'alert-circle-outline',
+    iconBg: '#FFF0E0',
+    icon: 'cube-outline',
     iconColor: '#C45C00',
   },
-  under_review: {
-    pillBg: '#E3F2FD',
-    pillText: '#1565C0',
-    iconBg: '#E3F2FD',
-    icon: 'search-outline',
-    iconColor: '#1565C0',
-  },
-  resolved: {
-    pillBg: '#E8F5E9',
-    pillText: '#2E7D32',
-    iconBg: '#E8F5E9',
+  delivered: {
+    pillBg: '#E0F2E9',
+    pillText: '#0D5C2F',
+    iconBg: '#E0F2E9',
     icon: 'checkmark-circle-outline',
-    iconColor: '#2E7D32',
+    iconColor: '#0D5C2F',
   },
 };
-
-function statusLabel(key) {
-  if (key === 'under_review') return 'Under review';
-  if (key === 'open') return 'Open';
-  if (key === 'resolved') return 'Resolved';
-  return key;
-}
 
 /**
  * @param {{ item: Record<string, unknown>; onPress: () => void }} p
  */
-function DisputeCard({ item, onPress }) {
-  const t = STATUS_THEME[item.status] ?? STATUS_THEME.open;
+function OrderCard({ item, onPress }) {
+  const t = STATUS_THEME[item.status] ?? STATUS_THEME.pending;
 
   return (
     <Pressable
@@ -76,33 +68,27 @@ function DisputeCard({ item, onPress }) {
           <Icon name={t.icon} size={22} color={t.iconColor} />
         </View>
         <View style={styles.cardTitleCol}>
-          <Text style={styles.disputeId}>{item.id}</Text>
-          <Text style={styles.orderRef} numberOfLines={1}>
-            {item.orderId} · {item.title}
+          <Text style={styles.orderId}>{item.id}</Text>
+          <Text style={styles.vendorLine} numberOfLines={1}>
+            {item.vendor ?? item.customer}
           </Text>
         </View>
         <Icon name="chevron-forward" size={20} color={MUTED} />
       </View>
 
-      <Text style={styles.summary} numberOfLines={2}>
-        {item.summary}
-      </Text>
-
-      <View style={styles.metaRow}>
-        <View style={styles.metaCol}>
-          <Text style={styles.metaLabel}>Opened</Text>
-          <Text style={styles.metaValue}>{item.openedLabel}</Text>
+      <View style={styles.grid}>
+        <View style={styles.gridCol}>
+          <Text style={styles.gridLabel}>Items</Text>
+          <Text style={styles.gridValue}>{item.items}</Text>
         </View>
-        <View style={styles.metaCol}>
-          <Text style={styles.metaLabel}>Updated</Text>
-          <Text style={styles.metaValue}>{item.updatedLabel}</Text>
+        <View style={styles.gridCol}>
+          <Text style={styles.gridLabel}>Value</Text>
+          <Text style={styles.gridValue}>{formatNaira(item.valueRupees)}</Text>
         </View>
-        <View style={[styles.metaCol, styles.metaColLast]}>
-          <Text style={styles.metaLabel}>Status</Text>
+        <View style={[styles.gridCol, styles.gridColLast]}>
+          <Text style={styles.gridLabel}>Status</Text>
           <View style={[styles.statusPill, { backgroundColor: t.pillBg }]}>
-            <Text style={[styles.statusPillText, { color: t.pillText }]}>
-              {statusLabel(item.status)}
-            </Text>
+            <Text style={[styles.statusPillText, { color: t.pillText }]}>{item.status}</Text>
           </View>
         </View>
       </View>
@@ -110,40 +96,13 @@ function DisputeCard({ item, onPress }) {
   );
 }
 
-export default function DisputesListScreen() {
+export default function OrdersListScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const [filter, setFilter] = useState('all');
-  const [disputes, setDisputes] = useState(/** @type {Record<string, unknown>[]} */ ([]));
+  const [orders, setOrders] = useState(/** @type {Record<string, unknown>[]} */ ([]));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const auth = useSelector(s => s.auth)
-
-
-  /** @param {Record<string, unknown>} row */
-  function shopIdOf(row) {
-    const v = row.id ?? row.shopid ?? row.shop_id;
-    const n = Number(v);
-    return Number.isFinite(n) && n > 0 ? n : 0;
-  }
-
-  /**
-   * MVP: choose only the first-created shop for dashboard metrics.
-   * @param {Record<string, unknown>[]} shops
-   * @returns {Record<string, unknown> | null}
-   */
-  function pickFirstCreatedShop(shops) {
-    if (!Array.isArray(shops) || shops.length === 0) return null;
-    return shops
-    .slice()
-    .sort((a, b) => {
-      const aa = shopCreatedAtMsOf(/** @type {Record<string, unknown>} */ (a));
-      const bb = shopCreatedAtMsOf(/** @type {Record<string, unknown>} */ (b));
-      if (aa !== bb) return aa - bb;
-      return shopIdOf(/** @type {Record<string, unknown>} */ (a)) - shopIdOf(/** @type {Record<string, unknown>} */ (b));
-    })[0] || null;
-  }
-
 
   useEffect(() => {
     let cancelled = false;
@@ -151,30 +110,15 @@ export default function DisputesListScreen() {
       setLoading(true);
       setError('');
       try {
-        let { id: userId } = await getStoredUser();
-        let shops = await fetchOwnerShops(userId);
-        const firstShop = pickFirstCreatedShop(
-          shops.map((s) => /** @type {Record<string, unknown>} */ (s)),
-        );
-        const shopId = firstShop ? shopIdOf(firstShop) : 0;
-        if (!shopId) {
-          Alert.alert("no shops")
-          return;
-        }
-
-        const data = auth.activeRole === "customer" ?  await fetchBuyerDisputes({
-          includeClosed: true,
-          backfill: false,
-        }) : await fetchShopDisputes(shopId, userId, {})
-
+        const { orders: rows } = role === "customer" ? await fetchBuyerOrders() : fetchVendorOrders();
         if (cancelled) return;
-        const mapped = (Array.isArray(data) ? data : []).map((r) =>
-          mapBuyerDisputeRow(/** @type {Record<string, unknown>} */ (r)),
+        const mapped = (Array.isArray(rows) ? rows : []).map((r) =>
+          mapOrderRowToListItem(/** @type {Record<string, unknown>} */ (r)),
         );
-        setDisputes(mapped);
+        setOrders(mapped);
       } catch (e) {
         if (!cancelled) {
-          setDisputes([]);
+          setOrders([]);
           setError(e instanceof Error ? e.message : String(e));
         }
       } finally {
@@ -187,18 +131,18 @@ export default function DisputesListScreen() {
   }, []);
 
   const data = useMemo(() => {
-    if (filter === 'all') return disputes;
-    return disputes.filter((d) => d.status === filter);
-  }, [filter, disputes]);
+    if (filter === 'all') return orders;
+    return orders.filter((o) => o.status === filter);
+  }, [filter, orders]);
 
   const renderItem = useCallback(
     ({ item }) => (
-      <DisputeCard
+      <OrderCard
         item={item}
         onPress={() =>
-          navigation.navigate('Dispute-detail', {
-            dispute: item,
-            disputeId: item.id,
+          navigation.navigate('order-detail', {
+            order: item,
+            orderId: item.orderId,
           })
         }
       />
@@ -209,7 +153,8 @@ export default function DisputesListScreen() {
   const listHeader = useMemo(
     () => (
       <View style={styles.headerBlock}>
-    
+        {/* <Text style={styles.pageTitle}>Orders</Text> */}
+        {/* <Text style={styles.pageSubtitle}>Manage all your orders</Text> */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -223,9 +168,7 @@ export default function DisputesListScreen() {
                 onPress={() => setFilter(f.key)}
                 style={[styles.chip, selected ? styles.chipSelected : styles.chipIdle]}
               >
-                <Text
-                  style={[styles.chipText, selected ? styles.chipTextSelected : styles.chipTextIdle]}
-                >
+                <Text style={[styles.chipText, selected ? styles.chipTextSelected : styles.chipTextIdle]}>
                   {f.label}
                 </Text>
               </Pressable>
@@ -241,7 +184,7 @@ export default function DisputesListScreen() {
     return (
       <View style={[styles.root, styles.centered, { paddingTop: 15 }]}>
         <ActivityIndicator size="large" color="#00926e" />
-        <Text style={styles.emptySub}>Loading disputes…</Text>
+        <Text style={styles.loadingText}>Loading orders…</Text>
       </View>
     );
   }
@@ -249,8 +192,8 @@ export default function DisputesListScreen() {
   if (error) {
     return (
       <View style={[styles.root, styles.centered, { paddingTop: 15, paddingHorizontal: 24 }]}>
-        <Text style={styles.errorBanner}>{error}</Text>
-        <Text style={styles.emptySub}>Sign in to load disputes from your account.</Text>
+        <Text style={styles.errorText}>{error}</Text>
+        <Text style={styles.loadingText}>Sign in and ensure the API is running to see your orders.</Text>
       </View>
     );
   }
@@ -269,11 +212,7 @@ export default function DisputesListScreen() {
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         showsVerticalScrollIndicator={false}
         ListEmptyComponent={
-          <View style={styles.emptyWrap}>
-            <Icon name="document-text-outline" size={40} color={MUTED} />
-            <Text style={styles.emptyTitle}>No disputes</Text>
-            <Text style={styles.emptySub}>Nothing in this filter yet.</Text>
-          </View>
+          <Text style={styles.loadingText}>No orders in this filter yet.</Text>
         }
       />
     </View>
@@ -290,9 +229,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  errorBanner: {
-    color: '#c62828',
+  loadingText: {
+    marginTop: 12,
     fontSize: 14,
+    color: MUTED,
+    textAlign: 'center',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#c62828',
     textAlign: 'center',
     marginBottom: 8,
   },
@@ -363,7 +308,7 @@ const styles = StyleSheet.create({
   cardTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 16,
   },
   iconCircle: {
     width: 44,
@@ -377,35 +322,29 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  disputeId: {
+  orderId: {
     fontSize: 16,
     fontWeight: '700',
     color: BLACK,
   },
-  orderRef: {
+  vendorLine: {
     fontSize: 13,
     color: MUTED,
     marginTop: 2,
   },
-  summary: {
-    fontSize: 14,
-    color: BLACK,
-    lineHeight: 20,
-    marginBottom: 14,
-  },
-  metaRow: {
+  grid: {
     flexDirection: 'row',
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#ECECEC',
     paddingTop: 14,
   },
-  metaCol: {
+  gridCol: {
     flex: 1,
   },
-  metaColLast: {
+  gridColLast: {
     alignItems: 'flex-start',
   },
-  metaLabel: {
+  gridLabel: {
     fontSize: 11,
     fontWeight: '600',
     color: MUTED,
@@ -413,8 +352,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     marginBottom: 6,
   },
-  metaValue: {
-    fontSize: 14,
+  gridValue: {
+    fontSize: 15,
     fontWeight: '600',
     color: BLACK,
   },
@@ -427,22 +366,6 @@ const styles = StyleSheet.create({
   statusPillText: {
     fontSize: 12,
     fontWeight: '700',
-  },
-  emptyWrap: {
-    alignItems: 'center',
-    paddingVertical: 48,
-    paddingHorizontal: 24,
-  },
-  emptyTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: BLACK,
-    marginTop: 12,
-  },
-  emptySub: {
-    fontSize: 14,
-    color: MUTED,
-    marginTop: 6,
-    textAlign: 'center',
+    textTransform: 'lowercase',
   },
 });

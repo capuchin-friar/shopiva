@@ -2,10 +2,10 @@ import * as React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useSelector } from 'react-redux';
-import { HomeStackScreen } from '../stacks/Home';
-import { ProfileStackScreen } from '../stacks/Profile';
-import { ChatStackScreen } from '../stacks/Chat';
-import { CustomerOrdersStackScreen } from '../stacks/CustomerOrders';
+import { HomeStackScreen } from '../stacks/customer/Home';
+import { ProfileStackScreen } from '../stacks/customer/Profile';
+import { ChatStackScreen } from '../stacks/customer/Chat';
+import { ActivitiesStackScreen } from '../stacks/customer/Activities';
 import { ProfileProvider } from '../context/ProfileContext';
 
 const Tab = createBottomTabNavigator();
@@ -50,7 +50,7 @@ export default function CustomerTab() {
       >
         <Tab.Screen name="Home" component={HomeStackScreen} />
         <Tab.Screen name="Chat" component={ChatStackScreen} />
-        <Tab.Screen name="Activities" component={CustomerOrdersStackScreen} />
+        <Tab.Screen name="Activities" component={ActivitiesStackScreen} />
         <Tab.Screen name="Profile" component={ProfileStackScreen} />
       </Tab.Navigator>
     </ProfileProvider>

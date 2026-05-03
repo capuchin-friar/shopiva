@@ -15,11 +15,11 @@ import {
   View,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import  ShopPolicyViewerModal from '../components/ShopPolicyViewerModal';
-import { ShopOverflowMenu } from '../components/ShopOverflowMenu';
-import { getVendorsOnMapByCategory, getStorefrontProducts, getStorefrontShop } from '../api';
-import { formatNaira } from '../utils/formatNaira';
-import { extractCustomerPolicySections } from '../utils/shopPoliciesForCustomer';
+import ShopPolicyViewerModal from '../../components/ShopPolicyViewerModal';
+import { ShopOverflowMenu } from '../../components/ShopOverflowMenu';
+import { getVendorsOnMapByCategory, getStorefrontProducts, getStorefrontShop } from '../../api';
+import { formatNaira } from '../../utils/formatNaira';
+import { extractCustomerPolicySections } from '../../utils/shopPoliciesForCustomer';
 
 const WINDOW_W = Dimensions.get('window').width;
 const WINDOW_H = Dimensions.get('window').height;
@@ -578,7 +578,7 @@ export default function VendorScreen({ route, navigation }) {
         item={item}
         index={index}
         preview={slugPreviews[String(item.slug ?? '').trim()]}
-        onOpenShop={(shop) => navigation.navigate('vendor', { vendor: shop, category })}
+        onOpenShop={(shop) => navigation.navigate('Vendor', { vendor: shop, category })}
         onPressMenu={(row) => setMenuVendor(/** @type {Record<string, unknown>} */ (row))}
       />
     ),
@@ -596,7 +596,7 @@ export default function VendorScreen({ route, navigation }) {
       onVisitShop={() => {
         closeVendorMenu();
         if (menuVendor) {
-          navigation.navigate('vendor', { vendor: menuVendor, category });
+          navigation.navigate('Vendor', { vendor: menuVendor, category });
         }
       }}
       onFollow={() => {

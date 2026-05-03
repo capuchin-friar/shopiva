@@ -1,7 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, Alert, StyleSheet, View } from 'react-native';
 // import { useAuth } from '../hooks/useAuth';
-// import CustomerTab from './customer';
+import CustomerTab from './customer';
 import VendorTabs from './vendor';
 import AuthPurposeScreen from '../pages/auth/AuthPurpose';
 import LoginScreen from '../pages/auth/LoginScreen';
@@ -48,7 +48,7 @@ export default function RootNavigator() {
           component={SignUpScreen}
           initialParams={{ allowSkip: loginSkipAllowed }}
         />
-        {/* <AuthStack.Screen name="VerifyCode" component={VerifyCodeScreen} /> */}
+        <AuthStack.Screen name="VerifyCode" component={VerifyCodeScreen} />
       </AuthStack.Navigator>
     );
   }
@@ -65,8 +65,8 @@ export default function RootNavigator() {
       <AppStack.Screen
         key={`home-${activeRole}`}
         name="home"
-        // component={activeRole === 'vendor' ? VendorTabs : CustomerTab}
-        component={VendorTabs}
+        component={activeRole === 'vendor' ? VendorTabs : CustomerTab}
+        // component={VendorTabs}
       />
     </AppStack.Navigator>
   );
