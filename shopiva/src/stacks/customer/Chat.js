@@ -28,8 +28,8 @@ const CHAT_ROOM_OPTIONS = {
 export function ChatStackScreen() {
   return (
     <ChatStack.Navigator>
-      <ChatStack.Screen name="chat-list" component={CustomerChatListScreen} options={CHAT_LIST_OPTIONS} />
-      <ChatStack.Screen name="chat-room" component={CustomerChatRoomScreen} options={CHAT_ROOM_OPTIONS} />
+      <ChatStack.Screen name="Chat" component={CustomerChatListScreen} options={CHAT_LIST_OPTIONS} />
+      <ChatStack.Screen name="Chat-room" component={CustomerChatRoomScreen} options={CHAT_ROOM_OPTIONS} />
     </ChatStack.Navigator>
   );
 }

@@ -24,6 +24,7 @@ import {
 } from '../moderation/messageModeration';
 import { connectChatSocket, emitSocketAck, getChatSocket } from '../socket/chatSocket';
 import { setLastOpenedChatRoomId } from '../utils/lastOpenedChatRoom';
+import { useSelector } from 'react-redux';
 
 const BG = '#ECE5DD';
 const INCOMING = '#FFFFFF';
@@ -65,6 +66,8 @@ function Bubble({ item }) {
 }
 
 export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
+  const auth = useSelector(s => s.auth);
+  chatRoleVariant = auth.activeRole;
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const route = useRoute();

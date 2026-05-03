@@ -5,6 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { connectChatSocket, emitSocketAck, getChatSocket } from '../socket/chatSocket';
 import { getLastOpenedChatRoomId } from '../utils/lastOpenedChatRoom';
+import { useSelector } from 'react-redux';
 
 const PAGE_BG = '#FFFFFF';
 const BLACK = '#111111';
@@ -127,10 +128,12 @@ export default function ChatListScreen({
   navigation,
   route,
   chatRoleVariant = 'customer',
-  chatRoomRouteName = 'chat-room',
+  chatRoomRouteName = 'Chat-room',
   chatListTitle = 'Chats',
 }) {
-  const storageScope = chatRoleVariant === 'vendor' ? 'vendor' : 'customer';
+
+  const auth = useSelector(s => s.auth);
+  const storageScope = auth.activeRole === 'vendor' ? 'vendor' : 'customer';
   const appRolePayload = storageScope === 'vendor' ? 'vendor' : 'customer';
   const insets = useSafeAreaInsets();
   const [rows, setRows] = useState(/** @type {Array<Record<string, unknown>>} */ ([]));

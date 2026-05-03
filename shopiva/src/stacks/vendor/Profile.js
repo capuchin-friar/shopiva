@@ -166,18 +166,21 @@ export function VendorProfileStackScreen() {
     headerShadowVisible: false,
     header: ProfileMainHeader,
     contentStyle: { backgroundColor: '#F7F7F8' },
+    headerBackTitle: "Settings",
   }
   const profileSettingsOpt={
     headerShown: true,
     headerShadowVisible: false,
     header: ProfileSettingsHeader,
     contentStyle: { backgroundColor: '#F7F7F8' },
+    headerBackTitle: "Settings",
   }
   const profilePersonalInfoOpt = {
     headerShown: true,
     headerShadowVisible: false,
     header: PersonalInformationHeader,
     contentStyle: { backgroundColor: '#FFFFFF' },
+    headerBackTitle: "Settings",
   }
   const profileTxnOpt={
     headerShown: true,
@@ -185,6 +188,7 @@ export function VendorProfileStackScreen() {
     title: "Transaction",
     headerBackVisible: true,
     contentStyle: { backgroundColor: '#F7F7F8' },
+    headerBackTitle: "Settings",
   }
   const profileShopInfoOpt = {
     headerShown: true,
@@ -192,6 +196,7 @@ export function VendorProfileStackScreen() {
     title: "Shop info",
     headerBackVisible: true,
     contentStyle: { backgroundColor: '#F7F7F8' },
+    headerBackTitle: "Settings",
   }
   const profileEmailOpt = {
     headerShown: true,
@@ -199,6 +204,7 @@ export function VendorProfileStackScreen() {
     title: "Change email",
     headerBackVisible: true,
     contentStyle: { backgroundColor: '#F7F7F8' },
+    headerBackTitle: "Settings",
   }
   const profilePasswordOpt = {
     headerShown: true,
@@ -206,6 +212,7 @@ export function VendorProfileStackScreen() {
     title: "Password",
     headerBackVisible: true,
     contentStyle: { backgroundColor: '#F7F7F8' },
+    headerBackTitle: "Settings",
   }
   const profileWhatsappOpt = {
     headerShown: true,
@@ -213,6 +220,7 @@ export function VendorProfileStackScreen() {
     title: "WhatsApp number",
     headerBackVisible: true,
     contentStyle: { backgroundColor: '#F7F7F8' },
+    headerBackTitle: "Settings",
   }
   const profileLocationOpt = {
     headerShown: true,
@@ -220,6 +228,7 @@ export function VendorProfileStackScreen() {
     title: "Location",
     headerBackVisible: true,
     contentStyle: { backgroundColor: '#F7F7F8' },
+    headerBackTitle: "Settings",
   }
   const profilePayoutOpt = {
     headerShown: true,
@@ -227,6 +236,7 @@ export function VendorProfileStackScreen() {
     title: "Payout Details",
     headerBackVisible: true,
     contentStyle: { backgroundColor: '#F7F7F8' },
+    headerBackTitle: "Settings",
   }
 
   return (

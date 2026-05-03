@@ -187,29 +187,33 @@ export function ProfileStackScreen() {
   const profileEmailOpt = {
     headerShown: true,
     headerShadowVisible: false,
-    title: "Change email",
+    title: "Edit email",
     headerBackVisible: true,
+    headerBackTitle: "Settings",
     contentStyle: { backgroundColor: '#F7F7F8' },
   }
   const profilePasswordOpt = {
     headerShown: true,
     headerShadowVisible: false,
-    title: "Password",
+    title: "Edit Password",
     headerBackVisible: true,
+    headerBackTitle: "Settings",
     contentStyle: { backgroundColor: '#F7F7F8' },
   }
   const profileWhatsappOpt = {
     headerShown: true,
     headerShadowVisible: false,
-    title: "WhatsApp number",
+    title: "Edit WhatsApp number",
     headerBackVisible: true,
+    headerBackTitle: "Settings",
     contentStyle: { backgroundColor: '#F7F7F8' },
   }
   const profileLocationOpt = {
     headerShown: true,
     headerShadowVisible: false,
-    title: "Location",
+    title: "Edit Location",
     headerBackVisible: true,
+    headerBackTitle: "Settings",
     contentStyle: { backgroundColor: '#F7F7F8' },
   }
 
