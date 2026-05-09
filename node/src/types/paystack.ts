@@ -18,3 +18,21 @@ export interface NewOrder{
     shipping_method: String; 
     tracking_number: String; 
 }
+
+export interface OrderEvents{
+    order_id: String,
+    stage: "",
+    actor_type: "customer" | "vendor",
+    actor_id: String,
+    outcome: "success" | "failure",
+    notes: String,
+    meta: String
+}
+
+export interface OrderItem{
+    order_id: String,
+    item_id: String,
+    units: Number,
+    unit_price: Number,
+    total_price: Number,
+}

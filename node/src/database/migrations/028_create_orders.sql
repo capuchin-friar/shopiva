@@ -57,6 +57,7 @@ CREATE TABLE order_events (
 
     order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
 
+    event_type VARCHAR(100) NOT NULL,
     stage VARCHAR(50) NOT NULL,
 
     actor_type VARCHAR(20) NOT NULL,

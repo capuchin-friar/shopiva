@@ -1,6 +1,6 @@
 import { error } from "node:console";
 import { db } from "../../config/database.js";
-import type { NewOrder } from "../../types/paystack.js";
+import type { NewOrder, OrderEvents, OrderItem } from "../../types/paystack.js";
 
 
 async function createOrder(payload: any){
@@ -35,4 +35,47 @@ async function upsertNewOrder(payload: NewOrder){
         throw error("Creating order error");
     }
     
+}
+
+async function createOrderEvent(payload: OrderEvents){
+
+    const {
+        order_id, stage, actor_type, actor_id, outcome, notes, meta
+    } = payload;
+    const pool = await db();
+
+    pool.query(
+        `
+            INSERT INTO order_events
+            (
+                id, order_id, stage, actor_type, actor_id, outcome, notes, meta, created_at
+            )
+            VALUES(
+                DEFAULT, $1, $2, $3, $4, $5, $6, $7, NOW()
+            )
+        `, [
+            order_id, stage, actor_type, actor_id, outcome, notes, meta
+        ]
+    )
+}
+
+async function addOrderItem(payload: OrderItem){
+    const {
+        order_id, item_id, units, unit_price, total_price
+    } = payload;
+   const pool = await db();
+
+    pool.query(
+        `
+            INSERT INTO order_items
+            (
+                id, order_id, item_id, units, unit_price, total_price, created_at
+            )
+            VALUES(
+                DEFAULT, $1, $2, $3, $4, $5, NOW()
+            )
+        `, [
+            order_id, item_id, units, unit_price, total_price
+        ]
+    )
 }
