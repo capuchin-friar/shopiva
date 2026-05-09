@@ -1,60 +1,81 @@
-/**
- * POST /webhook/paystack — verifies HMAC, then `handleChargeSuccess` → `parseAndValidateOrderMetadata`
- * (`node/src/services/paystack/webhookMetadata.ts`) for `metadata.items` / pricing / shipping.
- *
- * POST /webhooks/paystack and POST /webhook/paystack
- * Raw JSON body is required so HMAC-SHA512 can be verified before parsing.
- */
-
-import type { Request, Response } from "express";
-import { verifyWebhookSignature } from "../../services/paystack/webhookSignature.js";
-import { handleChargeSuccess } from "../../services/paystack/webhookChargeSuccess.js";
-import type { PaystackWebhookEnvelope } from "../../services/paystackWebhook.js";
+import { error } from "console";
+import crypto from "crypto"
+import paystackTools from "../../utils/paystack.js";
+import { db } from "../../config/database.js";
+const secret = process.env.PAYSTACK_SECRET_KEY;
 
 export async function PaystackWebhookController(req: Request, res: Response): Promise<void> {
-  const raw = req.body;
-  if (!Buffer.isBuffer(raw)) {
-    res.status(500).json({ error: "Webhook misconfigured: expected raw body buffer" });
-    return;
-  }
-
-  const signature = req.get("x-paystack-signature");
-  if (!verifyWebhookSignature(raw, signature)) {
-    res.sendStatus(400);
-    return;
-  }
-
-  let payload: PaystackWebhookEnvelope;
-  try {
-    payload = JSON.parse(raw.toString("utf8")) as PaystackWebhookEnvelope;
-  } catch {
-    res.sendStatus(400);
-    return;
-  }
-
-  const event = String(payload.event ?? "");
-  if (event !== "charge.success") {
-    res.sendStatus(200);
-    return;
-  }
 
   try {
-    await handleChargeSuccess(raw, payload);
-    res.sendStatus(200);
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    const root = err instanceof Error && err.cause !== undefined ? err.cause : err;
-    const pg = root as { code?: string; detail?: string; constraint?: string; table?: string };
-    if (pg.code) {
-      console.error("paystack webhook charge.success error:", msg, {
-        code: pg.code,
-        detail: pg.detail,
-        constraint: pg.constraint,
-        table: pg.table,
-      });
-    } else {
-      console.error("paystack webhook charge.success error:", msg);
+    if(!secret){
+      res.status(500).send("Missing Paystack secret");
+      return;
     }
-    res.sendStatus(500);
+  
+    const rawBody = (req as any ).rawBody;
+  
+    // validate webhook signature
+    const signature = req.headers["x-paystack-signature"] as string;
+    const hash = crypto
+    .createHmac('sha512', secret as any)
+    .update(rawBody)
+    .digest('hex');
+  
+    const isValid =
+    signature &&
+    Buffer.byteLength(hash) === Buffer.byteLength(signature) &&
+    crypto.timingSafeEqual(
+      Buffer.from(hash),
+      Buffer.from(signature)
+    );
+  
+    if(!isValid){
+      res.status(401).send("Invalid signature");
+      return;
+    }
+  
+    const event = JSON.parse(rawBody.toString());
+    // process only successful charges
+    if (event.event !== "charge.success") {
+      res.status(200).send("Ignored");
+      return;
+    }
+
+    const { metadata, reference } = event.data;
+    const { isSinglePurchase } = metadata;
+
+    const paymentVerificationHandler = 
+      await paystackTools.verifyPayment(reference);
+    const isPaymentVerified = paymentVerificationHandler.data.status;
+
+    if(!isPaymentVerified){
+      res.status(401).send("Payment not verified");
+      return;
+    }
+
+    // const result = (await db()).pool(
+    //   `SELECT COUNT(*) as count FROM orders WHERE reference = $1`,[reference]
+    // );
+    // const count = result.rows[0]?.count || 0;
+    // if(count > 0){
+    //   res.status(200);
+    //   return;
+    // }
+
+
+
+    // if(isSinglePurchase){
+
+    // }
+
+    // if(!isSinglePurchase){
+
+    // }
+
+    // do something
+  
+  } catch (error) {
+    res.status(500).send("Webhook error");
+    return;
   }
 }

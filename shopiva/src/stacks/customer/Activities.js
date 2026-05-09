@@ -4,6 +4,7 @@ import Activities from '../../pages/Activities';
 import OrderListScreen from '../../pages/OrdersList';
 import DisputesListScreen from '../../pages/DisputesList';
 import OrderDetailScreen from '../../pages/OrderDetail';
+import OrderActionScreen from '../../pages/OrderAction';
 import DisputeDetailScreen from '../../pages/DisputeDetail';
 
 const ActivitiesStack = createNativeStackNavigator();
@@ -24,7 +25,13 @@ const disputeOpt = {
   title: 'Disputes',
   headerBackVisible: true,
   headerShadowVisible: false,
-}
+};
+const orderStatusUpdateOpt = {
+  headerShown: true,
+  title: 'Order-action',
+  headerBackVisible: true,
+  headerShadowVisible: false,
+};
 
 /**
  * Orders tab: hub + nested orders and disputes stacks (customer).
@@ -37,6 +44,7 @@ export function ActivitiesStackScreen() {
       <ActivitiesStack.Screen name="Activities" component={Activities} options={activityOptions} />
       <ActivitiesStack.Screen name="Orders" component={OrderListScreen} options={orderOpt} />
       <ActivitiesStack.Screen name="Order-list" component={OrderDetailScreen} options={orderOpt} />
+      <ActivitiesStack.Screen name="Order-action" component={OrderActionScreen} options={orderStatusUpdateOpt} />
       <ActivitiesStack.Screen name="Disputes" component={DisputesListScreen} options={disputeOpt} />
       <ActivitiesStack.Screen name="Dispute-list" component={DisputeDetailScreen} options={orderOpt} />
     </ActivitiesStack.Navigator>

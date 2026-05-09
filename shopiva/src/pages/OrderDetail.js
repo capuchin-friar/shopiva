@@ -35,6 +35,7 @@ const PAY_THEME = {
 
 const STATUS_THEME = {
   delivered: { bg: '#E0F2E9', dot: '#0D8A4A', text: '#0D5C2F', label: 'Delivered' },
+  out_for_delivery: { bg: '#E0F2E9', dot: '#08ccfd', text: '#075646', label: 'Delivered' },
   pending: { bg: '#FFF4D6', dot: '#B58100', text: '#7A5800', label: 'Pending' },
   processing: { bg: '#FFF0E0', dot: '#C45C00', text: '#7A3A00', label: 'Processing' },
   shipped: { bg: '#E0EAFF', dot: '#2F5DDB', text: '#1B3FA1', label: 'Shipped' },
@@ -45,6 +46,7 @@ const STATUS_OPTIONS = [
   { key: 'pending', label: 'Pending' },
   { key: 'processing', label: 'Processing' },
   { key: 'shipped', label: 'Shipped' },
+  { key: 'out_for_delivery', label: 'Out for delivery' },
   { key: 'delivered', label: 'Delivered' },
   { key: 'cancelled', label: 'Cancelled' },
 ];
@@ -196,36 +198,6 @@ function MoneyRow({ label, value, bold, muted }) {
   );
 }
 
-/**
- * @param {{ title: string; dateLabel: string; subtitle?: string | null; done: boolean; isLast: boolean }} p
- */
-function TimelineStep({ title, dateLabel, subtitle, done, isLast }) {
-  return (
-    <View style={styles.tlRow}>
-      <View style={styles.tlTrack}>
-        <View style={[styles.tlDot, done ? styles.tlDotDone : styles.tlDotPending]}>
-          {done ? <Icon name="checkmark" size={12} color={WHITE} /> : null}
-        </View>
-        {!isLast ? <View style={[styles.tlLine, done && styles.tlLineDone]} /> : null}
-      </View>
-      <View style={styles.tlBody}>
-        <View style={styles.tlHeadRow}>
-          <Text style={[styles.tlTitle, !done && styles.tlTitleMuted]} numberOfLines={1}>
-            {title}
-          </Text>
-          {dateLabel ? (
-            <View style={styles.tlDateRow}>
-              <Icon name="calendar-outline" size={13} color={MUTED} />
-              <Text style={styles.tlDate}>{dateLabel}</Text>
-            </View>
-          ) : null}
-        </View>
-        {subtitle ? <Text style={styles.tlSubtitle}>{subtitle}</Text> : null}
-      </View>
-    </View>
-  );
-}
-
 export default function OrderDetailScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -245,7 +217,6 @@ export default function OrderDetailScreen() {
     return String(n).replace(/^ORD-/i, '');
   }, [order]);
   
-
   useLayoutEffect(() => {
     navigation.setOptions({
       headerTitle: () => ( 
@@ -339,58 +310,12 @@ export default function OrderDetailScreen() {
     return { subtotal, discount, shipping, tax, total };
   }, [items, order]);
 
-  const timeline = useMemo(() => {
-    if (Array.isArray(order?.timelineSteps) && order.timelineSteps.length > 0) {
-      return order.timelineSteps;
-    }
-    return [
-      {
-        title: 'Order Confirmed',
-        dateLabel: '12 Jan 2025, 09:12 AM',
-        subtitle: 'Order placed and confirmed',
-        done: true,
-      },
-      {
-        title: 'Payment Received',
-        dateLabel: '12 Jan 2025, 09:14 AM',
-        subtitle: 'Paid via card ending 4242',
-        done: true,
-      },
-      {
-        title: 'Processing',
-        dateLabel: '12 Jan 2025, 11:02 AM',
-        subtitle: 'Picked, packed, and labelled',
-        done: true,
-      },
-      {
-        title: 'Shipped',
-        dateLabel: '13 Jan 2025, 08:30 AM',
-        subtitle: 'Handed to carrier — UPS Express',
-        done: true,
-      },
-      {
-        title: 'Delivered',
-        dateLabel: '14 Jan 2025, 02:48 PM',
-        subtitle: 'Signed by recipient',
-        done: statusKey === 'delivered',
-      },
-    ];
-  }, [order, statusKey]);
-
   const onClose = () => {
     if (navigation.canGoBack()) navigation.goBack();
   };
 
   const onMail = () => {
     Linking.openURL(`mailto:${customer.email}`).catch(() => {});
-  };
-
-  const onCall = () => {
-    Linking.openURL(`tel:${customer.phone.replace(/\s+/g, '')}`).catch(() => {});
-  };
-
-  const onAddProduct = () => {
-    Alert.alert('Add product', 'Product picker will open here.');
   };
 
   const onDownloadInvoice = () => {
@@ -404,14 +329,9 @@ export default function OrderDetailScreen() {
     ]);
   };
 
-  const onResendInvoice = () => {
-    Alert.alert('Resend invoice', `Email invoice to ${customer.email}?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Send', onPress: () => {} },
-    ]);
-  };
-
-  const onUpdateStatus = () => setStatusOpen(true);
+  const onUpdateStatus = () => navigation.navigate("Order-action", {
+    order
+  });
 
   const ORDER_ACTIONS = [
     {
@@ -499,18 +419,9 @@ export default function OrderDetailScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.sectionHeadRow}>
-          <SectionLabel>Order Summary</SectionLabel>
-          {/* <Pressable
-            hitSlop={6}
-            onPress={onAddProduct}
-            style={({ pressed }) => [styles.linkRow, pressed && styles.pressed]}
-          >
-            <Text style={styles.linkText}>Add Product</Text>
-            <Icon name="arrow-up-outline" size={14} color={ACCENT} style={styles.linkArrow} />
-          </Pressable> */}
-        </View>
+      
         <View style={styles.card}>
+         <SectionLabel>Order Summary</SectionLabel>
           <SummaryRow
             icon="checkmark-circle-outline"
             label="Order Status"
@@ -529,8 +440,8 @@ export default function OrderDetailScreen() {
           />
         </View>
 
-        <SectionLabel>Customer Info</SectionLabel>
         <View style={styles.card}>
+          <SectionLabel>Customer Info</SectionLabel>
           <View style={styles.customerHead}>
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>{initialsOf(customer.name)}</Text>
@@ -611,7 +522,7 @@ export default function OrderDetailScreen() {
           </View>
         </View>
 
-        <SectionLabel>Items</SectionLabel>
+        {/* <SectionLabel>Items</SectionLabel> */}
         <View style={styles.card}>
           {items.map((it, i) => (
             <View
@@ -646,18 +557,9 @@ export default function OrderDetailScreen() {
           ))}
         </View>
 
-        <View style={styles.sectionHeadRow}>
-          <SectionLabel>Payment</SectionLabel>
-          <Pressable
-            hitSlop={6}
-            onPress={onDownloadInvoice}
-            style={({ pressed }) => [styles.linkRow, pressed && styles.pressed]}
-          >
-            <Text style={styles.linkText}>Download Invoice</Text>
-            <Icon name="download-outline" size={16} color={ACCENT} />
-          </Pressable>
-        </View>
         <View style={styles.card}>
+          <SectionLabel>Payment</SectionLabel>
+          
           <MoneyRow label="Subtotal" value={fmt(payment.subtotal)} muted />
           <MoneyRow label="Discount" value={fmt(payment.discount)} muted />
           <MoneyRow label="Shipping Cost" value={fmt(payment.shipping)} muted />
@@ -666,7 +568,7 @@ export default function OrderDetailScreen() {
           <MoneyRow label="Total" value={fmt(payment.total)} bold />
         </View>
 
-        <SectionLabel>Timelane</SectionLabel>
+        {/* <SectionLabel>Timelane</SectionLabel>
         <View style={styles.card}>
           {timeline.map((s, i) => (
             <TimelineStep
@@ -678,7 +580,7 @@ export default function OrderDetailScreen() {
               isLast={i === timeline.length - 1}
             />
           ))}
-        </View>
+        </View> */}
       </ScrollView>
 
       <View
@@ -703,7 +605,15 @@ export default function OrderDetailScreen() {
           onPress={onUpdateStatus}
           style={({ pressed }) => [styles.btnPrimary, pressed && styles.btnPrimaryPressed]}
         >
-          <Text style={styles.btnPrimaryText}>Update Status</Text>
+          <Text style={styles.btnPrimaryText}>
+            {
+              statusKey === "processing"
+                ? "Mark as shipped"
+                : statusKey === "shipped"
+                ? "Mark as delivered"
+                : "Update status"
+            }
+          </Text>
         </Pressable>
       </View>
 
@@ -871,7 +781,8 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: WHITE,
     borderRadius: 5,
-    padding: 14,
+    paddingVertical: 5,
+    paddingHorizontal: 14,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#E8E8EC',
     ...Platform.select({

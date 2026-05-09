@@ -5,6 +5,7 @@ import VendorOrderScreen from '../../pages/OrdersList';
 import VendorOrderDetailScreen from '../../pages/OrderDetail';
 import VendorDisputeScreen from '../../pages/DisputesList';
 import DisputeDetailScreen from '../../pages/DisputeDetail';
+import OrderActionScreen from '../../pages/OrderAction';
 
 const VendorActivitiesStack = createNativeStackNavigator();
 
@@ -36,7 +37,12 @@ const orderDetailOpt = {
   headerBackVisible: true,
   headerShadowVisible: false,
 }
-
+const orderStatusUpdateOpt = {
+  headerShown: true,
+  title: 'Order-action',
+  headerBackVisible: true,
+  headerShadowVisible: false,
+};
 /**
  * Activities tab: hub + nested orders and disputes stacks (vendor).
  * Outer flow screens keep headers off so we do not nest two native-stack headers.
@@ -47,19 +53,9 @@ export function VendorActivitiesStackScreen() {
       <VendorActivitiesStack.Screen name="Activities" component={VendorActivitiesScreen} options={activitiesOptions} />
       <VendorActivitiesStack.Screen name="Orders" options={orderOpt} component={VendorOrderScreen} />
       <VendorActivitiesStack.Screen name="Order-detail"  options={orderDetailOpt} component={VendorOrderDetailScreen} />
-
-      <VendorActivitiesStack.Screen name="Disputes" options={{
-        headerShown: true,
-        title: 'Disputes',
-        headerBackVisible: true,
-        headerShadowVisible: false,
-      }}  component={VendorDisputeScreen} /> 
-      <VendorActivitiesStack.Screen name="Dispute-detail" options={{
-        headerShown: true,
-        title: 'Dispute detail',
-        headerBackVisible: true,
-        headerShadowVisible: false,
-      }}  component={DisputeDetailScreen} /> 
+      <VendorActivitiesStack.Screen name="Order-action" component={OrderActionScreen} options={orderStatusUpdateOpt} />
+      <VendorActivitiesStack.Screen name="Disputes" options={{ headerShown: true, title: 'Disputes', headerBackVisible: true, headerShadowVisible: false,}}  component={VendorDisputeScreen} /> 
+      <VendorActivitiesStack.Screen name="Dispute-detail" options={{ headerShown: true, title: 'Dispute detail', headerBackVisible: true, headerShadowVisible: false,}}  component={DisputeDetailScreen} /> 
     </VendorActivitiesStack.Navigator>
   );
 }
