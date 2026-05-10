@@ -1,10 +1,10 @@
 CREATE TABLE orders (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id SERIAL PRIMARY KEY,
 
     order_id VARCHAR(50) NOT NULL UNIQUE,
 
-    customer_id UUID NOT NULL,
-    shop_id UUID NOT NULL,
+    customer_id VARCHAR NOT NULL,
+    shop_id VARCHAR NOT NULL,
 
     amount_paid NUMERIC(12,2) NOT NULL DEFAULT 0,
 
@@ -36,11 +36,11 @@ CREATE TABLE orders (
 
 
 CREATE TABLE order_items (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id SERIAL PRIMARY KEY,
 
-    order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    order_id VARCHAR NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
 
-    item_id UUID NOT NULL,
+    item_id VARCHAR NOT NULL,
 
     units INTEGER NOT NULL DEFAULT 1,
 
@@ -53,16 +53,16 @@ CREATE TABLE order_items (
 
 
 CREATE TABLE order_events (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id SERIAL PRIMARY KEY,
 
-    order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    order_id VARCHAR NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
 
     event_type VARCHAR(100) NOT NULL,
     stage VARCHAR(50) NOT NULL,
 
     actor_type VARCHAR(20) NOT NULL,
 
-    actor_id UUID,
+    actor_id VARCHAR,
 
     outcome VARCHAR(20) NOT NULL,
 
