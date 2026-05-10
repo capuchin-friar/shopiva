@@ -30,15 +30,10 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
     .update(rawBody)
     .digest('hex');
   
-    // console.log("Incoming signature:", signature);
-    // console.log("Computed hash:", hash);
-    // console.log("Signature length:", signature?.length);
-    // console.log("Hash length:", hash.length);
-  
     // Simple string comparison for signature
     const isValid = signature === hash;
   
-    if(isValid /**This suppose to be inverted */){
+    if(!isValid){
       res.status(401).send("Invalid signature");
       return;
     }
@@ -94,16 +89,14 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
     const { metadata, reference } = paystackData;
     const { customer_id, shipping_address, tax, orders } = metadata || {};
 
-    /** @testing This verifies payment and uncomment  */
     // Verify payment with Paystack
-    // const paymentVerificationHandler = await paystackTools.verifyPayment(reference);
-    // const isPaymentVerified = paymentVerificationHandler.data.status;
+    const paymentVerificationHandler = await paystackTools.verifyPayment(reference);
+    const isPaymentVerified = paymentVerificationHandler.data.status;
 
-    // if(!isPaymentVerified){
-    //   res.status(401).send("Payment not verified");
-    //   return;
-    // }
-    /** @testing This verifies payment and uncomment  */
+    if(!isPaymentVerified){
+      res.status(401).send("Payment not verified");
+      return;
+    }
 
     // Check if order already exists
     const { rows: existingOrder } = await pool.query(
@@ -118,7 +111,7 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
 
 
     // Create order from Paystack data
-    const allOrders = await Promise.all(orders.map(async(order: any, index: Number) => {
+    await Promise.all(orders.map(async(order: any, index: Number) => {
 
       const {
         items,shop_id,shipping_fee,shipping_method,subtotal
@@ -180,7 +173,6 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
 
     }));
 
-    // console.log("allOrders: ", allOrders);
     res.status(200).json({ success: true, message: "Webhook processed successfully" });
   } catch (error) {
     console.log(error)
