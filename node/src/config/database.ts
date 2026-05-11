@@ -12,15 +12,15 @@ export function pgPoolConfigFromEnv(): PoolConfig {
   const connectionTimeoutMillis = 10_000;
 
   /** Neon / Railway / RDS: one URL wins over discrete DB_* vars. `DB` is not used here (reserved for Paystack webhook pool). */
-  // const connectionString = process.env.DATABASE_URL?.trim() || undefined;
-  // if (connectionString) {
-  //   return {
-  //     connectionString,
-  //     max,
-  //     idleTimeoutMillis,
-  //     connectionTimeoutMillis,
-  //   };
-  // }
+  const connectionString = process.env.DATABASE_URL?.trim() || undefined;
+  if (connectionString) {
+    return {
+      connectionString,
+      max,
+      idleTimeoutMillis,
+      connectionTimeoutMillis,
+    };
+  }
 
   return {
     user: process.env.DB_USER ?? process.env.PGUSER ?? "postgres",

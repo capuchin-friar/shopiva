@@ -272,7 +272,19 @@ export default function ProfileSettings() {
           />
           <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
             <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Set up vendor mode</Text>
+            <View style={styles.sheetHeaderRow}>
+              <Text style={styles.sheetTitle}>Set up vendor mode</Text>
+              <TouchableOpacity
+                onPress={() => (submittingSetup ? null : setSetupVisible(false))}
+                disabled={submittingSetup}
+                style={styles.sheetCloseBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              >
+                <Icon name="close" size={26} color={submittingSetup ? MUTED : BLACK} />
+              </TouchableOpacity>
+            </View>
             <Text style={styles.sheetSub}>
               First time only. Provide your shop details to enable vendor navigation.
             </Text>
@@ -512,10 +524,23 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 12,
   },
+  sheetHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
   sheetTitle: {
     fontSize: 19,
     fontWeight: '700',
     color: BLACK,
+    flex: 1,
+    paddingRight: 8,
+  },
+  sheetCloseBtn: {
+    padding: 4,
+    marginTop: -2,
+    marginRight: -4,
   },
   sheetSub: {
     marginTop: 6,

@@ -154,6 +154,10 @@ export default function CartCheckoutScreen({ navigation }) {
   const [bottomToast, setBottomToast] = useState('');
   const toastTimerRef = useRef(/** @type {ReturnType<typeof setTimeout> | null} */ (null));
 
+  useEffect(() => {
+    console.log("route:", route)
+  }, [route])
+
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
@@ -336,6 +340,38 @@ export default function CartCheckoutScreen({ navigation }) {
       summary: shippingSummary,
     };
 
+    // Group items by shop_id to create orders array
+    const ordersByShop = checkoutLines.reduce((acc, line) => {
+      // Use shop_id from checkoutLines or default to a generic shop
+      const shopId = line.shopId || 'default-shop';
+      
+      if (!acc[shopId]) {
+        acc[shopId] = [];
+      }
+      
+      acc[shopId].push({
+        item_id: String(line.key),
+        unit: line.qty,
+        unit_price: line.unitPrice,
+        total: line.unitPrice * line.qty,
+      });
+      
+      return acc;
+    }, {});
+
+    // Build orders array with proper structure
+    const ordersArray = Object.entries(ordersByShop).map(([shopId, items]) => {
+      const orderSubtotal = items.reduce((sum, item) => sum + item.total, 0);
+      
+      return {
+        shop_id: shopId,
+        shipping_fee: shippingCost,
+        shipping_method: delivery,
+        subtotal: orderSubtotal,
+        items,
+      };
+    });
+
     const pricingBreakdown = {
       currency: 'NGN',
       totalNaira: total,
@@ -351,18 +387,10 @@ export default function CartCheckoutScreen({ navigation }) {
       amount: amountKobo/100,
       reference,
       metadata: {
-        userId: uid,
-        items: paystackItems,
-        shippingAddress,
-        pricingBreakdown,
-        custom_fields: [
-          { display_name: 'Checkout type', variable_name: 'checkout_type', value: 'cart' },
-          { display_name: 'Items', variable_name: 'item_count', value: String(checkoutLines.length) },
-          { display_name: 'Delivery', variable_name: 'delivery_type', value: delivery },
-          { display_name: 'Shipping', variable_name: 'shipping_cost', value: String(shippingCost) },
-          { display_name: 'Address', variable_name: 'shipping_address', value: shippingSummary.slice(0, 200) },
-          { display_name: 'Lead item', variable_name: 'lead_item', value: String(firstLine?.title ?? 'Cart items').slice(0, 120) },
-        ],
+        customer_id: String(uid),
+        shipping_address: street.trim(),
+        tax: 0,
+        orders: ordersArray
       },
       onSuccess: (res) => {
         setIsPaying(false);
