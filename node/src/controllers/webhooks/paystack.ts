@@ -91,11 +91,16 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
     const { customer_id, shipping_address, tax, orders } = metadata || {};
 
     // Verify payment with Paystack
-    const paymentVerificationHandler = await paystack.verifyTransaction(reference);
-    console.log("paymentVerificationHandler:", paymentVerificationHandler)
-    const isPaymentVerified = paymentVerificationHandler.data;
+    const verifyRaw = await paystack.verifyTransaction(reference);
+    const data =
+      verifyRaw.data && typeof verifyRaw.data === "object"
+        ? (verifyRaw.data as Record<string, unknown>)
+        : {};
+    const isPaymentVerified =
+      verifyRaw.status === true &&
+      String(data.status ?? "").toLowerCase() === "success";
 
-    if(!isPaymentVerified){
+    if (!isPaymentVerified) {
       res.status(401).send("Payment not verified");
       return;
     }
