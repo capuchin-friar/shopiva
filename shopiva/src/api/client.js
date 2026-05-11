@@ -30,7 +30,7 @@ export async function apiFetchAuth(path, options = {}) {
 
 /**
  * JSON fetch against the Node server (no Next `/api/backend` proxy — RN talks to Node directly).
- * @param {string} path - Absolute path on API host, e.g. `/discover/vendors-on-map?category=fashion`
+ * @param {string} path - Absolute path on API host, e.g. `/discover/vendors?category=fashion`
  * @param {RequestInit} [options]
  * @returns {Promise<Response>}
  */

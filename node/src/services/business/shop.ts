@@ -204,6 +204,12 @@ export type ShopMapVendorRow = {
     city: string | null;
 };
 
+/** Public category discovery (list/browse). Coordinates optional when shop has no geo yet. */
+export type ShopDiscoverVendorRow = Omit<ShopMapVendorRow, "lat" | "lng"> & {
+    lat: number | null;
+    lng: number | null;
+};
+
 /** Map UI category keys (e.g. from mvp_category.json) to common DB forms like health_beauty. */
 function categoryMatchValues(category: string): string[] {
     const t = category.trim();
@@ -276,32 +282,43 @@ function parseShopLocationCoords(location: unknown): { lat: number; lng: number 
 }
 
 /**
- * Public discovery: shops with valid coordinates for a shop category (matches shops.category).
+ * Public discovery: active shops in a category (matches `shops.category`), with optional coordinates.
+ * @see GET /discover/vendors
  */
-export async function GetShopsForMapByCategoryService(category: string): Promise<ShopMapVendorRow[]> {
+export async function GetShopsForDiscoverByCategoryService(category: string): Promise<ShopDiscoverVendorRow[]> {
     const variants = categoryMatchValues(category);
     const rows = await shop.listShopsForMapByCategory(variants);
     if (!Array.isArray(rows)) return [];
-    const out: ShopMapVendorRow[] = [];
+    const out: ShopDiscoverVendorRow[] = [];
     for (const r of rows as Record<string, unknown>[]) {
         const id = Number(r.id);
         const name = typeof r.name === "string" ? r.name : "";
         const slug = typeof r.slug === "string" ? r.slug : "";
+        if (!Number.isFinite(id)) continue;
         const coords = parseShopLocationCoords(r.location);
-        if (coords == null || !Number.isFinite(id)) continue;
         const { address, city } = parseAddressAndCityFromLocation(r.location);
         out.push({
             id,
             name,
             slug,
-            lat: coords.lat,
-            lng: coords.lng,
+            lat: coords?.lat ?? null,
+            lng: coords?.lng ?? null,
             state: parseStateFromLocation(r.location),
             address,
             city,
         });
     }
     return out;
+}
+
+/**
+ * Shops with valid coordinates only (map markers). Subset of {@link GetShopsForDiscoverByCategoryService}.
+ */
+export async function GetShopsForMapByCategoryService(category: string): Promise<ShopMapVendorRow[]> {
+    const rows = await GetShopsForDiscoverByCategoryService(category);
+    return rows
+        .filter((v): v is ShopMapVendorRow => v.lat != null && v.lng != null)
+        .map((v) => ({ ...v, lat: v.lat as number, lng: v.lng as number }));
 }
 
 /**

@@ -1,23 +1,23 @@
 import { apiFetch } from './client';
 
 /**
- * @typedef {object} VendorMapShop
+ * @typedef {object} VendorDiscoverShop
  * @property {number} id
  * @property {string} name
  * @property {string} slug
- * @property {number} lat
- * @property {number} lng
+ * @property {number | null} lat
+ * @property {number | null} lng
  * @property {string | null} [state]
  * @property {string | null} [address]
  * @property {string | null} [city]
  */
 
 /**
- * Public map discovery — same contract as the website (`site/lib/productApi.js` → `getVendorsOnMapByCategory`).
- * Node route: `GET /discover/vendors-on-map?category=...`
+ * Public vendor discovery by category (list/browse; coordinates optional if shop has no geo yet).
+ * Node route: `GET /discover/vendors?category=...`
  *
  * @param {string} category - Top-level category key (e.g. from `mvp_category.json` on the site: "fashion", …)
- * @returns {Promise<VendorMapShop[]>}
+ * @returns {Promise<VendorDiscoverShop[]>}
  */
 export async function getVendorsOnMapByCategory(category) {
   const trimmed = String(category ?? '').trim();
@@ -25,7 +25,7 @@ export async function getVendorsOnMapByCategory(category) {
     throw new Error('category is required');
   }
   const q = encodeURIComponent(trimmed);
-  const res = await apiFetch(`/discover/vendors-on-map?category=${q}`);
+  const res = await apiFetch(`/discover/vendors?category=${q}`);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const hint =

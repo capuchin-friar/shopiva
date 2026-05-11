@@ -28,29 +28,6 @@ export class OrderHandler{
             ]
         );
     }
-    // async function createOrder(payload: any){
-    
-    //     const {
-    //         new_order_payload,
-    //         order_events_payload,
-    //         order_items_payload
-    //     } = payload;
-    
-    //     try{
-            
-            
-            
-            
-    //         return {
-    //             order: orderResult,
-    //             event: eventResult,
-    //             item: itemResult
-    //         };
-    //     }catch(err){
-    //         console.error("Error creating order:", err);
-    //         throw err;
-    //     }
-    // }
 }
 
 

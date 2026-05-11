@@ -54,14 +54,14 @@ export async function getShop(shopId, id) {
 }
 
 /**
- * Public map discovery: shops with coordinates for a category.
- * GET /discover/vendors-on-map?category=...
+ * Public vendor discovery by category (list/browse; coordinates optional if shop has no geo yet).
+ * GET /discover/vendors?category=...
  * @param {string} category - Top-level category key (e.g. from mvp_category.json)
- * @returns {Promise<Array<{ id: number, name: string, slug: string, lat: number, lng: number, state: string | null, address: string | null, city: string | null }>>}
+ * @returns {Promise<Array<{ id: number, name: string, slug: string, lat: number | null, lng: number | null, state: string | null, address: string | null, city: string | null }>>}
  */
 export async function getVendorsOnMapByCategory(category) {
   const q = encodeURIComponent(category);
-  const res = await backendFetch(`discover/vendors-on-map?category=${q}`);
+  const res = await backendFetch(`discover/vendors?category=${q}`);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const hint =

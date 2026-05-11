@@ -21,7 +21,6 @@ import Select from "react-select";
 import mvp_data from "../../json/mvp_category.json";
 import locationIcon from "../../svgs/target-3-svgrepo-com.svg";
 import logo from "../../images/Shopiva.png";
-import { getVendorsOnMapByCategory } from "../../lib/productApi";
 import {
   stateKeyFromNominatimData,
   haversineKm,

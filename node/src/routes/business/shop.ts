@@ -25,7 +25,7 @@ import {
     HasShopController,
     PatchShopPolicyClauseController,
     GetShopTransactionsController,
-    ListShopsForMapController,
+    ListShopsForDiscoverByCategoryController,
 } from "../../controllers/business/shop.js";
 import { GetTagsByCategoryController } from "../../controllers/business/tag.js";
 import {
@@ -55,8 +55,8 @@ const BusinessRouter = express.Router();
  * This routes handles all shop activities for a business or vendor
  */
 
-// Public customer map — NOT under /shop/:shopId/:id (that pattern would steal /shop/discover/... paths)
-BusinessRouter.get("/discover/vendors-on-map", ListShopsForMapController);
+// Public customer discovery — NOT under /shop/:shopId/:id (that pattern would steal /shop/discover/... paths)
+BusinessRouter.get("/discover/vendors", ListShopsForDiscoverByCategoryController);
 
 // Policy clause patch (token auth; used by Next.js shop settings)
 BusinessRouter.post("/shop/patch/:shopId/policy-clause", verifyToken, PatchShopPolicyClauseController);

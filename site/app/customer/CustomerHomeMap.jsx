@@ -105,6 +105,13 @@ function MapFollowPosition({ lat, lng }) {
   return null;
 }
 
+/** Vendors returned from `/discover/vendors` may omit coordinates; map layers need finite lat/lng. */
+function vendorsWithValidCoords(vendors) {
+  return (vendors || []).filter(
+    (v) => v && Number.isFinite(v.lat) && Number.isFinite(v.lng)
+  );
+}
+
 /**
  * After “Explore vendors”: if any vendors match the buyer’s state, fit the map to those first
  * so they fill ~70% of the view (15% padding on each side). Otherwise fit all vendors (+ user).
@@ -115,7 +122,8 @@ function MapFitVendorsAndUser({ vendors, userPosition, exploreSession }) {
 
   useEffect(() => {
     if (!exploreSession || exploreSession === prevSession.current) return;
-    if (!vendors?.length) {
+    const geoVendors = vendorsWithValidCoords(vendors);
+    if (!geoVendors.length) {
       prevSession.current = exploreSession;
       return;
     }
@@ -123,9 +131,9 @@ function MapFitVendorsAndUser({ vendors, userPosition, exploreSession }) {
 
     const run = () => {
       map.invalidateSize();
-      const inBuyerState = vendors.filter((v) => v.sameState);
+      const inBuyerState = geoVendors.filter((v) => v.sameState);
       const useInState = inBuyerState.length > 0;
-      const subset = useInState ? inBuyerState : vendors;
+      const subset = useInState ? inBuyerState : geoVendors;
       const corners = subset.map((v) => [v.lat, v.lng]);
       if (
         !useInState &&
@@ -209,7 +217,7 @@ function MapInvalidateOnResize() {
  *
  * @param {{ lat: number, lng: number } | null} position
  * @param {number} locateSession increments on each successful "use my location" so the map flies again
- * @param {Array<{ id: number, name: string, lat: number, lng: number, slug?: string, sameState?: boolean, address?: string | null, city?: string | null, state?: string | null }>} vendors
+ * @param {Array<{ id: number, name: string, lat?: number | null, lng?: number | null, slug?: string, sameState?: boolean, address?: string | null, city?: string | null, state?: string | null }>} vendors
  * @param {number} exploreSession increments when vendors are loaded from “Explore vendors”
  */
 export default function CustomerHomeMap({
@@ -221,6 +229,8 @@ export default function CustomerHomeMap({
   useEffect(() => {
     fixLeafletIcons();
   }, []);
+
+  const geoVendors = vendorsWithValidCoords(vendors);
 
   return (
     <div className="customer-home-map-root">
@@ -234,7 +244,7 @@ export default function CustomerHomeMap({
       >
         <MapInvalidateOnResize />
         <MapFitVendorsAndUser
-          vendors={vendors}
+          vendors={geoVendors}
           userPosition={position}
           exploreSession={exploreSession}
         />
@@ -256,7 +266,7 @@ export default function CustomerHomeMap({
             />
           </>
         ) : null}
-        {vendors.map((v) => {
+        {geoVendors.map((v) => {
           const label = v.name?.trim() || "Shop";
           const sameState = Boolean(v.sameState);
           const regionHint = sameState

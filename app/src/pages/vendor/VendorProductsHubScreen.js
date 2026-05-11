@@ -18,7 +18,7 @@ export default function VendorProductsHubScreen({ navigation }) {
   }, [navigation]);
 
   const goCreate = useCallback(() => {
-    navigation.navigate('VendorCreateProduct');
+    navigation.navigate('AddProduct');
   }, [navigation]);
 
   return (

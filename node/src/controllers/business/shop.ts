@@ -33,7 +33,7 @@ import {
     GetShopByNameService,
     PatchShopPolicyClauseService,
     GetShopTransactionsService,
-    GetShopsForMapByCategoryService,
+    GetShopsForDiscoverByCategoryService,
 } from "../../services/business/shop.js";
 
 const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -87,7 +87,7 @@ export async function CreateShopByTokenController(req: Request, res: Response) {
         /**
          * Category is required: matches `shops.category VARCHAR(100)` and the values
          * shipped in the client's mvp_category.json (e.g. "fashion"). Stored lowercased
-         * so downstream filters (e.g. /discover/vendors-on-map?category=) match.
+         * so downstream filters (e.g. /discover/vendors?category=) match.
          */
         const categoryStr = typeof categoryBody === "string" ? categoryBody.trim().toLowerCase() : "";
         if (!categoryStr) {
@@ -696,10 +696,10 @@ export async function GetShopMetricsController(req: Request, res: Response) {
 }
 
 /**
- * Public map discovery: shops with coordinates in a category (no auth).
- * GET /discover/vendors-on-map?category=fashion
+ * Public vendor discovery by category (no auth). Includes shops without map coordinates.
+ * GET /discover/vendors?category=fashion
  */
-export async function ListShopsForMapController(req: Request, res: Response) {
+export async function ListShopsForDiscoverByCategoryController(req: Request, res: Response) {
     try {
         const raw = req.query?.category;
         const category = typeof raw === "string" ? raw.trim() : "";
@@ -707,7 +707,8 @@ export async function ListShopsForMapController(req: Request, res: Response) {
             res.status(400).json({ error: "Query parameter category is required." });
             return;
         }
-        const vendors = await GetShopsForMapByCategoryService(category);
+        const vendors = await GetShopsForDiscoverByCategoryService(category);
+
         res.status(200).json({ vendors });
     } catch (err) {
         res.status(500).json({

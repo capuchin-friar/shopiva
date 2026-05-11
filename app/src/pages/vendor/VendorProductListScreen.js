@@ -223,7 +223,7 @@ export default function VendorProductListScreen() {
       Alert.alert('No shop', 'Create a shop in settings before adding products.');
       return;
     }
-    navigation.navigate('VendorCreateProduct');
+    navigation.navigate('AddProduct');
   }, [navigation, mvpShopId]);
 
   const closeProductActions = useCallback(() => {
@@ -238,7 +238,7 @@ export default function VendorProductListScreen() {
     if (!actionSheetProduct) return;
     const row = actionSheetProduct;
     closeProductActions();
-    navigation.navigate('VendorCreateProduct', {
+    navigation.navigate('AddProduct', {
       productId: row.id,
       productTitle: row.title,
     });

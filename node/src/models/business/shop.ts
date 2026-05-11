@@ -667,7 +667,7 @@ export class shop{
     });
 
     /**
-     * Active shops matching any of the given category strings (for public map discovery).
+     * Active shops matching any of the given category strings (public vendor discovery / optional map).
      * Location JSON is parsed in the service layer.
      */
     static listShopsForMapByCategory = withErrorHandling(async (categoryVariants: string[]) => {

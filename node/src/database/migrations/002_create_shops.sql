@@ -11,6 +11,7 @@ CREATE TABLE shops (
   tags TEXT[] DEFAULT '{}',
   contactEmail VARCHAR(255),
   contactPhone VARCHAR(20),
+  vendortype VARCHAR(20),
   location JSONB DEFAULT '{"address": null, "city": null, "state": null, "country": null, "zipcode": null, "coordinates": null}',
   socialLinks JSONB DEFAULT '{"facebook": null, "instagram": null, "twitter": null, "website": null}',
 

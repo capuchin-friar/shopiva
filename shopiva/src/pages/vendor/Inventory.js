@@ -242,7 +242,7 @@ export default function VendorInventoryScreen() {
     if (!actionRow) return;
     const row = actionRow;
     closeActions();
-    navigation.navigate('VendorCreateProduct', {
+    navigation.navigate('AddProduct', {
       productId: row.productId || row.id,
       productTitle: row.product,
       fromInventory: true,
