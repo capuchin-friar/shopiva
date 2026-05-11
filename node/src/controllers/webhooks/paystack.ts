@@ -89,6 +89,7 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
     const { metadata, reference } = paystackData;
     const { customer_id, shipping_address, tax, orders } = metadata || {};
 
+    console.log("metadata:", metadata)
     // Verify payment with Paystack
     const paymentVerificationHandler = await paystackTools.verifyPayment(reference);
     const isPaymentVerified = paymentVerificationHandler.data.status;
