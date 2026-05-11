@@ -153,7 +153,7 @@ async function main() {
       `SELECT id FROM users WHERE id <> $1 ORDER BY random() LIMIT $2`,
       [ownerId, count]
     );
-    if (!customers.rows.length) {
+    if (!customers.rows || !customers.rows.length) {
       throw new Error(
         `No eligible customers (need at least one user with id <> ${ownerId}).`
       );
@@ -172,7 +172,10 @@ async function main() {
 
     const inserted: Array<{ id: number; dispute_ref: string; customer_id: number }> = [];
     for (let i = 0; i < customers.rows.length; i++) {
-      const customerId = customers.rows[i].id;
+      const row = customers.rows[i];
+      if (!row) continue;
+      
+      const customerId = row.id;
       const ref = buildDisputeRef(customerId, i);
       const reason = REASONS[i % REASONS.length];
       const status = STATUSES[i % STATUSES.length];
@@ -190,8 +193,8 @@ async function main() {
         RETURNING id, dispute_ref`,
         [ref, customerId, status, reason, desc, JSON.stringify(metadata)]
       );
-      const row = ins.rows[0]!;
-      inserted.push({ id: row.id, dispute_ref: row.dispute_ref, customer_id: customerId });
+      const insertedRow = ins.rows[0]!;
+      inserted.push({ id: insertedRow.id, dispute_ref: insertedRow.dispute_ref, customer_id: customerId });
     }
 
     await client.query("COMMIT");

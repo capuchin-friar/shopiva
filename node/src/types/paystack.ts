@@ -37,11 +37,3 @@ export interface OrderItem{
     unit_price: number,
     total_price: number,
 }
-
-export interface OrderItem{
-    order_id: String,
-    item_id: String,
-    units: Number,
-    unit_price: Number,
-    total_price: Number,
-}

@@ -2,7 +2,6 @@ import crypto from "crypto";
 import { Pool } from "pg";
 import { db } from "../config/database.js";
 import { paystack_transaction } from "../models/paystack_transaction.js";
-import { verifyWebhookSignature } from "./paystack/webhookSignature.js";
 
 export type PaystackWebhookEnvelope = {
   event: string;
@@ -32,9 +31,6 @@ async function getPaystackWebhookPool(): Promise<Pool> {
   }
   return paystackWebhookPool;
 }
-
-/** @deprecated Use `verifyWebhookSignature` from `./paystack/webhookSignature.js` */
-export const verifyPaystackWebhookSignature = verifyWebhookSignature;
 
 function pickString(v: unknown): string | null {
   if (typeof v === "string" && v.trim()) return v.trim();
