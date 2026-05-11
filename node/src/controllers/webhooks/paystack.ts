@@ -5,6 +5,7 @@ import paystackTools from "../../utils/paystack.js";
 import { db } from "../../config/database.js";
 import type { NewOrder } from "../../types/paystack.js";
 import { OrderHandler } from "../../services/webhook/paystack.js";
+import { paystack } from "../../services/paystack.js";
 const secret = process.env.PAYSTACK_SECRET_KEY;
 
 export async function PaystackWebhookController(req: Request, res: Response): Promise<void> {
@@ -89,10 +90,10 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
     const { metadata, reference } = paystackData;
     const { customer_id, shipping_address, tax, orders } = metadata || {};
 
-    console.log("metadata:", metadata)
     // Verify payment with Paystack
-    const paymentVerificationHandler = await paystackTools.verifyPayment(reference);
-    const isPaymentVerified = paymentVerificationHandler.data.status;
+    const paymentVerificationHandler = await paystack.verifyTransaction(reference);
+    console.log("paymentVerificationHandler:", paymentVerificationHandler)
+    const isPaymentVerified = paymentVerificationHandler.data;
 
     if(!isPaymentVerified){
       res.status(401).send("Payment not verified");
@@ -156,7 +157,7 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
 
       for (const item of items) {
         let {
-          item_id, unit, unit_price, total
+          item_id, unit, unit_price, total, cart_id
         } = item;
 
         // Construct order items payload (assuming single item for now, adjust based on your cart structure)
@@ -169,6 +170,7 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
         };
 
         await OrderHandler.orderedTtem(orderItems);
+        await OrderHandler.removeItemFromCart(cart_id);
   
       }
 

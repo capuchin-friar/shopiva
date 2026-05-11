@@ -354,6 +354,7 @@ export default function CartCheckoutScreen({ navigation }) {
         unit: line.qty,
         unit_price: line.unitPrice,
         total: line.unitPrice * line.qty,
+        cart_id: line.cartItemId
       });
       
       return acc;

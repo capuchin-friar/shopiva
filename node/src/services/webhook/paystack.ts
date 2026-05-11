@@ -18,6 +18,16 @@ export class OrderHandler{
         await addOrderItem(order_items_payload);
         // return itemResult;
     }
+    static async removeItemFromCart(cart_id: String | Number){
+        const pool = await db();
+        await pool.query(
+            `
+                DELETE FROM cart_items WHERE id=$1
+            `, [
+                cart_id
+            ]
+        );
+    }
     // async function createOrder(payload: any){
     
     //     const {
