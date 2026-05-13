@@ -34,7 +34,7 @@ export class chatModel {
     async (room_id: string): Promise<ChatRoomRecord | null> => {
       const { rows } = await (await db()).query<ChatRoomRecord>(
         `SELECT id, order_id, initiator, last_message, created_at, updated_at
-         FROM chat_rooms WHERE id = $1::uuid`,
+         FROM chat_rooms WHERE id = $1`,
         [room_id]
       );
       return rows[0] ?? null;
@@ -48,7 +48,7 @@ export class chatModel {
       userB: number
     ): Promise<string | null> => {
       const { rows } = await (await db()).query<{ id: string }>(
-        `SELECT cr.id::text AS id
+        `SELECT cr.id AS id
          FROM chat_rooms cr
          WHERE cr.order_id = $1
            AND EXISTS (
@@ -107,7 +107,7 @@ export class chatModel {
       const { rows } = await (await db()).query<{ ok: boolean }>(
         `SELECT true AS ok
          FROM chat_room_participants
-         WHERE room_id = $1::uuid AND user_id = $2
+         WHERE room_id = $1 AND user_id = $2
          LIMIT 1`,
         [room_id, user_id]
       );
@@ -153,7 +153,7 @@ export class chatModel {
     ): Promise<ParticipantRole | null> => {
       const { rows } = await (await db()).query<{ role: ParticipantRole }>(
         `SELECT role FROM chat_room_participants
-         WHERE room_id = $1::uuid AND user_id = $2`,
+         WHERE room_id = $1 AND user_id = $2`,
         [room_id, user_id]
       );
       return rows[0]?.role ?? null;
@@ -189,7 +189,7 @@ export class chatModel {
       const { rows } = await (await db()).query<ChatMessageRecord>(
         `SELECT id, sender, room_id, type, content, created_at, updated_at
          FROM chat_messages
-         WHERE room_id = $1::uuid
+         WHERE room_id = $1
          ORDER BY created_at DESC
          LIMIT $2`,
         [room_id, lim]
@@ -211,7 +211,7 @@ export class chatModel {
       >(
         `SELECT content, created_at
          FROM chat_messages
-         WHERE room_id = $1::uuid
+         WHERE room_id = $1
            AND sender = $2
            AND type = 'text'
            AND content IS NOT NULL
@@ -238,7 +238,7 @@ export class chatModel {
       const pool = await db();
       const { rows } = await pool.query<ChatMessageRecord>(
         `INSERT INTO chat_messages (sender, room_id, type, content)
-         VALUES ($1, $2::uuid, $3, $4)
+         VALUES ($1, $2, $3, $4)
          RETURNING id, sender, room_id, type, content, created_at, updated_at`,
         [
           input.sender,
@@ -253,7 +253,7 @@ export class chatModel {
       }
       const preview = (input.content ?? "").slice(0, 500);
       await pool.query(
-        `UPDATE chat_rooms SET last_message = $2, updated_at = now() WHERE id = $1::uuid`,
+        `UPDATE chat_rooms SET last_message = $2, updated_at = now() WHERE id = $1`,
         [input.room_id, preview]
       );
       return msg;
@@ -264,7 +264,7 @@ export class chatModel {
     async (message_id: string, user_id: number) => {
       const pool = await db();
       const { rows: msgRows } = await pool.query<{ room_id: string }>(
-        `SELECT room_id::text AS room_id FROM chat_messages WHERE id = $1::uuid`,
+        `SELECT room_id AS room_id FROM chat_messages WHERE id = $1`,
         [message_id]
       );
       const room_id = msgRows[0]?.room_id;
@@ -277,7 +277,7 @@ export class chatModel {
       }
       const { rows } = await pool.query(
         `INSERT INTO chat_message_reads (message_id, user_id, read_at)
-         VALUES ($1::uuid, $2, now())
+         VALUES ($1, $2, now())
          ON CONFLICT (message_id, user_id)
          DO UPDATE SET read_at = EXCLUDED.read_at
          RETURNING id, message_id, user_id, read_at`,
@@ -291,7 +291,7 @@ export class chatModel {
     async (room_id: string, except_user_id: number): Promise<number[]> => {
       const { rows } = await (await db()).query<{ user_id: number }>(
         `SELECT user_id FROM chat_room_participants
-         WHERE room_id = $1::uuid AND user_id <> $2`,
+         WHERE room_id = $1 AND user_id <> $2`,
         [room_id, except_user_id]
       );
       return rows.map((r) => r.user_id);

@@ -162,7 +162,7 @@ async function main() {
     if (reset) {
       const del = await client.query(
         `DELETE FROM disputes
-         WHERE (metadata ->> 'shop_id') = $1::text
+         WHERE (metadata ->> 'shop_id') = $1
             OR (metadata ->> 'seed') = 'seed-disputes-for-shop'
          RETURNING id`,
         [shopId]

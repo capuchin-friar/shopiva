@@ -48,20 +48,16 @@ export class shop{
 
     static getShopByName = withErrorHandling( async (name: string) => {
         const { rows } = await (await db()).query(
-            `SELECT 1 FROM shops WHERE LOWER(TRIM(name)) = LOWER(TRIM($1)) LIMIT 1`,
+            `SELECT 1 FROM shops WHERE LOWER(name) = LOWER($1) LIMIT 1`,
             [name]
         );
         return rows;
     });
 
     static deleteShop = withErrorHandling( async (shopId: number) => {
-        const id = shopId;
-        const {
-            rowCount
-        } = await (await db()).query(
-            `
-               DELETE FROM shops WHERE id = ${id}
-            `,
+        const { rowCount } = await (await db()).query(
+            `DELETE FROM shops WHERE id = $1`,
+            [shopId]
         );
 
         return rowCount;
@@ -404,10 +400,10 @@ export class shop{
         > => {
             const { rows } = await (await db()).query(
                 `SELECT r.id, r.rating, r.title, r.comment, r.is_verified_purchase, r.created_at,
-                        NULLIF(TRIM(CONCAT(COALESCE(u.fname, ''), ' ', COALESCE(u.lname, ''))), '') AS reviewer_name
+                        TRIM(CONCAT_WS(' ', u.fname, u.lname)) AS reviewer_name
                  FROM shop_reviews r
                  INNER JOIN users u ON u.id = r.reviewer_id
-                 WHERE r.shop_id = $1 AND COALESCE(r.is_hidden, false) = false
+                 WHERE r.shop_id = $1 AND r.is_hidden IS NOT TRUE
                  ORDER BY r.created_at DESC
                  LIMIT 40`,
                 [shopId]
@@ -556,9 +552,9 @@ export class shop{
         const { rows } = await (await db()).query(
             `
             SELECT
-              COALESCE(sa.available_balance, 0) AS available_balance,
-              COALESCE(sa.pending_balance, 0) AS pending_escrow,
-              COALESCE(sa.currency, 'NGN') AS currency,
+              sa.available_balance AS available_balance,
+              sa.pending_balance AS pending_escrow,
+              sa.currency AS currency,
               COALESCE((
                 SELECT SUM(l.amount)
                 FROM shop_account_ledger l
@@ -624,17 +620,13 @@ export class shop{
               pt.paystack_charge_id
             FROM paystack_transactions pt
             WHERE
-              (
-                NULLIF(TRIM(pt.metadata->>'shop_id'), '') IS NOT NULL
-                AND NULLIF(TRIM(pt.metadata->>'shop_id'), '') = TRIM($1::text)
-              )
+              (pt.metadata->>'shop_id') = $1
               OR (
-                NULLIF(TRIM(pt.metadata->>'shop_ids'), '') IS NOT NULL
+                pt.metadata->>'shop_ids' IS NOT NULL
                 AND EXISTS (
                   SELECT 1
                   FROM unnest(string_to_array(pt.metadata->>'shop_ids', ',')) AS s
-                  WHERE NULLIF(TRIM(s), '') IS NOT NULL
-                    AND NULLIF(TRIM(s), '') = TRIM($1::text)
+                  WHERE trim(s) = $1
                 )
               )
               OR (
@@ -646,7 +638,7 @@ export class shop{
                     ON p.room_id = cr.id AND p.role = 'seller'
                   INNER JOIN shops s ON s.id = $1::bigint
                     AND s.ownerid IS NOT NULL
-                    AND p.user_id = s.ownerid::int
+                    AND p.user_id = s.ownerid
                   WHERE cr.order_id = pt.paystack_charge_id
                 )
               )
@@ -683,12 +675,12 @@ export class shop{
             WHERE EXISTS (
                 SELECT 1
                 FROM UNNEST($1::text[]) AS u(v)
-                WHERE regexp_replace(lower(trim(COALESCE(s.category, ''))), '[^a-z0-9]+', '_', 'g') =
+                WHERE regexp_replace(lower(trim(s.category)), '[^a-z0-9]+', '_', 'g') =
                       regexp_replace(lower(trim(v)), '[^a-z0-9]+', '_', 'g')
-                   OR regexp_replace(lower(trim(COALESCE(s.category, ''))), '[^a-z0-9]+', '_', 'g') LIKE
+                   OR regexp_replace(lower(trim(s.category)), '[^a-z0-9]+', '_', 'g') LIKE
                       ('%' || regexp_replace(lower(trim(v)), '[^a-z0-9]+', '_', 'g') || '%')
               )
-              AND COALESCE(s.isactive, true) = true
+              AND s.isactive = true
               AND s.status IN ('active', 'pending_approval')
             ORDER BY s.name ASC
             `,

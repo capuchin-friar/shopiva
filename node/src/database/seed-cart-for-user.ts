@@ -34,7 +34,7 @@ async function main() {
   try {
     await client.query("BEGIN");
     const u = await client.query(
-      `SELECT id FROM users WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))`,
+      `SELECT id FROM users WHERE LOWER(email) = LOWER($1)`,
       [email]
     );
     if (!u.rows.length) {

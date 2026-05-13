@@ -24,7 +24,7 @@ export function toPlainJsonForPg(value: unknown): unknown {
 }
 
 /**
- * Valid JSON **text** bound as `$n::text::jsonb` so Postgres parses a single document.
+ * Valid JSON **text** bound as `$n::jsonb` so Postgres parses a single document.
  * Avoids node-pg stringifying objects without a replacer (BigInt / bad `toJSON`).
  */
 export function toJsonbTextParam(value: unknown): string {

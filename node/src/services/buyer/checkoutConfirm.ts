@@ -18,7 +18,7 @@ function pickNumber(v: unknown): number | null {
 async function cartVendorIdsForUser(userId: number): Promise<number[]> {
   const pool = await db();
   const { rows } = await pool.query<{ vid: number }>(
-    `SELECT DISTINCT (s.ownerid)::int AS vid
+    `SELECT DISTINCT s.ownerid AS vid
      FROM cart_items c
      INNER JOIN inventory i ON i.id = c.inventory_id
      INNER JOIN products p ON p.id = i.product_id

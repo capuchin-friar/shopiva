@@ -20,22 +20,25 @@ export class model{
     payload: NewUserDocument & { src: string; deviceId: string; deviceToken: string }
     ) => {
         const { role, fname, lname, email, provider, password, src, deviceId, deviceToken } = payload;
-       
-        const columns = src === "web"
-            ? ["role","fname","lname","email","provider","password","createdAt"]
-            : ["role","fname","lname","email","provider","password","createdAt","deviceId","deviceToken"];
+        const pool = await db();
 
-        const values = src === "web"
-            ? [role,fname,lname,email,provider,password,new Date()]
-            : [role,fname,lname,email,provider,password,new Date(),JSON.stringify([deviceId]),JSON.stringify([deviceToken])];
+        if (src === "web") {
+            const { rows } = await pool.query(
+                `INSERT INTO users (role, fname, lname, email, provider, password, createdAt)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)
+                 RETURNING *`,
+                [role, fname, lname, email, provider, password, new Date()]
+            );
+            return rows[0];
+        }
 
-        const placeholders = values.map((_, i) => `$${i+1}`).join(",");
-
-        const sql = `INSERT INTO users (${columns.join(",")}) VALUES (${placeholders}) RETURNING *`;
-
-        const { rows } = await (await db()).query(sql, values);
-
-        return rows[0]; // return the created user
+        const { rows } = await pool.query(
+            `INSERT INTO users (role, fname, lname, email, provider, password, createdAt, deviceId, deviceToken)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+             RETURNING *`,
+            [role, fname, lname, email, provider, password, new Date(), JSON.stringify([deviceId]), JSON.stringify([deviceToken])]
+        );
+        return rows[0];
     });
 
 
@@ -55,28 +58,18 @@ export class model{
     })
 
     static countEmail = withErrorHandling(async (email: string) => {
-        const {
-            rows
-        } = await (await db()).query(
-            `
-                SELECT COUNT(*) as count
-                FROM users
-                WHERE email = '${email}'
-            `
-        )
+        const { rows } = await (await db()).query(
+            `SELECT COUNT(*) AS count FROM users WHERE email = $1`,
+            [email]
+        );
         return rows[0].count;
     })
 
     static countPhone = withErrorHandling(async (phone: number) => {
-        const {
-            rows
-        } = await (await db()).query(
-            `
-                SELECT COUNT(*) as count
-                FROM users
-                WHERE phone = '${phone}'
-            `
-        )
+        const { rows } = await (await db()).query(
+            `SELECT COUNT(*) AS count FROM users WHERE phone = $1`,
+            [phone]
+        );
         return rows[0].count;
     })
 
@@ -158,7 +151,7 @@ export class model{
                     gender = COALESCE($3, gender),
                     preferredlanguage = COALESCE($4, preferredlanguage),
                     timezone = COALESCE($5, timezone),
-                    location = CASE WHEN $6::text IS NOT NULL THEN $6::jsonb ELSE location END
+                    location = CASE WHEN $6 IS NOT NULL THEN $6::jsonb ELSE location END
                 WHERE id = $7
                 RETURNING *
                 `,
@@ -329,7 +322,7 @@ export class model{
                 SET loginAttempts = jsonb_set(
                     loginAttempts,
                     '{count}',
-                    (COALESCE(loginAttempts->>'count', '0')::int + 1)::text::jsonb
+                    to_jsonb((loginAttempts->>'count')::int + 1)
                 ),
                 loginAttempts = jsonb_set(
                     loginAttempts,
@@ -391,12 +384,12 @@ export class model{
             await (await db()).query(
                 `
                     UPDATE shops
-                    SET contactemail = $1::varchar(255), updatedat = NOW()
-                    WHERE ownerid = $2::integer
+                    SET contactemail = $1, updatedat = NOW()
+                    WHERE ownerid = $2
                       AND (
                         contactemail IS NULL
-                        OR TRIM(COALESCE(contactemail::text, '')) = ''
-                        OR ($3::text <> '' AND LOWER(TRIM(contactemail::text)) = LOWER(TRIM($3::text)))
+                        OR contactemail = ''
+                        OR ($3 <> '' AND LOWER(contactemail) = LOWER($3))
                       )
                 `,
                 [neu, ownerId, prev]
@@ -416,12 +409,12 @@ export class model{
             await (await db()).query(
                 `
                     UPDATE shops
-                    SET contactphone = $1::varchar(20), updatedat = NOW()
-                    WHERE ownerid = $2::integer
+                    SET contactphone = $1, updatedat = NOW()
+                    WHERE ownerid = $2
                       AND (
                         contactphone IS NULL
-                        OR TRIM(COALESCE(contactphone::text, '')) = ''
-                        OR ($3::text <> '' AND TRIM(contactphone::text) = TRIM($3::text))
+                        OR contactphone = ''
+                        OR ($3 <> '' AND contactphone = $3)
                       )
                 `,
                 [neu, ownerId, prev]

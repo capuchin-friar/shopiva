@@ -390,7 +390,7 @@ export async function handleMarkMessageRead(
 
   const pool = await db();
   const { rows: midRows } = await pool.query<{ room_id: string }>(
-    `SELECT room_id::text AS room_id FROM chat_messages WHERE id = $1::uuid`,
+    `SELECT room_id AS room_id FROM chat_messages WHERE id = $1`,
     [message_id]
   );
   const rid = midRows[0]?.room_id;

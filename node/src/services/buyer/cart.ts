@@ -63,23 +63,15 @@ function clientUnitPriceAllowed(client: number, allowed: number[]): boolean {
   return allowed.some((a) => priceNear(client, a));
 }
 
-async function cartTableExists(): Promise<boolean> {
-  const { rows } = await (await db()).query<{ reg: string | null }>(
-    `SELECT to_regclass('public.cart_items')::text AS reg`
-  );
-  return Boolean(rows[0]?.reg);
-}
-
 export async function listCartLinesForUser(userId: number): Promise<CartLineJoined[]> {
-  if (!(await cartTableExists())) return [];
   const { rows } = await (await db()).query<CartLineJoined>(
     `SELECT
       c.id AS cart_item_id,
       c.inventory_id,
-      p.shop_id::int AS shop_id,
+      p.shop_id AS shop_id,
       c.quantity,
-      COALESCE(c.unit_price_snapshot, i.price::float8) AS unit_price,
-      COALESCE(NULLIF(TRIM(i.currency::text), ''), 'NGN') AS currency,
+      COALESCE(c.unit_price_snapshot, i.price) AS unit_price,
+      i.currency AS currency,
       i.sku,
       p.id AS product_id,
       p.name AS product_name,
@@ -100,7 +92,6 @@ export async function addOrIncrementCartLine(
   addQty: number,
   clientUnitPrice?: number | null
 ): Promise<{ cart_item_id: number; quantity: number }> {
-  if (!(await cartTableExists())) throw new Error("Cart is not available on this database");
   if (!Number.isFinite(inventoryId) || inventoryId <= 0) throw new Error("Invalid inventory_id");
   const q = Math.min(99, Math.max(1, Math.trunc(addQty) || 1));
 
@@ -146,7 +137,6 @@ export async function setCartLineQuantity(
   cartItemId: number,
   quantity: number
 ): Promise<{ cart_item_id: number; quantity: number } | null> {
-  if (!(await cartTableExists())) throw new Error("Cart is not available on this database");
   const q = Math.min(99, Math.max(1, Math.trunc(quantity) || 1));
   const { rows } = await (await db()).query<{ id: number; quantity: number }>(
     `UPDATE cart_items SET quantity = $3, updated_at = now()
@@ -160,7 +150,6 @@ export async function setCartLineQuantity(
 }
 
 export async function deleteCartLine(userId: number, cartItemId: number): Promise<boolean> {
-  if (!(await cartTableExists())) return false;
   const { rowCount } = await (await db()).query(`DELETE FROM cart_items WHERE id = $1 AND user_id = $2`, [
     cartItemId,
     userId,

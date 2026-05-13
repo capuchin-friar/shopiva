@@ -69,7 +69,7 @@ export class paystack_transaction {
       `INSERT INTO paystack_transactions (
         paystack_charge_id, reference, event, amount, currency, status, channel,
         customer_email, metadata, paid_at, raw_payload
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::text::jsonb, $10, $11::text::jsonb)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb, $10, $11::jsonb)
       ON CONFLICT (reference) DO UPDATE SET
         paystack_charge_id = COALESCE(EXCLUDED.paystack_charge_id, paystack_transactions.paystack_charge_id),
         event = EXCLUDED.event,

@@ -3,7 +3,7 @@
 CREATE TABLE order_events (
     id SERIAL PRIMARY KEY,
 
-    order_id VARCHAR NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    order_id VARCHAR(50) NOT NULL REFERENCES orders(order_id) ON DELETE CASCADE,
 
     event_type VARCHAR(100) NOT NULL,
     stage VARCHAR(50) NOT NULL,
