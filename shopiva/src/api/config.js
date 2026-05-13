@@ -9,8 +9,8 @@ export const API_DEFAULT_PORT = '3456';
  * Live Shopiva API on Render. Used unless overridden via {@link setApiBaseUrlOverride}
  * for local development.
  */
-export const DEFAULT_API_BASE_URL = 'http://localhost:3456';
-// export const DEFAULT_API_BASE_URL = 'https://shopiva-b29g.onrender.com';
+// export const DEFAULT_API_BASE_URL = 'http://localhost:3456';
+export const DEFAULT_API_BASE_URL = 'https://shopiva-b29g.onrender.com';
 
 /**
  * Optional full base URL override (e.g. local dev or staging):

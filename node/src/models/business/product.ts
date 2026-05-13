@@ -543,10 +543,14 @@ export class order {
     const deliveryCol = pick("delivery", "delivery_status", "shippingmethod");
     const dateCol = pick("orderedat", "createdat", "created_at", "createdAt", "order_date");
     const shopCol = pick("shopid", "shop_id", "shopId");
+    const hasItemsCol = cols.has("items");
 
     if (!shopCol && !productIdCol) return [];
 
-    const joins = [productIdCol ? `LEFT JOIN products p ON p.id = o.${productIdCol}` : ""]
+    const joins = [
+      productIdCol ? `LEFT JOIN products p ON p.id = o.${productIdCol}` : "",
+      !hasItemsCol ? `LEFT JOIN order_items oi ON oi.order_id = o.${idCol}` : ""
+    ]
       .filter(Boolean)
       .join("\n");
 
@@ -556,26 +560,30 @@ export class order {
 
     const { shippingAddressSql, customerLatSql, customerLngSql } = orderShippingAndCoordsSelectSql(cols);
 
+    const productNameSql = productNameCol
+      ? `COALESCE(o.${productNameCol}::text, '—')`
+      : productIdCol
+        ? `COALESCE(p.name, '—')`
+        : hasItemsCol
+          ? `COALESCE(o.items -> 0 ->> 'name', '—')`
+          : `'—'`;
+
+    const qtySql = qtyCol
+      ? `COALESCE(o.${qtyCol}, 0)`
+      : hasItemsCol
+        ? `COALESCE((SELECT SUM(COALESCE((item ->> 'quantity')::INT, 0)) FROM jsonb_array_elements(o.items) item), 0)`
+        : `COALESCE((SELECT SUM(units) FROM order_items WHERE order_id = o.${idCol}), 0)`;
+
     const sql = `
       SELECT
         o.${idCol} AS order_id,
         ${productIdCol ? `o.${productIdCol}` : `NULL`} AS product_id,
         ${customerIdCol ? `o.${customerIdCol}` : `NULL`} AS customer_id,
-        ${
-          productNameCol
-            ? `COALESCE(o.${productNameCol}::text, '—')`
-            : productIdCol
-              ? `COALESCE(p.name, o.items -> 0 ->> 'name', '—')`
-              : `COALESCE(o.items -> 0 ->> 'name', '—')`
-        } AS product,
+        ${productNameSql} AS product,
         'Anonymous buyer' AS customer,
         '—' AS customer_email,
         '—' AS customer_phone,
-        ${
-          qtyCol
-            ? `COALESCE(o.${qtyCol}, 0)`
-            : `COALESCE((SELECT SUM(COALESCE((item ->> 'quantity')::INT, 0)) FROM jsonb_array_elements(o.items) item), 0)`
-        } AS qty,
+        ${qtySql} AS qty,
         ${amountCol ? `COALESCE(o.${amountCol}, 0)` : `0`} AS amount,
         ${paymentCol ? `COALESCE(o.${paymentCol}::text, '—')` : `'—'`} AS payment,
         ${statusCol ? `COALESCE(o.${statusCol}::text, '—')` : `'—'`} AS status,
@@ -635,12 +643,14 @@ export class order {
     const statusCol = pick("status");
     const deliveryCol = pick("delivery", "delivery_status", "shippingmethod");
     const dateCol = pick("orderedat", "createdat", "created_at", "createdAt", "order_date");
+    const hasItemsCol = cols.has("items");
 
     if (!customerIdCol) return [];
 
     const joins = [
       productIdCol ? `LEFT JOIN products p ON p.id = o.${productIdCol}` : "",
       `LEFT JOIN users u ON u.id = o.${customerIdCol}`,
+      !hasItemsCol ? `LEFT JOIN order_items oi ON oi.order_id = o.${idCol}` : "",
     ]
       .filter(Boolean)
       .join("\n");
@@ -657,18 +667,26 @@ export class order {
 
     const { shippingAddressSql, customerLatSql, customerLngSql } = orderShippingAndCoordsSelectSql(cols);
 
+    const productNameSql = productNameCol
+      ? `COALESCE(o.${productNameCol}::text, '—')`
+      : productIdCol
+        ? `COALESCE(p.name, '—')`
+        : hasItemsCol
+          ? `COALESCE(o.items -> 0 ->> 'name', '—')`
+          : `'—'`;
+
+    const qtySql = qtyCol
+      ? `COALESCE(o.${qtyCol}, 0)`
+      : hasItemsCol
+        ? `COALESCE((SELECT SUM(COALESCE((item ->> 'quantity')::INT, 0)) FROM jsonb_array_elements(o.items) item), 0)`
+        : `COALESCE((SELECT SUM(units) FROM order_items WHERE order_id = o.${idCol}), 0)`;
+
     const sql = `
       SELECT
         o.${idCol} AS order_id,
         ${productIdCol ? `o.${productIdCol}` : `NULL`} AS product_id,
         o.${customerIdCol} AS customer_id,
-        ${
-          productNameCol
-            ? `COALESCE(o.${productNameCol}::text, '—')`
-            : productIdCol
-              ? `COALESCE(p.name, o.items -> 0 ->> 'name', '—')`
-              : `COALESCE(o.items -> 0 ->> 'name', '—')`
-        } AS product,
+        ${productNameSql} AS product,
         ${
           customerNameCol
             ? `COALESCE(o.${customerNameCol}::text, '—')`
@@ -676,11 +694,7 @@ export class order {
         } AS customer,
         ${customerEmailSql} AS customer_email,
         ${customerPhoneSql} AS customer_phone,
-        ${
-          qtyCol
-            ? `COALESCE(o.${qtyCol}, 0)`
-            : `COALESCE((SELECT SUM(COALESCE((item ->> 'quantity')::INT, 0)) FROM jsonb_array_elements(o.items) item), 0)`
-        } AS qty,
+        ${qtySql} AS qty,
         ${amountCol ? `COALESCE(o.${amountCol}, 0)` : `0`} AS amount,
         ${paymentCol ? `COALESCE(o.${paymentCol}::text, '—')` : `'—'`} AS payment,
         ${statusCol ? `COALESCE(o.${statusCol}::text, '—')` : `'—'`} AS status,

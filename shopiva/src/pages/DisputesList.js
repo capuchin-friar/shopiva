@@ -152,16 +152,19 @@ export default function DisputesListScreen() {
       setError('');
       try {
         let { id: userId } = await getStoredUser();
-        let shops = await fetchOwnerShops(userId);
-        const firstShop = pickFirstCreatedShop(
-          shops.map((s) => /** @type {Record<string, unknown>} */ (s)),
-        );
-        const shopId = firstShop ? shopIdOf(firstShop) : 0;
-        if (!shopId) {
-          Alert.alert("no shops")
-          return;
-        }
 
+        let shopId;
+        if (auth.activeRole !== "customer") {
+          let shops = await fetchOwnerShops(userId);
+          const firstShop = pickFirstCreatedShop(
+            shops.map((s) => /** @type {Record<string, unknown>} */ (s)),
+          );
+          if (!shopId) {
+            Alert.alert("no shops")
+            return;
+          }
+          shopId = firstShop ? shopIdOf(firstShop) : 0;
+        }
         const data = auth.activeRole === "customer" ?  await fetchBuyerDisputes({
           includeClosed: true,
           backfill: false,
