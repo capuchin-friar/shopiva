@@ -150,6 +150,18 @@ export async function fetchShopOrders(shopId, userId) {
 }
 
 /**
+ * Order detail for a shop (vendor dashboard / order list).
+ * @param {number | string} shopId
+ * @param {number | string} userId
+ * @returns {Promise<unknown[]>}
+ */
+export async function fetchShopOrderDetail(shopId, orderId, userId) {
+  const res = await apiFetchAuth(`/shop/${shopId}/orders/${orderId}/${userId}`, { method: 'GET' });
+  const data = await readJson(res);
+  return (data.order) ? data : {};
+}
+
+/**
  * Inventory rows for a vendor's shop.
  * Backend route: GET /shop/:shopId/inventory/:userId
  * Each row mirrors `getByShopId` in `node/src/models/business/product.ts`:

@@ -151,7 +151,7 @@ export class model{
                     gender = COALESCE($3, gender),
                     preferredlanguage = COALESCE($4, preferredlanguage),
                     timezone = COALESCE($5, timezone),
-                    location = CASE WHEN $6 IS NOT NULL THEN $6::jsonb ELSE location END
+                    location = $6
                 WHERE id = $7
                 RETURNING *
                 `,
@@ -161,7 +161,7 @@ export class model{
                     gender ?? null,
                     preferredLanguage ?? null,
                     timezone ?? null,
-                    locationJson,
+                    (locationJson),
                     id,
                 ]
             );

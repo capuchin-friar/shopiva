@@ -17,6 +17,7 @@ import {
   GetInventoryByShopIdService,
   GetOrdersByShopIdService,
   UpdateOrderStatusForShopService,
+  GetOrderDetailByIdService,
 } from "../../services/business/product.js";
 
 /**
@@ -444,6 +445,34 @@ export async function GetOrdersByShopController(req: Request, res: Response) {
     const orders = await GetOrdersByShopIdService(shopId);
     res.status(200).json({ orders });
   } catch (err) {
+    res.status(400).json({
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+/**
+ * Get all orders for a shop.
+ * GET /shop/:shopId/orders/:id
+ */
+export async function GetOrderDetailByIdController(req: Request, res: Response) {
+  try {
+    if (!req.params?.orderId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const shopId = parseInt(req.params.shopId ?? "", 10);
+    const orderId = parseInt(req.params.orderId ?? "", 10);
+    if (isNaN(shopId)) {
+      res.status(400).json({ error: "Invalid shop ID" });
+      return;
+    }
+
+    const order = await GetOrderDetailByIdService(orderId);
+    res.status(200).json({ order });
+  } catch (err) {
+    console.log(err)
     res.status(400).json({
       error: err instanceof Error ? err.message : String(err),
     });

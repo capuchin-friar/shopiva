@@ -15,8 +15,9 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatNaira } from '../utils/formatNaira';
-import { fetchBuyerOrder } from '../api';
+import { fetchBuyerOrder, fetchOwnerShops, fetchShopOrderDetail } from '../api';
 import { useSelector } from 'react-redux';
+import { getStoredUser } from '../auth/session';
 
 const PAGE_BG = '#FFF';
 const WHITE = '#FFFFFF';
@@ -247,12 +248,27 @@ export default function OrderDetailScreen() {
   }, [order]);
 
   useEffect(() => {
-    fetchBuyerOrder(route.params.order.orderId)
-    .then(({order}) => {
-      console.log("order: ", order);
-      setOrderInfo(order)
-    })
-    .catch((err) => console.log(err));
+    
+    if(auth.activeRole === "customer"){
+      fetchBuyerOrder(route.params.order.orderId)
+      .then(({order}) => {
+        console.log("order: ", order);
+        setOrderInfo(order)
+      })
+      .catch((err) => console.log(err));
+    }else{
+      (async () => {
+        let { id: userId } = await getStoredUser();
+        let shop = await fetchOwnerShops(userId);
+        let sid = shop[0].id;
+        fetchShopOrderDetail(sid,route.params.order.orderId,userId)
+        .then(({order}) => {
+          console.log("order: ", order);
+          setOrderInfo(order)
+        })
+        .catch((err) => console.log(err));
+      })();
+    }
   }, [route])
   
   useLayoutEffect(() => {
@@ -338,7 +354,7 @@ export default function OrderDetailScreen() {
         orderInfo?.payment_info?.metadata?.shipping_address ??
         '';
       let parsed = parseShippingAddress(raw);
-      const loc = orderInfo?.user?.location;
+      const loc = orderInfo?.user?.location || orderInfo?.customer?.location;
       if (loc && typeof loc === 'object') {
         parsed = {
           ...parsed,
@@ -603,12 +619,12 @@ export default function OrderDetailScreen() {
             auth.activeRole === "vendor" && (
             <View style={styles.customerHead}>
               <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{initialsOf(`${orderInfo?.user?.fname} ${orderInfo?.user?.lname}`)}</Text>
+                <Text style={styles.avatarText}>{initialsOf(`${orderInfo?.user?.fname || orderInfo?.customer?.fname} ${orderInfo?.user?.lname || orderInfo?.customer?.lname}`)}</Text>
               </View>
               <View style={styles.customerTitleRow}>
                 <View style={styles.customerNameCol}>
                   <Text style={styles.customerName} numberOfLines={1}>
-                    {`${orderInfo?.user?.fname} ${orderInfo?.user?.lname}`}
+                    {`${orderInfo?.user?.fname || orderInfo?.customer?.fname} ${orderInfo?.user?.lname || orderInfo?.customer?.lname}`}
                   </Text>
                 </View>
                 <Pressable

@@ -12,6 +12,8 @@ import type {
   CreateInventoryPayload,
   UpdateInventoryPayload,
 } from "../../models/business/product.js";
+import { ordersTransformer } from "../../transformers/business/orders.js";
+import { orderTransformer } from "../../transformers/business/order.js";
 
 /**
  * Create a new product.
@@ -161,7 +163,11 @@ export async function GetInventoryByShopIdService(shopId: number) {
 }
 
 export async function GetOrdersByShopIdService(shopId: number) {
-  return orderModel.getByShopId(shopId);
+  return ordersTransformer(shopId);
+}
+
+export async function GetOrderDetailByIdService(orderId: number) {
+  return orderTransformer(orderId);
 }
 
 /**

@@ -147,15 +147,12 @@ export default function OrderListScreen() {
         let shopId;
 
         if (auth.activeRole !== "customer") {
-          let shops = await fetchOwnerShops(userId);
-          const firstShop = pickFirstCreatedShop(
-            shops.map((s) => /** @type {Record<string, unknown>} */ (s)),
-          );
-          if (!shopId) {
+          let shop = await fetchOwnerShops(userId);
+          if (!shop) {
             Alert.alert("no shops")
             return;
           }
-          shopId = firstShop ? shopIdOf(firstShop) : 0;
+          shopId = shop[0].id;
         }
         const data = auth.activeRole === "customer" ? await fetchBuyerOrders() : await fetchShopOrders(shopId, userId);
         if (cancelled) return;

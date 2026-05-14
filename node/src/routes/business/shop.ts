@@ -40,6 +40,7 @@ import {
     CreateInventoryController,
     UpdateInventoryController,
     DeleteInventoryController,
+    GetOrderDetailByIdController,
 } from "../../controllers/business/product.js";
 import {
     GetShopDisputesController,
@@ -94,6 +95,7 @@ BusinessRouter.get("/shop/:shopId/products/:id", authenticate, GetProductsContro
 BusinessRouter.get("/shop/:shopId/transactions/:id", authenticate, GetShopTransactionsController);
 BusinessRouter.get("/shop/:shopId/inventory/:id", authenticate, GetInventoryByShopController);
 BusinessRouter.get("/shop/:shopId/orders/:id", authenticate, GetOrdersByShopController);
+BusinessRouter.get("/shop/:shopId/orders/:orderId/:id", authenticate, GetOrderDetailByIdController);
 BusinessRouter.patch(
   "/shop/:shopId/orders/:orderId/status/:id",
   authenticate,
