@@ -1,13 +1,27 @@
 import { db } from "../../config/database.js";
 
 export const orderTransformer = async (
-    userId: any,
-    shopId: any,
+    // userId: any,
+    // shopId: any,
     orderId: any,
-    orderRef: any
+    // orderRef: any
 ) => {
 
     const pool = await db();
+    let userId;
+    let shopId;
+    let orderRef;
+
+    const { rows: [order] } = await pool.query(
+        `SELECT * FROM orders WHERE id = $1`,
+        [orderId]
+    );
+    
+    userId = order.customer_id;
+    shopId = order.shop_id;
+    orderRef = order.order_id
+
+    // console.log(shopId)
 
     const { rows:[user] } = await pool.query(
         `SELECT id, fname, lname, location 
@@ -26,11 +40,6 @@ export const orderTransformer = async (
         [shop.owner]
     );
 
-    const { rows: [order] } = await pool.query(
-        `SELECT * FROM orders WHERE id = $1`,
-        [orderId]
-    );
-
     let { rows: order_items } = await pool.query(
         `SELECT * FROM order_items WHERE order_id = $1`,
         [orderId]
@@ -45,12 +54,20 @@ export const orderTransformer = async (
         [productIds]
     );
 
-    const formattedOrderItems = order_items.map((order_item: any) => ({
-        ...order_item,
-        product: products.find(
-            (p: any) => p.id === order_item.item_id
-        )
-    }));
+    // console.log(products);
+  
+
+    const formattedOrderItems = order_items.map((order_item: any) => {
+        // products.find(
+        //     (p: any) => console.log(p.id, order_item.item_id)
+        // )
+        return ({
+            ...order_item,
+            product: products.find(
+                (p: any) => parseInt(p.id) === parseInt(order_item.item_id)
+            )
+        })
+    });
 
     const { rows: order_events } = await pool.query(
         `SELECT * FROM order_events WHERE order_id = $1`,
@@ -58,7 +75,7 @@ export const orderTransformer = async (
     );
 
     const { rows:[payment_info] } = await pool.query(
-        `SELECT * FROM payments_transactions WHERE reference = $1`,
+        `SELECT * FROM paystack_transactions WHERE reference = $1`,
         [orderRef]
     );
 

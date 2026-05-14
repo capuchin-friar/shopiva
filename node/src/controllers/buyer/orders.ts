@@ -2,6 +2,7 @@ import type { Response } from "express";
 import type { AuthRequest } from "../../middleware/auth.js";
 import type { OrderListRow } from "../../models/business/product.js";
 import { ordersTransformer } from "../../transformers/buyer/orders.js";
+import { orderTransformer } from "../../transformers/buyer/order.js";
 
 export async function GetBuyerOrdersController(req: AuthRequest, res: Response): Promise<void> {
   try {
@@ -25,14 +26,14 @@ export async function GetBuyerOrderByIdController(req: AuthRequest, res: Respons
       return;
     }
     const orderId = req.params.orderId;
-    const orders = await ordersTransformer(userId);
-    const row = orders.find((o: OrderListRow) => String(o.order_id) === String(orderId));
-    if (!row) {
+    const order = await orderTransformer(orderId);
+    if (!order) {
       res.status(404).json({ error: "Order not found" });
       return;
     }
-    res.status(200).json({ order: row });
+    res.status(200).json({ order });
   } catch (err) {
+    console.log("err:", err)
     res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
   }
 }

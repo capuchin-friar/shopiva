@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Image,
@@ -15,6 +15,8 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatNaira } from '../utils/formatNaira';
+import { fetchBuyerOrder } from '../api';
+import { useSelector } from 'react-redux';
 
 const PAGE_BG = '#FFF';
 const WHITE = '#FFFFFF';
@@ -202,12 +204,14 @@ export default function OrderDetailScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const route = useRoute();
+  const auth = useSelector(s => s.auth)
   const order = /** @type {Record<string, unknown> | undefined} */ (route.params?.order);
   const [statusKey, setStatusKey] = useState(
     String(order?.status ?? 'delivered').toLowerCase(),
   );
   const [statusOpen, setStatusOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [orderInfo, setOrderInfo] = useState({});
 
   const openActions = useCallback(() => setActionsOpen(true), []);
   const closeActions = useCallback(() => setActionsOpen(false), []);
@@ -216,6 +220,15 @@ export default function OrderDetailScreen() {
     const n = order?.orderId ?? order?.order_id ?? '1928';
     return String(n).replace(/^ORD-/i, '');
   }, [order]);
+
+  useEffect(() => {
+    fetchBuyerOrder(route.params.order.orderId)
+    .then(({order}) => {
+      console.log("order: ", order);
+      setOrderInfo(order)
+    })
+    .catch((err) => console.log(err));
+  }, [route])
   
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -242,51 +255,7 @@ export default function OrderDetailScreen() {
   const headerDate = String(order?.dateLabel ?? 'Jan 12, 2025');
   const payKey = String(order?.paymentStatus ?? 'paid').toLowerCase();
   const payTheme = PAY_THEME[payKey] ?? PAY_THEME.paid;
-  const statusTheme = STATUS_THEME[statusKey] ?? STATUS_THEME.delivered;
-
-  const shipping = useMemo(() => {
-    const raw =
-      (order && (order.shipping_address ?? order.location)) ??
-      '{"street":"221B Baker Street","city":"London","zip":"NW1 6XE","country":"United Kingdom"}';
-    return parseShippingAddress(raw);
-  }, [order]);
-
-  const customer = useMemo(
-    () => ({
-      name:
-        String(
-          (order && (order.customer || order.buyer_name || order.vendor)) || '',
-        ) ||
-        shipping.recipient ||
-        'Emma Brown',
-      email:
-        String((order && (order.email || order.buyer_email)) || '') ||
-        shipping.email ||
-        'emma23@gmail.com',
-      phone:
-        String((order && (order.phone || order.buyer_phone)) || '') ||
-        shipping.phone ||
-        '+44 20 7946 0958',
-    }),
-    [order, shipping],
-  );
-
-  const items = useMemo(() => {
-    if (Array.isArray(order?.items_list) && order.items_list.length > 0) {
-      return order.items_list;
-    }
-    return [
-      {
-        id: 'p-1',
-        name: 'Iphone 15 Pro Max',
-        variant: '256 GB - Silver Gray',
-        qty: 1,
-        price: 1230,
-        image: null,
-      },
-    ];
-  }, [order]);
-
+  const statusTheme = STATUS_THEME[orderInfo?.order?.fulfillment_status] ?? STATUS_THEME.delivered;
   const isNaira = order && 'valueRupees' in order;
   const fmt = useCallback(
     (n) => {
@@ -301,14 +270,76 @@ export default function OrderDetailScreen() {
     [isNaira],
   );
 
-  const payment = useMemo(() => {
-    const subtotal = Number(order?.subtotal ?? items.reduce((s, it) => s + Number(it.price ?? 0) * Number(it.qty ?? 1), 0));
-    const discount = Number(order?.discount ?? 0);
-    const shipping = Number(order?.shippingCost ?? 10);
-    const tax = Number(order?.tax ?? 1);
-    const total = Number(order?.total ?? subtotal - discount + shipping + tax);
-    return { subtotal, discount, shipping, tax, total };
-  }, [items, order]);
+  /** Vendor: delivery address from order + user. Customer: shop premises from {@link orderInfo.shop.location}. */
+  const displayShipping = useMemo(() => {
+    if (auth.activeRole === 'vendor') {
+      const raw =
+        orderInfo?.order?.shipping_address ??
+        orderInfo?.payment_info?.metadata?.shipping_address ??
+        '';
+      let parsed = parseShippingAddress(raw);
+      const loc = orderInfo?.user?.location;
+      if (loc && typeof loc === 'object') {
+        parsed = {
+          ...parsed,
+          city: parsed.city || pickStr(loc, ['city']),
+          state: parsed.state || pickStr(loc, ['state']),
+          zip: parsed.zip || pickStr(loc, ['zipcode', 'zip', 'postalCode', 'postcode']),
+          country: parsed.country || pickStr(loc, ['country', 'countryName']),
+        };
+      }
+      if (!parsed.street && !parsed.street2 && parsed.text && parsed.text !== '—') {
+        return { ...parsed, street: parsed.text };
+      }
+      return parsed;
+    }
+
+    if (auth.activeRole !== 'customer') {
+      return emptyAddress();
+    }
+
+    /** @type {unknown} */
+    let locRaw = orderInfo?.shop?.location;
+    if (typeof locRaw === 'string') {
+      const s = locRaw.trim();
+      if (!s) {
+        locRaw = null;
+      } else if (s.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(s);
+          locRaw = parsed && typeof parsed === 'object' ? parsed : null;
+        } catch {
+          locRaw = null;
+        }
+      } else {
+        locRaw = { address: s };
+      }
+    }
+
+    const loc = locRaw && typeof locRaw === 'object' ? /** @type {Record<string, unknown>} */ (locRaw) : null;
+    if (!loc) {
+      return emptyAddress();
+    }
+    const street = pickStr(loc, ['address', 'street', 'line1', 'addressLine1']);
+    const street2 = pickStr(loc, ['address2', 'street2', 'line2', 'addressLine2']);
+    const city = pickStr(loc, ['city', 'town', 'locality']);
+    const state = pickStr(loc, ['state', 'region', 'province', 'stateName']);
+    const zip = pickStr(loc, ['zipcode', 'zip', 'postalCode', 'postcode']);
+    const country = pickStr(loc, ['country', 'countryName']);
+    const cityStateZip = [city, state, zip].filter(Boolean).join(', ');
+    const lines = [street, street2, cityStateZip, country].filter(Boolean);
+    const text = lines.length > 0 ? lines.join('\n') : '—';
+    return {
+      ...emptyAddress(),
+      street,
+      street2,
+      city,
+      state,
+      zip,
+      country,
+      text,
+    };
+  }, [orderInfo, auth.activeRole]);
 
   const onClose = () => {
     if (navigation.canGoBack()) navigation.goBack();
@@ -336,22 +367,13 @@ export default function OrderDetailScreen() {
   const ORDER_ACTIONS = [
     {
       key: 'Message',
-      label: 'Message customer',
+      label: auth.activeRole === "vendor" ? 'Message customer' : "Message vendor",
       icon: 'mail-outline',
       onPress: () => {
         closeActions();
         onMail();
       },
     },
-    // {
-    //   key: 'call',
-    //   label: 'Call customer',
-    //   icon: 'call-outline',
-    //   onPress: () => {
-    //     closeActions();
-    //     onCall();
-    //   },
-    // },
     {
       key: 'status',
       label: 'Update status',
@@ -370,15 +392,6 @@ export default function OrderDetailScreen() {
         onDownloadInvoice();
       },
     },
-    // {
-    //   key: 'resend',
-    //   label: 'Resend invoice',
-    //   icon: 'paper-plane-outline',
-    //   onPress: () => {
-    //     closeActions();
-    //     onResendInvoice();
-    //   },
-    // },
     {
       key: 'refund',
       label: 'Refund order',
@@ -393,24 +406,6 @@ export default function OrderDetailScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: 0 }]}>
-      {/* <View style={styles.headerBar}>
-        <View style={styles.headerTitleRow}>
-          <Text style={styles.headerTitle}>Order ID #{orderNumber}</Text>
-          <StatusPill theme={payTheme} />
-        </View>
-        <Pressable
-          onPress={onClose}
-          hitSlop={12}
-          style={({ pressed }) => [styles.closeBtn, pressed && styles.pressed]}
-          accessibilityRole="button"
-          accessibilityLabel="Close"
-        >
-          <Icon name="close" size={20} color={TEXT} />
-        </Pressable>
-      </View>
-      <Text style={styles.headerDate}>{headerDate}</Text>
-      <View style={styles.headerDivider} /> */}
-
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
@@ -423,100 +418,117 @@ export default function OrderDetailScreen() {
         <View style={styles.card}>
          <SectionLabel>Order Summary</SectionLabel>
           <SummaryRow
+            icon="time-outline"
+            label="Order Date"
+            value={new Date(orderInfo?.order?.created_at).toLocaleString()}
+          />
+          <SummaryRow
             icon="checkmark-circle-outline"
             label="Order Status"
             value={<StatusPill theme={statusTheme} />}
           />
           <SummaryRow
+            icon="location-outline"
+            label="Shipping Address"
+            value={String(orderInfo?.order?.shipping_address)}
+          />
+          <SummaryRow
             icon="cube-outline"
             label="Shipping Method"
-            value={String(order?.shippingMethod ?? 'UPS Express')}
+            value={String(orderInfo?.order?.shipping_method || "Not availble")}
           />
           <SummaryRow
             icon="pricetag-outline"
             label="Tracking Number"
-            value={String(order?.trackingNumber ?? '1Z7A3F76Y2045')}
+            value={String(orderInfo?.order?.tracking_number || "Awaiting shipment")}
             last
           />
         </View>
 
         <View style={styles.card}>
-          <SectionLabel>Customer Info</SectionLabel>
-          <View style={styles.customerHead}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{initialsOf(customer.name)}</Text>
-            </View>
-            <View style={styles.customerNameCol}>
-              <Text style={styles.customerName} numberOfLines={1}>
-                {customer.name}
-              </Text>
-              <Text style={styles.customerEmail} numberOfLines={1}>
-                {customer.email}
-              </Text>
-            </View>
-          </View>
-
-          {/* <View style={styles.kvRow}>
-            <Text style={styles.kvLabel}>Phone Number</Text>
-            <Pressable onPress={onCall} hitSlop={6} style={styles.kvValueWrap}>
-              <Text style={styles.kvValue}>{customer.phone}</Text>
-            </Pressable>
-          </View> */}
-
-          <View style={styles.shippingBlock}>
-            <Text style={styles.shippingHeader}>Shipping Address</Text>
-            {shipping.recipient ? (
-              <View style={styles.kvRow}>
-                <Text style={styles.kvLabel}>Recipient</Text>
-                <Text style={styles.kvValue} numberOfLines={1}>
-                  {shipping.recipient}
+          <SectionLabel>{auth.activeRole === "vendor" ? "Customer Info" : "Shop detail"}</SectionLabel>
+          {
+            auth.activeRole === "vendor" &&
+            <View style={styles.customerHead}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{initialsOf(`${orderInfo?.user?.fname} ${orderInfo?.user?.lname}`)}</Text>
+              </View>
+              <View style={styles.customerNameCol}>
+                <Text style={styles.customerName} numberOfLines={1}>
+                  {`${orderInfo?.user?.fname} ${orderInfo?.user?.lname}`}
                 </Text>
               </View>
-            ) : null}
-            {shipping.street ? (
+            </View>
+          }
+          {
+            auth.activeRole !== "vendor" &&
+            <View style={styles.customerHead}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{initialsOf(`${orderInfo?.shop?.name}`)}</Text>
+              </View>
+              <View style={styles.customerNameCol}>
+                <Text style={styles.customerName} numberOfLines={1}>
+                  {`${orderInfo?.shop?.name}`}
+                </Text>
+              </View>
+              
+            </View>
+          }
+
+          <View style={styles.shippingBlock}>
+            <Text style={styles.shippingHeader}>{
+              auth.activeRole === "vendor" ? "Shipping address" : "Shop location"
+            }</Text>
+            {[displayShipping.street, displayShipping.street2].filter(Boolean).join('\n') ? (
               <View style={[styles.kvRow, styles.kvRowAlignTop]}>
                 <Text style={styles.kvLabel}>Street</Text>
                 <Text style={[styles.kvValue, styles.kvAddress]}>
-                  {[shipping.street, shipping.street2].filter(Boolean).join('\n')}
+                  {[displayShipping.street, displayShipping.street2].filter(Boolean).join('\n')}
                 </Text>
               </View>
             ) : null}
-            {shipping.city ? (
+
+            {displayShipping.city ? (
               <View style={styles.kvRow}>
                 <Text style={styles.kvLabel}>City</Text>
                 <Text style={styles.kvValue} numberOfLines={1}>
-                  {shipping.city}
+                  {displayShipping.city}
                 </Text>
               </View>
             ) : null}
-            {shipping.state ? (
+            {displayShipping.state ? (
               <View style={styles.kvRow}>
                 <Text style={styles.kvLabel}>State</Text>
                 <Text style={styles.kvValue} numberOfLines={1}>
-                  {shipping.state}
+                  {displayShipping.state}
                 </Text>
               </View>
             ) : null}
-            {shipping.zip ? (
+            {displayShipping.zip ? (
               <View style={styles.kvRow}>
                 <Text style={styles.kvLabel}>ZIP / Postal</Text>
                 <Text style={styles.kvValue} numberOfLines={1}>
-                  {shipping.zip}
+                  {displayShipping.zip}
                 </Text>
               </View>
             ) : null}
-            {shipping.country ? (
+            {displayShipping.country ? (
               <View style={styles.kvRow}>
                 <Text style={styles.kvLabel}>Country</Text>
                 <Text style={styles.kvValue} numberOfLines={1}>
-                  {shipping.country}
+                  {displayShipping.country}
                 </Text>
               </View>
             ) : null}
-            {!shipping.street && !shipping.city && !shipping.state && !shipping.country ? (
+            {!displayShipping.street &&
+            !displayShipping.street2 &&
+            !displayShipping.city &&
+            !displayShipping.state &&
+            !displayShipping.country &&
+            !displayShipping.zip ? (
               <View style={[styles.kvRow, styles.kvRowAlignTop]}>
                 <Text style={styles.kvLabel}>Address</Text>
-                <Text style={[styles.kvValue, styles.kvAddress]}>{shipping.text}</Text>
+                <Text style={[styles.kvValue, styles.kvAddress]}>{displayShipping.text}</Text>
               </View>
             ) : null}
           </View>
@@ -524,10 +536,10 @@ export default function OrderDetailScreen() {
 
         {/* <SectionLabel>Items</SectionLabel> */}
         <View style={styles.card}>
-          {items.map((it, i) => (
+          {Array.isArray(orderInfo.order_items) && orderInfo.order_items.map((it, i) => (
             <View
               key={String(it.id ?? i)}
-              style={[styles.itemRow, i === items.length - 1 && styles.itemRowLast]}
+              style={[styles.itemRow, i === orderInfo.order_items.length - 1 && styles.itemRowLast]}
             >
               <View style={styles.itemThumb}>
                 {it.image ? (
@@ -538,20 +550,20 @@ export default function OrderDetailScreen() {
               </View>
               <View style={styles.itemBody}>
                 <Text style={styles.itemName} numberOfLines={2}>
-                  {String(it.name ?? '—')}
+                  {String(it.product.name ?? '—')}
                 </Text>
-                {it.variant ? (
+                {/* {it.variant ? (
                   <Text style={styles.itemVariant} numberOfLines={1}>
-                    {String(it.variant)}
+                    {String(it.product.specifications.variants.map(item => item))}
                   </Text>
-                ) : null}
+                ) : null} */}
               </View>
               <View style={styles.itemRight}>
                 <View style={styles.qtyChip}>
                   <Text style={styles.qtyChipLabel}>Quantity</Text>
-                  <Text style={styles.qtyChipValue}>{Number(it.qty ?? 1)}</Text>
+                  <Text style={styles.qtyChipValue}>{Number(it.units ?? 1)}</Text>
                 </View>
-                <Text style={styles.itemPrice}>{fmt(Number(it.price ?? 0) * Number(it.qty ?? 1))}</Text>
+                <Text style={styles.itemPrice}>{fmt(Number(it.unit_price ?? 0) * Number(it.qty ?? 1))}</Text>
               </View>
             </View>
           ))}
@@ -560,12 +572,28 @@ export default function OrderDetailScreen() {
         <View style={styles.card}>
           <SectionLabel>Payment</SectionLabel>
           
-          <MoneyRow label="Subtotal" value={fmt(payment.subtotal)} muted />
-          <MoneyRow label="Discount" value={fmt(payment.discount)} muted />
-          <MoneyRow label="Shipping Cost" value={fmt(payment.shipping)} muted />
-          <MoneyRow label="Tax" value={fmt(payment.tax)} muted />
+          <MoneyRow
+            label="Subtotal"
+            value={
+              Array.isArray(orderInfo.order_items) &&
+              orderInfo.order_items.reduce(
+                (acc, curr) => acc + parseInt(curr.total_price),
+                0
+              )
+            }
+            muted
+          />
+          <MoneyRow label="Discount" value={fmt(0)} muted />
+          <MoneyRow label="Shipping Cost" value={orderInfo?.order?.shipping_fee && fmt(orderInfo.order.shipping_fee)} muted />
+          <MoneyRow label="Tax" value={fmt(0)} muted />
           <View style={styles.moneyDivider} />
-          <MoneyRow label="Total" value={fmt(payment.total)} bold />
+          <MoneyRow label="Total" value={fmt(
+            orderInfo?.order?.shipping_fee &&
+            orderInfo.order_items.reduce(
+              (acc, curr) => acc + parseInt(curr.total_price),
+              0
+            ) + Number(orderInfo?.order?.shipping_fee || 0)
+          )} bold />
         </View>
 
         {/* <SectionLabel>Timelane</SectionLabel>
