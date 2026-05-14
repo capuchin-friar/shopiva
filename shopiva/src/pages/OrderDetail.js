@@ -53,6 +53,31 @@ const STATUS_OPTIONS = [
   { key: 'cancelled', label: 'Cancelled' },
 ];
 
+/** Escrow pill themes — keys match {@link orderInfo.order.escrow_status}. */
+const ESCROW_STATUS_THEME = {
+  held: {
+    bg: '#FFF4D6',
+    dot: '#B58100',
+    text: '#7A5800',
+    label: 'Held',
+    caption: 'Funds are held in escrow until delivery is completed or the order is otherwise resolved.',
+  },
+  released: {
+    bg: '#E0F2E9',
+    dot: '#0D8A4A',
+    text: '#0D5C2F',
+    label: 'Released',
+    caption: 'Escrow has been released to the seller.',
+  },
+  refunded: {
+    bg: '#EFEAFF',
+    dot: '#7C5CFC',
+    text: '#3F2BB8',
+    label: 'Refunded',
+    caption: 'Funds have been refunded from escrow to the buyer.',
+  },
+};
+
 /** @param {string | null | undefined} name */
 function initialsOf(name) {
   const parts = String(name ?? '').trim().split(/\s+/).filter(Boolean);
@@ -270,6 +295,41 @@ export default function OrderDetailScreen() {
     [isNaira],
   );
 
+  const escrowInfo = useMemo(() => {
+    const raw = orderInfo?.order?.escrow_status;
+    const key = String(raw ?? 'held').trim().toLowerCase();
+    let theme;
+    if (key === 'held' || key === 'released' || key === 'refunded') {
+      theme = ESCROW_STATUS_THEME[key];
+    } else {
+      theme = {
+        ...ESCROW_STATUS_THEME.held,
+        label: raw != null && String(raw).trim() ? String(raw).trim().replace(/_/g, ' ') : '—',
+        caption: 'Escrow status for this order.',
+      };
+    }
+    const amountLabel =
+      key === 'released'
+        ? 'Amount released'
+        : key === 'refunded'
+          ? 'Amount refunded'
+          : key === 'held'
+            ? 'Amount held'
+            : 'Escrow amount';
+    const rawTotal = orderInfo?.order?.total_paid ?? orderInfo?.order?.amount_paid;
+    const num = Number(rawTotal);
+    const valueText = Number.isFinite(num) ? fmt(num) : '—';
+    const cur = orderInfo?.order?.currency;
+    const suffix = cur != null && String(cur).trim() ? ` ${String(cur).trim()}` : '';
+    return { theme, amountLabel, amountValue: `${valueText}${suffix}` };
+  }, [
+    fmt,
+    orderInfo?.order?.escrow_status,
+    orderInfo?.order?.total_paid,
+    orderInfo?.order?.amount_paid,
+    orderInfo?.order?.currency,
+  ]);
+
   /** Vendor: delivery address from order + user. Customer: shop premises from {@link orderInfo.shop.location}. */
   const displayShipping = useMemo(() => {
     if (auth.activeRole === 'vendor') {
@@ -341,12 +401,47 @@ export default function OrderDetailScreen() {
     };
   }, [orderInfo, auth.activeRole]);
 
+  const counterpartEmail = useMemo(() => {
+    if (auth.activeRole === 'vendor') {
+      const u = orderInfo?.user;
+      if (u && typeof u === 'object') {
+        const e = pickStr(/** @type {Record<string, unknown>} */ (u), ['email']);
+        if (e) return e;
+      }
+      const pe = orderInfo?.payment_info?.customer_email;
+      if (pe != null && String(pe).trim()) return String(pe).trim();
+      return '';
+    }
+    if (auth.activeRole === 'customer') {
+      const s = orderInfo?.shop;
+      if (s && typeof s === 'object') {
+        const so = /** @type {Record<string, unknown>} */ (s);
+        const e1 = pickStr(so, ['contactemail', 'contactEmail', 'email']);
+        if (e1) return e1;
+        const owner = so.owner;
+        if (owner && typeof owner === 'object') {
+          const e2 = pickStr(/** @type {Record<string, unknown>} */ (owner), ['email']);
+          if (e2) return e2;
+        }
+      }
+      return '';
+    }
+    return '';
+  }, [orderInfo, auth.activeRole]);
+
   const onClose = () => {
     if (navigation.canGoBack()) navigation.goBack();
   };
 
   const onMail = () => {
-    Linking.openURL(`mailto:${customer.email}`).catch(() => {});
+    if (!counterpartEmail) {
+      Alert.alert(
+        'Message',
+        'No email address is on file for this party yet. Use in-app chat when available.',
+      );
+      return;
+    }
+    Linking.openURL(`mailto:${counterpartEmail}`).catch(() => {});
   };
 
   const onDownloadInvoice = () => {
@@ -359,6 +454,25 @@ export default function OrderDetailScreen() {
       { text: 'Refund', style: 'destructive', onPress: () => {} },
     ]);
   };
+
+  const onCancelDelivery = useCallback(() => {
+    Alert.alert(
+      'Cancel delivery',
+      'Cancel this delivery request? Escrow and fulfillment may be updated according to Shopiva policy.',
+      [
+        { text: 'Not now', style: 'cancel' },
+        { text: 'Cancel delivery', style: 'destructive', onPress: () => {} },
+      ],
+    );
+  }, []);
+
+  const onOpenDispute = useCallback(() => {
+    Alert.alert(
+      'Open dispute',
+      'To dispute this order, open the Disputes section from your Activities tab.',
+      [{ text: 'OK' }],
+    );
+  }, []);
 
   const onUpdateStatus = () => navigation.navigate("Order-action", {
     order
@@ -432,10 +546,16 @@ export default function OrderDetailScreen() {
             label="Shipping Address"
             value={String(orderInfo?.order?.shipping_address)}
           />
+         
           <SummaryRow
             icon="cube-outline"
             label="Shipping Method"
-            value={String(orderInfo?.order?.shipping_method || "Not availble")}
+            value={String(orderInfo?.order?.shipping_method || "Not Availble")}
+          />
+          <SummaryRow
+            icon="calendar-outline"
+            label="Estimated Delivery Date"
+            value={String(orderInfo?.order?.estimated_delivery_date || "Not Available")}
           />
           <SummaryRow
             icon="pricetag-outline"
@@ -443,42 +563,98 @@ export default function OrderDetailScreen() {
             value={String(orderInfo?.order?.tracking_number || "Awaiting shipment")}
             last
           />
+          
+        </View>
+
+        <View style={styles.card}>
+          <SectionLabel>Escrow summary</SectionLabel>
+          <View style={styles.escrowStatusRow}>
+            <Text style={styles.escrowStatusLabel}>Escrow status</Text>
+            <StatusPill theme={escrowInfo.theme} />
+          </View>
+          <View style={styles.escrowAmountRow}>
+            <Text style={styles.escrowAmountLabel}>{escrowInfo.amountLabel}</Text>
+            <Text style={styles.escrowAmountValue}>{escrowInfo.amountValue}</Text>
+          </View>
+          <Text style={styles.escrowCaption}>{escrowInfo.theme.caption}</Text>
+          <View style={styles.escrowActions}>
+            <Pressable
+              onPress={onCancelDelivery}
+              style={({ pressed }) => [styles.escrowBtn, styles.escrowBtnCancel, pressed && styles.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Cancel delivery"
+            >
+              <Text style={styles.escrowBtnCancelText}>Cancel delivery</Text>
+            </Pressable>
+            <Pressable
+              onPress={onOpenDispute}
+              style={({ pressed }) => [styles.escrowBtn, styles.escrowBtnSecondary, pressed && styles.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel="Open dispute"
+            >
+              <Text style={styles.escrowBtnSecondaryText}>Open dispute</Text>
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.card}>
           <SectionLabel>{auth.activeRole === "vendor" ? "Customer Info" : "Shop detail"}</SectionLabel>
           {
-            auth.activeRole === "vendor" &&
+            auth.activeRole === "vendor" && (
             <View style={styles.customerHead}>
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>{initialsOf(`${orderInfo?.user?.fname} ${orderInfo?.user?.lname}`)}</Text>
               </View>
-              <View style={styles.customerNameCol}>
-                <Text style={styles.customerName} numberOfLines={1}>
-                  {`${orderInfo?.user?.fname} ${orderInfo?.user?.lname}`}
-                </Text>
+              <View style={styles.customerTitleRow}>
+                <View style={styles.customerNameCol}>
+                  <Text style={styles.customerName} numberOfLines={1}>
+                    {`${orderInfo?.user?.fname} ${orderInfo?.user?.lname}`}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={onMail}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={({ pressed }) => [styles.headMessageBtn, pressed && styles.pressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Message customer"
+                >
+                  <Icon name="chatbubble-outline" size={22} color={ACCENT} />
+                </Pressable>
               </View>
             </View>
+            )
           }
           {
-            auth.activeRole !== "vendor" &&
+            auth.activeRole !== "vendor" && (
             <View style={styles.customerHead}>
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>{initialsOf(`${orderInfo?.shop?.name}`)}</Text>
               </View>
-              <View style={styles.customerNameCol}>
-                <Text style={styles.customerName} numberOfLines={1}>
-                  {`${orderInfo?.shop?.name}`}
-                </Text>
+              <View style={styles.customerTitleRow}>
+                <View style={styles.customerNameCol}>
+                  <Text style={styles.customerName} numberOfLines={1}>
+                    {`${orderInfo?.shop?.name}`}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={onMail}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={({ pressed }) => [styles.headMessageBtn, pressed && styles.pressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Message vendor"
+                >
+                  <Icon name="mail-outline" size={22} color={ACCENT} />
+                </Pressable>
               </View>
-              
             </View>
+            )
           }
 
           <View style={styles.shippingBlock}>
-            <Text style={styles.shippingHeader}>{
-              auth.activeRole === "vendor" ? "Shipping address" : "Shop location"
-            }</Text>
+            <Text style={styles.shippingHeader}>
+              {auth.activeRole === 'vendor' ? 'Shipping address' : 'Shop location'}
+            </Text>
+
             {[displayShipping.street, displayShipping.street2].filter(Boolean).join('\n') ? (
               <View style={[styles.kvRow, styles.kvRowAlignTop]}>
                 <Text style={styles.kvLabel}>Street</Text>
@@ -869,6 +1045,78 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: BLACK,
   },
+  escrowStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: HAIR,
+  },
+  escrowAmountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingTop: 12,
+    paddingBottom: 2,
+  },
+  escrowAmountLabel: {
+    fontSize: 13,
+    color: MUTED,
+    fontWeight: '600',
+  },
+  escrowAmountValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: BLACK,
+    flexShrink: 0,
+  },
+  escrowStatusLabel: {
+    fontSize: 13,
+    color: TEXT,
+    fontWeight: '600',
+  },
+  escrowCaption: {
+    fontSize: 12,
+    color: MUTED,
+    lineHeight: 17,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  escrowActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  escrowBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  escrowBtnCancel: {
+    borderColor: '#F2B8B5',
+    backgroundColor: '#FFF8F7',
+  },
+  escrowBtnCancelText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#C62828',
+  },
+  escrowBtnSecondary: {
+    borderColor: '#D6D6DC',
+    backgroundColor: WHITE,
+  },
+  escrowBtnSecondaryText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: TEXT,
+  },
   customerHead: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -877,6 +1125,17 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: HAIR,
+  },
+  customerTitleRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 0,
+    gap: 8,
+  },
+  headMessageBtn: {
+    padding: 4,
+    flexShrink: 0,
   },
   avatar: {
     width: 40,
