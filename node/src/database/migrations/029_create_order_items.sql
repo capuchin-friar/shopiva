@@ -1,7 +1,7 @@
 CREATE TABLE order_items (
     id SERIAL PRIMARY KEY,
 
-    order_id VARCHAR(50) NOT NULL REFERENCES orders(order_id) ON DELETE CASCADE,
+    order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
 
     item_id VARCHAR NOT NULL,
 

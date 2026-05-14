@@ -73,6 +73,18 @@ function buildDisputeRef(customerId: number) {
 
 const CUSTOMER_NAME_SQL = `TRIM(CONCAT_WS(' ', uc.fname, uc.lname))`;
 
+/**
+ * `disputes.order_id` may store either `orders.id` (legacy BIGINT) or `orders.order_id` (VARCHAR public key).
+ * Avoid `o.id = d.order_id` when types differ (PostgreSQL: operator does not exist: integer = character varying).
+ */
+const DISPUTE_ORDER_JOIN_SQL = `
+  d.order_id IS NOT NULL
+  AND (
+    (trim(d.order_id::text) ~ '^[0-9]+$' AND o.id = trim(d.order_id::text)::bigint)
+    OR (trim(d.order_id::text) !~ '^[0-9]+$' AND o.order_id = trim(d.order_id::text))
+  )
+`;
+
 export class dispute {
   static create = withErrorHandling(async (payload: CreateBuyerDisputePayload): Promise<BuyerDisputeRow> => {
     const {
@@ -156,7 +168,7 @@ export class dispute {
           o.currency AS currency,
           o.created_at AS order_created_at
         FROM disputes d
-        LEFT JOIN orders o ON o.id = d.order_id
+        LEFT JOIN orders o ON ${DISPUTE_ORDER_JOIN_SQL}
         LEFT JOIN users uc ON uc.id = d.customer_id
         WHERE d.customer_id = $1
           AND (d.dispute_ref = $2 OR d.id::text = $2)
@@ -186,7 +198,7 @@ export class dispute {
           d.created_at,
           d.updated_at
         FROM disputes d
-        LEFT JOIN orders o ON o.id = d.order_id
+        LEFT JOIN orders o ON ${DISPUTE_ORDER_JOIN_SQL}
         WHERE (o.shop_id = $1::text OR (d.metadata ->> 'shop_id') = $1::text)
           AND ($2 OR LOWER(d.status) <> ALL($3))
         ORDER BY d.created_at DESC`,
@@ -222,7 +234,7 @@ export class dispute {
           o.currency AS currency,
           o.created_at AS order_created_at
         FROM disputes d
-        LEFT JOIN orders o ON o.id = d.order_id
+        LEFT JOIN orders o ON ${DISPUTE_ORDER_JOIN_SQL}
         LEFT JOIN users uc ON uc.id = d.customer_id
         WHERE (o.shop_id = $1::text OR (d.metadata ->> 'shop_id') = $1::text)
           AND (d.dispute_ref = $2 OR d.id::text = $2)

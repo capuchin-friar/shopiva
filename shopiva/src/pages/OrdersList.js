@@ -159,7 +159,9 @@ export default function OrderListScreen() {
         }
         const data = auth.activeRole === "customer" ? await fetchBuyerOrders() : await fetchShopOrders(shopId, userId);
         if (cancelled) return;
-        const mapped = (Array.isArray(data) ? data : []).map((r) =>
+        console.log("data:", data)
+
+        const mapped = (Array.isArray(data) ? data : data.orders).map((r) =>
           mapOrderRowToListItem(/** @type {Record<string, unknown>} */ (r)),
         );
         setOrders(mapped);

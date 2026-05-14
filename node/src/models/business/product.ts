@@ -7,6 +7,7 @@
  */
 
 import { db } from "../../config/database.js";
+import { ordersTransformer } from "../../transformers/buyer/orders.js";
 import { withErrorHandling } from "../../utils/errHandler.js";
 
 export type ProductStatus = "draft" | "active" | "archived";
@@ -474,31 +475,7 @@ export class order {
 
   /** Buyer order history. */
   static getByCustomerId = withErrorHandling(async (customerId: number): Promise<OrderListRow[]> => {
-    const { rows } = await (await db()).query<OrderListRow>(
-      `SELECT
-        o.id AS order_id,
-        NULL AS product_id,
-        o.customer_id,
-        '' AS product,
-        CONCAT(u.fname, ' ', u.lname) AS customer,
-        u.email AS customer_email,
-        u.phone AS customer_phone,
-        (SELECT SUM(units) FROM order_items oi WHERE oi.order_id = o.order_id) AS qty,
-        o.amount_paid AS amount,
-        o.payment_status AS payment,
-        o.fulfillment_status AS status,
-        o.shipping_method AS delivery,
-        o.created_at AS date,
-        o.shipping_address,
-        NULL AS customer_lat,
-        NULL AS customer_lng
-      FROM orders o
-      LEFT JOIN users u ON u.id = o.customer_id
-      WHERE o.customer_id = $1
-      ORDER BY o.created_at DESC`,
-      [String(customerId)]
-    );
-    return rows;
+    return ordersTransformer(customerId);
   });
 
   static updateStatusForShop = withErrorHandling(

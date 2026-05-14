@@ -5,7 +5,7 @@ import type { NewOrder, OrderEvents, OrderItem } from "../../types/paystack.js";
 export class OrderHandler{
 
     static async newOrder(new_order_payload: NewOrder){
-        await upsertNewOrder(new_order_payload);
+        return await upsertNewOrder(new_order_payload);
         // return orderResult;
     }
 
@@ -38,24 +38,22 @@ async function upsertNewOrder(payload: NewOrder){
     } = payload
     
     try{
-        if(!pool){
-            throw new Error("Database pool not available");
-        }
-        
-        const { rows } = await pool.query(
+      
+        const { rows: [order] } = await pool.query(
             `INSERT INTO orders
             (
                 order_id, customer_id, shop_id, amount_paid, shipping_fee, tax, charges, total_paid, currency, fulfillment_status, escrow_status, payment_status, shipping_address, payment_reference, created_at, updated_at
             ) VALUES(
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), NOW()
-            )`,
+            ) RETURNING id`,
             [
                 order_id, customer_id, shop_id, amount_paid, shipping_fee, tax, charges, total_paid, currency, fulfillment_status, escrow_status, payment_status, shipping_address, payment_reference
             ]
         );
-        return rows;
+        return order.id;
     }catch(err){
-        throw new Error("Creating order error");
+        console.error(err);
+        throw err;
     }
 }
 
@@ -77,7 +75,7 @@ async function createOrderEvent(payload: OrderEvents){
                     order_id, event_type, stage, actor_type, actor_id, outcome, notes, meta, created_at
                 )
                 VALUES(
-                    $1, $2, $3, $4, $5, $6, $7, $8, NOW()
+                    $1, $2, $3, $4, $5, $6, $7, $8::jsonb, NOW()
                 )
             `, [
                 order_id, "order_paid", stage, actor_type, actor_id, outcome, notes, meta
@@ -85,8 +83,8 @@ async function createOrderEvent(payload: OrderEvents){
         );
         return rows;
     }catch(err){
-        console.log(err)
-        throw new Error("Creating order event error");
+        console.error(err);
+        throw err;
     }
 }
 
@@ -116,8 +114,8 @@ async function addOrderItem(payload: OrderItem){
         );
         return rows;
     }catch(err){
-        console.log(err)
-        throw new Error("Adding order item error");
+        console.error(err);
+        throw err;
     }
 }
 

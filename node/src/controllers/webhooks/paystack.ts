@@ -125,7 +125,7 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
       } = order;
 
       const newOrder: NewOrder = {
-        order_id: `${index}-${reference}`,
+        order_id: `${reference}`,
         customer_id: customer_id || paystackData.customer.email,
         shop_id: shop_id,
         amount_paid: subtotal,
@@ -142,10 +142,10 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
         shipping_method: shipping_method || '',
         tracking_number: ''
       };
-      await OrderHandler.newOrder(newOrder);
+      const orderId = await OrderHandler.newOrder(newOrder);
 
       const orderEvent = {
-        order_id: `${index}-${reference}`,
+        order_id: orderId,
         event_type: 'payment',
         stage: 'payment_received',
         actor_type: 'customer' as const,
@@ -167,7 +167,7 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
 
         // Construct order items payload (assuming single item for now, adjust based on your cart structure)
         const orderItems = {
-          order_id: `${index}-${reference}`,
+          order_id: orderId,
           item_id: item_id,
           units: unit,
           unit_price: unit_price,
