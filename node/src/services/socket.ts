@@ -63,7 +63,10 @@ export default function handleSocketConnection(client: SocketWithAuth) {
   client.on("order_shipping", wrapSocketHandler((p, a) =>
     handleOrderShipping(userId, nsp, asPayload(p), a)
   ));
-  client.on("order_shipping", wrapSocketHandler((p, a) =>
+  client.on("order_out_for_delivery", wrapSocketHandler((p, a) =>
+    handleOrderOutForDelivery(userId, nsp, asPayload(p), a)
+  ));
+  client.on("order_delivery", wrapSocketHandler((p, a) =>
     handleOrderOutForDelivery(userId, nsp, asPayload(p), a)
   ));
 

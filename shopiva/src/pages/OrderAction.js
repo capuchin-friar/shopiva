@@ -959,7 +959,7 @@ function OutForDelivery({ data }) {
     const submit = async () => {
         if (!validate()) return;
         const u = await getStoredUser();
-        const response = await emitSocketAck("order_processing", {
+        const response = await emitSocketAck("order_out_for_delivery", {
             ...data,
             meta: buildMeta(),
             outcome: "success",
@@ -1171,7 +1171,7 @@ function MarkAsDelivered({ data }) {
             return;
         }
         const u = await getStoredUser();
-        const response = await emitSocketAck("order_processing", {
+        const response = await emitSocketAck("order_delivery", {
             ...data,
             meta: {
                 ...(data.meta && typeof data.meta === "object" ? data.meta : {}),
