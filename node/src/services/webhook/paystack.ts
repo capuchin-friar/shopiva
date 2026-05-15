@@ -59,7 +59,7 @@ async function upsertNewOrder(payload: NewOrder){
 
 async function createOrderEvent(payload: OrderEvents){
     const {
-        order_id, stage, actor_type, actor_id, outcome, notes, meta
+        order_id, event_type, stage, actor_type, actor_id, outcome, notes, meta
     } = payload;
     const pool = await db();
 
@@ -78,7 +78,7 @@ async function createOrderEvent(payload: OrderEvents){
                     $1, $2, $3, $4, $5, $6, $7, $8::jsonb, NOW()
                 )
             `, [
-                order_id, "order_paid", stage, actor_type, actor_id, outcome, notes, meta
+                order_id, event_type, stage, actor_type, actor_id, outcome, notes, meta
             ]
         );
         return rows;

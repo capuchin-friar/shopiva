@@ -12,3 +12,4 @@ export type actor_type = "customer" | "vendor"
 //    out_for_delivery: ["delivered"],
 //    delivered: ["completed", "disputed"]
 // };
+export type EventType =  "payment" | "accepteance" | "processing" | "shipping" | "delivery" | "escrow" | "refund" | "dispute" | "cancellation"

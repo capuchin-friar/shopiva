@@ -8,6 +8,7 @@ import {
   handleMarkMessageRead,
   handleTyping,
 } from "../socket/chat.js";
+import { handleOrderAcceptance } from "../socket/order.js";
 
 type SocketWithAuth = Socket & {
   user?: { id: string };
@@ -51,6 +52,14 @@ export default function handleSocketConnection(client: SocketWithAuth) {
   client.on("mark_message_as_read", wrapSocketHandler((p, a) =>
     handleMarkMessageRead(userId, nsp, asPayload(p), a)
   ));
+
+  // order updates
+  client.on("order_acceptance", wrapSocketHandler((p, a) =>
+    handleOrderAcceptance(userId, nsp, asPayload(p), a)
+  ));
+  // client.on("vendor_response_rejected", wrapSocketHandler((p, a) =>
+  //   ""
+  // ))
 
   function wrapSocketHandler(
     handler: (payload: unknown, ack?: unknown) => Promise<void>

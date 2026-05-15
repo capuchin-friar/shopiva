@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Image,
   Linking,
@@ -16,8 +17,10 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatNaira } from '../utils/formatNaira';
 import { fetchBuyerOrder, fetchOwnerShops, fetchShopOrderDetail } from '../api';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { getStoredUser } from '../auth/session';
+import { connectChatSocket, emitSocketAck } from '../socket/chatSocket';
+import { set_orderInfo } from '../../redux/order';
 
 const PAGE_BG = '#FFF';
 const WHITE = '#FFFFFF';
@@ -237,7 +240,10 @@ export default function OrderDetailScreen() {
   );
   const [statusOpen, setStatusOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
-  const [orderInfo, setOrderInfo] = useState({});
+  // const [orderInfo, setOrderInfo] = useState(null);
+  const {
+    orderInfo
+  } = useSelector(s => s.orderInfo);
 
   const openActions = useCallback(() => setActionsOpen(true), []);
   const closeActions = useCallback(() => setActionsOpen(false), []);
@@ -247,24 +253,27 @@ export default function OrderDetailScreen() {
     return String(n).replace(/^ORD-/i, '');
   }, [order]);
 
+  const dispatch = useDispatch();
   useEffect(() => {
     
     if(auth.activeRole === "customer"){
-      fetchBuyerOrder(route.params.order.orderId)
-      .then(({order}) => {
-        console.log("order: ", order);
-        setOrderInfo(order)
-      })
-      .catch((err) => console.log(err));
+      (async () => {
+        await connectChatSocket();
+        fetchBuyerOrder(route.params.order.orderId)
+        .then(({order}) => {
+          dispatch(set_orderInfo(order))
+        })
+        .catch((err) => console.log(err));
+      })();
     }else{
       (async () => {
+        await connectChatSocket();
         let { id: userId } = await getStoredUser();
         let shop = await fetchOwnerShops(userId);
         let sid = shop[0].id;
         fetchShopOrderDetail(sid,route.params.order.orderId,userId)
         .then(({order}) => {
-          console.log("order: ", order);
-          setOrderInfo(order)
+          dispatch(set_orderInfo(order))
         })
         .catch((err) => console.log(err));
       })();
@@ -293,7 +302,6 @@ export default function OrderDetailScreen() {
     });
   }, [navigation, orderNumber, openActions]);
 
-  const headerDate = String(order?.dateLabel ?? 'Jan 12, 2025');
   const payKey = String(order?.paymentStatus ?? 'paid').toLowerCase();
   const payTheme = PAY_THEME[payKey] ?? PAY_THEME.paid;
   const statusTheme = STATUS_THEME[orderInfo?.order?.fulfillment_status] ?? STATUS_THEME.delivered;
@@ -534,6 +542,20 @@ export default function OrderDetailScreen() {
     },
   ];
 
+  if(!orderInfo){
+    return(
+      <>
+        <View style={{
+          flex: 1,
+          alignItems: "center",
+          justifyContent: "center"
+        }}>
+          <ActivityIndicator color={"#0D8A4A"} size={"large"} />
+        </View>
+      </>
+    )
+  }
+
   return (
     <View style={[styles.root, { paddingTop: 0 }]}>
       <ScrollView
@@ -582,7 +604,7 @@ export default function OrderDetailScreen() {
           
         </View>
 
-        <View style={styles.card}>
+        {orderInfo?.order_events?.length > 1 && <View style={styles.card}>
           <SectionLabel>Escrow summary</SectionLabel>
           <View style={styles.escrowStatusRow}>
             <Text style={styles.escrowStatusLabel}>Escrow status</Text>
@@ -611,7 +633,7 @@ export default function OrderDetailScreen() {
               <Text style={styles.escrowBtnSecondaryText}>Open dispute</Text>
             </Pressable>
           </View>
-        </View>
+        </View>}
 
         <View style={styles.card}>
           <SectionLabel>{auth.activeRole === "vendor" ? "Customer Info" : "Shop detail"}</SectionLabel>
@@ -634,7 +656,7 @@ export default function OrderDetailScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Message customer"
                 >
-                  <Icon name="chatbubble-outline" size={22} color={ACCENT} />
+                  <Icon name="mail-outline" size={22} color={ACCENT} />
                 </Pressable>
               </View>
             </View>
@@ -809,20 +831,62 @@ export default function OrderDetailScreen() {
           { paddingBottom: Math.max(insets.bottom, 12) },
         ]}
       >
-        {/* <Pressable
-          onPress={onRefund}
-          style={({ pressed }) => [styles.btnGhost, pressed && styles.pressed]}
-        >
-          <Text style={styles.btnGhostText}>Refund</Text>
-        </Pressable> */}
-        {/* <Pressable
-          onPress={onResendInvoice}
-          style={({ pressed }) => [styles.btnGhost, pressed && styles.pressed]}
-        >
-          <Text style={styles.btnGhostText}>Resend Invoice</Text>
-        </Pressable> */}
-        <Pressable
-          onPress={onUpdateStatus}
+        {
+          orderInfo.order_events.length === 1 && 
+          <>
+            <Pressable
+              // onPress={onRefund}
+              onPress={e => {
+                const u = getStoredUser();
+                navigation.navigate("Order-action", {
+                  action: "acceptance",
+                  data: {
+                      order_id: orderInfo.order.id,
+                      event_type: "acceptance",
+                      stage: "order_accepted",
+                      actor_type: "vendor",
+                      actor_id: u.id,
+                      outcome: "success",
+                      notes: "",
+                      recipient: orderInfo.order.customer_id,
+                      meta: {}
+                  }
+                })
+            
+              }}
+              style={({ pressed }) => [styles.btnAccept, pressed && styles.btnAcceptPressed]}
+            >
+              <Text style={styles.btnAcceptText}>Accept</Text>
+            </Pressable>
+
+            <Pressable
+              // onPress={onResendInvoice}
+              onPress={e => {
+                const u = getStoredUser();
+                navigation.navigate("Order-action", {
+                  action: "acceptance",
+                  data: {
+                    order_id: orderInfo.order.id,
+                    event_type: "acceptance",
+                    stage: "order_rejected",
+                    actor_type: "vendor",
+                    actor_id: u.id,
+                    outcome: "failure",
+                    notes: "",
+                    recipient: orderInfo.order.customer_id,
+                    meta: {}
+                  }
+                })
+                
+              }}
+              style={({ pressed }) => [styles.btnReject, pressed && styles.btnRejectPressed]}
+            >
+              <Text style={styles.btnRejectText}>Reject</Text>
+            </Pressable>
+          </>
+        }
+        {orderInfo.order_events.length > 1 &&<Pressable
+          // onPress={onUpdateStatus}
           style={({ pressed }) => [styles.btnPrimary, pressed && styles.btnPrimaryPressed]}
         >
           <Text style={styles.btnPrimaryText}>
@@ -834,7 +898,7 @@ export default function OrderDetailScreen() {
                 : "Update status"
             }
           </Text>
-        </Pressable>
+        </Pressable>}
       </View>
 
       <Modal
@@ -1445,6 +1509,38 @@ const styles = StyleSheet.create({
   },
   btnPrimaryText: {
     fontSize: 14,
+    fontWeight: '700',
+    color: WHITE,
+  },
+  btnAccept: {
+    flex: 1,
+    height: 44,
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0D8A4A',
+  },
+  btnAcceptPressed: {
+    backgroundColor: '#0A6B3A',
+  },
+  btnAcceptText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: WHITE,
+  },
+  btnReject: {
+    flex: 1,
+    height: 44,
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#C62828',
+  },
+  btnRejectPressed: {
+    backgroundColor: '#A01A1A',
+  },
+  btnRejectText: {
+    fontSize: 13,
     fontWeight: '700',
     color: WHITE,
   },
