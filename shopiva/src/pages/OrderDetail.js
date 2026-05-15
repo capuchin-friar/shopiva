@@ -498,24 +498,54 @@ export default function OrderDetailScreen() {
     );
   }, []);
 
-  const onUpdateStatus = async() => {
-      let u = await getStoredUser();
+  const onUpdateStatus = async () => {
+    if (!orderInfo?.order) return;
+    const u = await getStoredUser();
+    const base = {
+      order_id: orderInfo.order.id,
+      actor_type: "vendor",
+      actor_id: u.id,
+      outcome: "pending",
+      notes: "",
+      recipient: orderInfo.order.customer_id,
+      meta: {},
+    };
+
+    if (statusKey === "processing") {
       navigation.navigate("Order-action", {
-      action: "delivery",
-      data: {
-        order_id: orderInfo.order.id,
-        event_type: "delivery",
-        stage: "order_delivery",
-        actor_type: "vendor",
-        actor_id: u.id,
-        outcome: "pending",
-        notes: "",
-        recipient: orderInfo.order.customer_id,
-        meta: {}
-      }
-    
-    })
-  }
+        action: "shipping",
+        data: {
+          ...base,
+          event_type: "shipping",
+          stage: "order_shipping",
+        },
+      });
+      return;
+    }
+
+    if (statusKey === "shipped") {
+      navigation.navigate("Order-action", {
+        action: "out_for_delivery",
+        data: {
+          ...base,
+          event_type: "delivery",
+          stage: "order_out_for_delivery",
+        },
+      });
+      return;
+    }
+
+    if (statusKey === "out_for_delivery") {
+      navigation.navigate("Order-action", {
+        action: "delivery",
+        data: {
+          ...base,
+          event_type: "delivery",
+          stage: "order_delivery",
+        },
+      });
+    }
+  };
 
   const ORDER_ACTIONS = [
     {

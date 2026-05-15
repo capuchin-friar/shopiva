@@ -53,6 +53,18 @@ function shippingUsesTrackingId(method) {
     return method != null && method !== "self_delivery";
 }
 
+/** Who handles the final mile when marking out for delivery. */
+const FINAL_DELIVERY_HANDLER_OPTIONS = [
+    { label: "Third-party logistics", value: "third_party_logistics" },
+    { label: "Dispatch rider", value: "dispatch_rider" },
+    { label: "Courier service", value: "courier_service" },
+    { label: "In-house / vendor team", value: "vendor_team" },
+    { label: "Customer pickup (at hub)", value: "customer_pickup_hub" },
+];
+
+const MAX_DELIVERY_EVIDENCE = 8;
+const MIN_DELIVERY_EVIDENCE = 2;
+
 export default function OrderActionScreen() {
 
     const {
@@ -81,11 +93,12 @@ export default function OrderActionScreen() {
             {
                 action === "shipping" && <Shipping data={data} />
             }
-            {
-                action === 'delivery' && <OutForDelivery data={data}/>
-            }
+
+            {action === "out_for_delivery" && <OutForDelivery data={data} />}
+
+            {action === "delivery" && <MarkAsDelivered data={data} />}
         </>
-    )
+    );
 }
 
 function ConfirmCheckbox({ checked, onToggle, label, rowStyle }) {
@@ -881,13 +894,424 @@ function Shipping({ data }) {
     );
 }
 
-function OutForDelivery({data}){
+function OutForDelivery({ data }) {
+    const insets = useSafeAreaInsets();
+    const dispatch = useDispatch();
+    const navigation = useNavigation();
 
-    return(
-        <>
+    const [confirmOutForDelivery, setConfirmOutForDelivery] = useState(false);
+    const [finalDeliveryHandler, setFinalDeliveryHandler] = useState(null);
+    const [riderContact, setRiderContact] = useState("");
+    const [expectedDelivery, setExpectedDelivery] = useState(null);
 
-        </>
-    )
+    useEffect(() => {
+        connectChatSocket();
+    }, []);
+
+    const optionLabel = (options, value) =>
+        options.find((o) => o.value === value)?.label ?? null;
+
+    const buildMeta = () => ({
+        ...(data.meta && typeof data.meta === "object" ? data.meta : {}),
+        out_for_delivery_confirmed: confirmOutForDelivery,
+        final_delivery_handler: finalDeliveryHandler,
+        final_delivery_handler_label: optionLabel(
+            FINAL_DELIVERY_HANDLER_OPTIONS,
+            finalDeliveryHandler
+        ),
+        rider_contact: riderContact.trim() || null,
+        expected_delivery: expectedDelivery,
+        expected_delivery_label: optionLabel(
+            FULFILLMENT_TIMEFRAME_OPTIONS,
+            expectedDelivery
+        ),
+    });
+
+    const validate = () => {
+        if (!confirmOutForDelivery) {
+            Alert.alert(
+                "Confirmation required",
+                "Confirm that this order is out for final delivery before continuing."
+            );
+            return false;
+        }
+        if (finalDeliveryHandler == null || finalDeliveryHandler === "") {
+            Alert.alert(
+                "Final delivery",
+                "Select who is handling the final delivery."
+            );
+            return false;
+        }
+        if (expectedDelivery == null || expectedDelivery === "") {
+            Alert.alert(
+                "Expected delivery",
+                "Select when you expect this order to be delivered."
+            );
+            return false;
+        }
+        return true;
+    };
+
+    const submit = async () => {
+        if (!validate()) return;
+        const u = await getStoredUser();
+        const response = await emitSocketAck("order_processing", {
+            ...data,
+            meta: buildMeta(),
+            outcome: "success",
+            actor_id: u.id,
+        });
+        if (response.success) {
+            dispatch(set_orderInfo(response.result));
+            navigation.goBack();
+        }
+    };
+
+    return (
+        <View style={[styles.cnt, styles.processingRoot]}>
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={[
+                    styles.processingScrollContent,
+                    styles.acceptanceScrollPaddingBottom,
+                    { paddingTop: 12 + insets.top },
+                ]}
+            >
+                <View style={styles.processingCard}>
+                    <Text style={styles.processingSectionTitle}>
+                        Out for delivery
+                    </Text>
+                    <Text style={styles.processingSectionSubtitle}>
+                        Tell the customer the order is on the final leg to them.
+                    </Text>
+                    <View style={styles.processingChecklist}>
+                        <ConfirmCheckbox
+                            checked={confirmOutForDelivery}
+                            onToggle={setConfirmOutForDelivery}
+                            label="I confirm this order is currently out for final delivery."
+                            rowStyle={styles.processingCheckboxRow}
+                        />
+                    </View>
+                </View>
+
+                <View style={styles.processingCard}>
+                    <Text style={styles.processingFieldLabel}>
+                        Who is handling the final delivery?
+                    </Text>
+                    <Text style={styles.processingFieldHint}>
+                        Choose the party completing the last mile to the customer.
+                    </Text>
+                    <Dropdown
+                        style={styles.processingDropdown}
+                        containerStyle={styles.dropdownContainer}
+                        placeholderStyle={styles.placeholderStyle}
+                        selectedTextStyle={styles.selectedTextStyle}
+                        itemTextStyle={styles.processingDropdownItem}
+                        iconStyle={styles.iconStyle}
+                        data={FINAL_DELIVERY_HANDLER_OPTIONS}
+                        maxHeight={320}
+                        labelField="label"
+                        valueField="value"
+                        placeholder="Select handler"
+                        value={finalDeliveryHandler}
+                        onChange={(item) => setFinalDeliveryHandler(item.value)}
+                    />
+                </View>
+
+                <View style={styles.processingCard}>
+                    <Text style={styles.processingFieldLabel}>
+                        Rider contact number (optional)
+                    </Text>
+                    <Text style={styles.processingFieldHint}>
+                        If a rider or driver is involved, share their phone number
+                        for coordination.
+                    </Text>
+                    <TextInput
+                        style={[styles.textInput, styles.acceptanceFormInput]}
+                        placeholder="e.g. +234 801 234 5678"
+                        value={riderContact}
+                        onChangeText={setRiderContact}
+                        keyboardType="phone-pad"
+                    />
+                </View>
+
+                <View style={styles.processingCard}>
+                    <Text style={styles.processingFieldLabel}>
+                        When do you expect this order to be delivered?
+                    </Text>
+                    <Text style={styles.processingFieldHint}>
+                        Sets customer expectations for arrival or pickup completion.
+                    </Text>
+                    <Dropdown
+                        style={styles.processingDropdown}
+                        containerStyle={styles.dropdownContainer}
+                        placeholderStyle={styles.placeholderStyle}
+                        selectedTextStyle={styles.selectedTextStyle}
+                        itemTextStyle={styles.processingDropdownItem}
+                        iconStyle={styles.iconStyle}
+                        data={FULFILLMENT_TIMEFRAME_OPTIONS}
+                        maxHeight={280}
+                        labelField="label"
+                        valueField="value"
+                        placeholder="Select timeframe"
+                        value={expectedDelivery}
+                        onChange={(item) => setExpectedDelivery(item.value)}
+                    />
+                </View>
+            </ScrollView>
+
+            <View
+                style={[
+                    styles.actionBar,
+                    { paddingBottom: Math.max(insets.bottom, 12) },
+                ]}
+            >
+                <Pressable
+                    onPress={() => navigation.goBack()}
+                    style={({ pressed }) => [
+                        styles.btnSecondary,
+                        pressed && styles.btnSecondaryPressed,
+                    ]}
+                >
+                    <Text style={styles.btnSecondaryText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                    onPress={() => {
+                        Alert.alert(
+                            "Confirm out for delivery",
+                            "Submit this update for the customer?",
+                            [
+                                { text: "Cancel", style: "cancel" },
+                                {
+                                    text: "Confirm",
+                                    style: "default",
+                                    onPress: submit,
+                                },
+                            ]
+                        );
+                    }}
+                    style={({ pressed }) => [
+                        styles.btnAccept,
+                        pressed && styles.btnAcceptPressed,
+                    ]}
+                >
+                    <Text style={styles.btnAcceptText}>Confirm</Text>
+                </Pressable>
+            </View>
+        </View>
+    );
+}
+
+function MarkAsDelivered({ data }) {
+    const insets = useSafeAreaInsets();
+    const dispatch = useDispatch();
+    const navigation = useNavigation();
+    const [confirmed, setConfirmed] = useState(false);
+    /** @type {{ id: string; uri: string; name: string; type: string }[]} */
+    const [evidence, setEvidence] = useState([]);
+
+    useEffect(() => {
+        connectChatSocket();
+    }, []);
+
+    const addEvidence = async () => {
+        if (evidence.length >= MAX_DELIVERY_EVIDENCE) {
+            Alert.alert(
+                "Limit reached",
+                `You can add up to ${MAX_DELIVERY_EVIDENCE} photos.`
+            );
+            return;
+        }
+        try {
+            const res = await DocumentPicker.pick({
+                type: [DocumentPicker.types.images],
+                allowMultiSelection: true,
+                copyTo: "cachesDirectory",
+            });
+            const picked = Array.isArray(res) ? res : [res];
+            const remaining = MAX_DELIVERY_EVIDENCE - evidence.length;
+            const slice = picked.slice(0, remaining);
+            const next = slice.map((f, i) => ({
+                id: `ev_${Date.now()}_${i}`,
+                uri: f.fileCopyUri || f.uri,
+                name: f.name || "photo.jpg",
+                type: f.type || "image/jpeg",
+            }));
+            setEvidence((prev) => [...prev, ...next]);
+        } catch (e) {
+            if (DocumentPicker.isCancel(e)) return;
+            Alert.alert(
+                "Photos",
+                e instanceof Error ? e.message : String(e)
+            );
+        }
+    };
+
+    const removeEvidence = (id) => {
+        setEvidence((prev) => prev.filter((x) => x.id !== id));
+    };
+
+    const submit = async () => {
+        if (!confirmed) {
+            Alert.alert(
+                "Confirmation required",
+                "Confirm that the order was delivered to the customer."
+            );
+            return;
+        }
+        if (evidence.length < MIN_DELIVERY_EVIDENCE) {
+            Alert.alert(
+                "Photos required",
+                `Add at least ${MIN_DELIVERY_EVIDENCE} photos: the buyer's signature and proof the order was delivered.`
+            );
+            return;
+        }
+        const u = await getStoredUser();
+        const response = await emitSocketAck("order_processing", {
+            ...data,
+            meta: {
+                ...(data.meta && typeof data.meta === "object" ? data.meta : {}),
+                delivered_confirmed: true,
+                delivery_evidence_count: evidence.length,
+                delivery_evidence_files: evidence.map((e) => ({
+                    file_name: e.name,
+                    mime_type: e.type,
+                })),
+            },
+            outcome: "success",
+            actor_id: u.id,
+        });
+        if (response.success) {
+            dispatch(set_orderInfo(response.result));
+            navigation.goBack();
+        }
+    };
+
+    return (
+        <View style={[styles.cnt, styles.processingRoot]}>
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={[
+                    styles.processingScrollContent,
+                    styles.acceptanceScrollPaddingBottom,
+                    { paddingTop: 12 + insets.top },
+                ]}
+            >
+                <View style={styles.processingCard}>
+                    <Text style={styles.processingSectionTitle}>
+                        Mark as delivered
+                    </Text>
+                    <Text style={styles.processingSectionSubtitle}>
+                        Confirm the customer has received this order.
+                    </Text>
+                    <View style={styles.processingChecklist}>
+                        <ConfirmCheckbox
+                            checked={confirmed}
+                            onToggle={setConfirmed}
+                            label="I confirm this order was delivered to the customer."
+                            rowStyle={styles.processingCheckboxRow}
+                        />
+                    </View>
+                </View>
+
+                <View style={styles.processingCard}>
+                    <Text style={styles.processingFieldLabel}>
+                        Delivery evidence (photos)
+                    </Text>
+                    <Text style={styles.processingFieldHint}>
+                        Add clear photos: buyer signature, then proof of delivery
+                        (package / handoff). At least {MIN_DELIVERY_EVIDENCE}{" "}
+                        images, up to {MAX_DELIVERY_EVIDENCE}. Scroll sideways to
+                        review.
+                    </Text>
+                    <ScrollView
+                        horizontal
+                        nestedScrollEnabled
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.evidenceGalleryRow}
+                    >
+                        {evidence.map((item) => (
+                            <View key={item.id} style={styles.evidenceTile}>
+                                <Image
+                                    source={{ uri: item.uri }}
+                                    style={styles.evidenceImage}
+                                    resizeMode="cover"
+                                />
+                                <Pressable
+                                    onPress={() => removeEvidence(item.id)}
+                                    style={({ pressed }) => [
+                                        styles.evidenceRemoveBtn,
+                                        pressed && styles.evidenceRemoveBtnPressed,
+                                    ]}
+                                    hitSlop={8}
+                                >
+                                    <Text style={styles.evidenceRemoveText}>
+                                        ×
+                                    </Text>
+                                </Pressable>
+                            </View>
+                        ))}
+                        {evidence.length < MAX_DELIVERY_EVIDENCE ? (
+                            <Pressable
+                                onPress={addEvidence}
+                                style={({ pressed }) => [
+                                    styles.evidenceAddTile,
+                                    pressed && styles.evidenceAddTilePressed,
+                                ]}
+                            >
+                                <Text style={styles.evidenceAddPlus}>+</Text>
+                                <Text style={styles.evidenceAddLabel}>
+                                    Add photo
+                                </Text>
+                            </Pressable>
+                        ) : null}
+                    </ScrollView>
+                    <Text style={styles.evidenceCountLabel}>
+                        {evidence.length} / {MAX_DELIVERY_EVIDENCE} photos
+                    </Text>
+                </View>
+            </ScrollView>
+
+            <View
+                style={[
+                    styles.actionBar,
+                    { paddingBottom: Math.max(insets.bottom, 12) },
+                ]}
+            >
+                <Pressable
+                    onPress={() => navigation.goBack()}
+                    style={({ pressed }) => [
+                        styles.btnSecondary,
+                        pressed && styles.btnSecondaryPressed,
+                    ]}
+                >
+                    <Text style={styles.btnSecondaryText}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                    onPress={() => {
+                        Alert.alert(
+                            "Confirm delivery",
+                            "Mark this order as delivered for the customer?",
+                            [
+                                { text: "Cancel", style: "cancel" },
+                                {
+                                    text: "Confirm",
+                                    style: "default",
+                                    onPress: submit,
+                                },
+                            ]
+                        );
+                    }}
+                    style={({ pressed }) => [
+                        styles.btnAccept,
+                        pressed && styles.btnAcceptPressed,
+                    ]}
+                >
+                    <Text style={styles.btnAcceptText}>Confirm</Text>
+                </Pressable>
+            </View>
+        </View>
+    );
 }
 
 const styles = StyleSheet.create({
@@ -978,6 +1402,81 @@ const styles = StyleSheet.create({
     },
     shippingTrackingLabel: {
         marginTop: 16,
+    },
+    evidenceGalleryRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 10,
+        paddingVertical: 4,
+        paddingRight: 4,
+    },
+    evidenceTile: {
+        width: 104,
+        height: 104,
+        borderRadius: 8,
+        overflow: "hidden",
+        backgroundColor: "#ECECEF",
+        borderWidth: 1,
+        borderColor: "#DCDCE0",
+    },
+    evidenceImage: {
+        width: "100%",
+        height: "100%",
+    },
+    evidenceRemoveBtn: {
+        position: "absolute",
+        top: 4,
+        right: 4,
+        width: 26,
+        height: 26,
+        borderRadius: 13,
+        backgroundColor: "rgba(0,0,0,0.55)",
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    evidenceRemoveBtnPressed: {
+        backgroundColor: "rgba(0,0,0,0.75)",
+    },
+    evidenceRemoveText: {
+        color: "#fff",
+        fontSize: 18,
+        fontWeight: "600",
+        lineHeight: 20,
+        marginTop: -1,
+    },
+    evidenceAddTile: {
+        width: 104,
+        height: 104,
+        borderRadius: 8,
+        borderWidth: 1.5,
+        borderStyle: "dashed",
+        borderColor: "#0D8A4A",
+        backgroundColor: "#F0FAF4",
+        alignItems: "center",
+        justifyContent: "center",
+        paddingHorizontal: 8,
+    },
+    evidenceAddTilePressed: {
+        backgroundColor: "#DCEFE6",
+    },
+    evidenceAddPlus: {
+        fontSize: 28,
+        fontWeight: "300",
+        color: "#0D8A4A",
+        lineHeight: 32,
+    },
+    evidenceAddLabel: {
+        fontSize: 11,
+        fontWeight: "600",
+        color: "#0D8A4A",
+        marginTop: 2,
+        textAlign: "center",
+    },
+    evidenceCountLabel: {
+        marginTop: 10,
+        fontSize: 12,
+        fontWeight: "500",
+        color: "#6B6B76",
     },
     actionBar: {
         position: 'absolute',
