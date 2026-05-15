@@ -499,7 +499,10 @@ export default function OrderDetailScreen() {
   }, []);
 
   const onUpdateStatus = () => navigation.navigate("Order-action", {
-    order
+    action: "processing",
+    data: {
+      
+    }
   });
 
   const ORDER_ACTIONS = [
@@ -885,8 +888,9 @@ export default function OrderDetailScreen() {
             </Pressable>
           </>
         }
-        {orderInfo.order_events.length > 1 &&<Pressable
-          // onPress={onUpdateStatus}
+        {orderInfo.order_events.length > 1 &&
+        <Pressable
+          onPress={onUpdateStatus}
           style={({ pressed }) => [styles.btnPrimary, pressed && styles.btnPrimaryPressed]}
         >
           <Text style={styles.btnPrimaryText}>

@@ -12,7 +12,7 @@ import { Dropdown } from "react-native-element-dropdown";
 import { TextInput } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getStoredUser } from "../auth/session";
-import { connectChatSocket, emitSocketAck, getChatSocket } from "../socket/chatSocket";
+import { connectChatSocket, emitSocketAck } from "../socket/chatSocket";
 import { set_orderInfo } from "../../redux/order";
 import { useDispatch } from "react-redux";
 
@@ -29,46 +29,58 @@ const VendorRejectReason = [
     { label: 'other', value: 'other' }
 ];
 
-export default function OrderActionScreen(){
+const FULFILLMENT_TIMEFRAME_OPTIONS = [
+    { label: 'Within 24 hours (today)', value: '24_hrs' },
+    { label: 'Within 48 hours (tomorrow)', value: '48_hrs' },
+    { label: 'Within 72 hours (3 days)', value: '72_hrs' },
+    { label: 'Within 96 hours (4 days)', value: '96_hrs' },
+];
+
+export default function OrderActionScreen() {
 
     const {
         action,
         data
     } = useRoute().params;
     const [acceptance_value, set_acceptance_value] = useState("");
-    
 
 
 
-    function updateAccptance(data){
+
+    function updateAccptance(data) {
         set_acceptance_value(data.value)
     }
 
-    function updateReason(data){
+    function updateReason(data) {
         setReason(data)
     }
 
-    function updateNote(data){
+    function updateNote(data) {
         setNote(data)
     }
 
-   
 
-    return(
+
+    return (
         <>
             {
                 action === "acceptance" && <Acceptance acceptance_value={acceptance_value} data={data} updateAccptance={updateAccptance} />
+            }
+
+            {
+                action === "processing" && <Processing />
             }
         </>
     )
 }
 
-function ConfirmCheckbox({ checked, onToggle, label }) {
+function ConfirmCheckbox({ checked, onToggle, label, rowStyle }) {
     return (
         <Pressable
             onPress={() => onToggle(!checked)}
             style={({ pressed }) => [
                 styles.checkboxRow,
+                rowStyle,
                 pressed && styles.checkboxRowPressed,
             ]}
         >
@@ -84,10 +96,10 @@ function ConfirmCheckbox({ checked, onToggle, label }) {
     );
 }
 
-function Acceptance({acceptance_value, updateAccptance, data}){
+function Acceptance({ acceptance_value, updateAccptance, data }) {
     const insets = useSafeAreaInsets();
     const dispatch = useDispatch();
-    
+
     const [reason, setReason] = useState("");
     const [note, setNote] = useState("");
 
@@ -95,6 +107,7 @@ function Acceptance({acceptance_value, updateAccptance, data}){
     const [confirmFulfillOnTime, setConfirmFulfillOnTime] = useState(false);
     const [confirmPerformancePolicy, setConfirmPerformancePolicy] =
         useState(false);
+    const [fulfillmentDuration, setFulfillmentDuration] = useState(null);
 
     const navigation = useNavigation();
     useEffect(() => {
@@ -102,16 +115,28 @@ function Acceptance({acceptance_value, updateAccptance, data}){
     }, [])
 
 
-    if(data.stage === "order_rejected"){    
-        return(
+    if (data.stage === "order_rejected") {
+        return (
             <>
-                <View style={styles.cnt}>
-
-                    <ScrollView >
-                        <View style={styles.inputCnt}>
-                            <Text style={styles.inputLabel}>Why are you unable to fulfill this order</Text>
+                <View style={[styles.cnt, styles.processingRoot]}>
+                    <ScrollView
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={[
+                            styles.processingScrollContent,
+                            styles.acceptanceScrollPaddingBottom,
+                            { paddingTop: 15 },
+                        ]}
+                    >
+                        <View style={styles.processingCard}>
+                            <Text style={styles.processingSectionTitle}>
+                                Cannot fulfill this order
+                            </Text>
+                            <Text style={styles.processingSectionSubtitle}>
+                                Choose the reason that best matches the situation.
+                                This is shared with the customer.
+                            </Text>
                             <Dropdown
-                                style={styles.dropdown}
+                                style={styles.processingDropdown}
                                 containerStyle={styles.dropdownContainer}
                                 placeholderStyle={styles.placeholderStyle}
                                 selectedTextStyle={styles.selectedTextStyle}
@@ -129,26 +154,41 @@ function Acceptance({acceptance_value, updateAccptance, data}){
                                 onChange={(item) => {
                                     updateAccptance(item);
                                     setReason(item.value);
-                                    // setCategoryGateError('');
                                 }}
                             />
                         </View>
-                        {
-                            acceptance_value === "other" && 
-                            <View style={styles.inputCnt}>
-                                <Text style={styles.inputLabel}>Other reason</Text>
-                                <TextInput style={styles.textInput} placeholder="Other reason" onChangeText={txt => {
-                                    // updateAccptance(txt)
-                                    setReason(txt)
-                                }} />
+                        {acceptance_value === "other" && (
+                            <View style={styles.processingCard}>
+                                <Text style={styles.processingFieldLabel}>
+                                    Other reason
+                                </Text>
+                                <Text style={styles.processingFieldHint}>
+                                    Briefly explain so the customer understands.
+                                </Text>
+                                <TextInput
+                                    style={[styles.textInput, styles.acceptanceFormInput]}
+                                    placeholder="Describe the reason"
+                                    onChangeText={(txt) => setReason(txt)}
+                                />
                             </View>
-                        }
-                        <View style={styles.inputCnt}>
-                            <Text style={styles.inputLabel}>Describe reason (Optional)</Text>
-                            <TextInput style={[styles.textInput, styles.textInputMultiline]} multiline placeholder="Describe reason..." onChangeText={txt => {
-                                updateAccptance(txt)
-                                setNote(txt)
-                            }} />
+                        )}
+                        <View style={styles.processingCard}>
+                            <Text style={styles.processingFieldLabel}>
+                                Additional details (optional)
+                            </Text>
+                            <Text style={styles.processingFieldHint}>
+                                Extra context for support or your own records.
+                            </Text>
+                            <TextInput
+                                style={[
+                                    styles.textInput,
+                                    styles.textInputMultiline,
+                                    styles.acceptanceFormInput,
+                                ]}
+                                multiline
+                                placeholder="Add optional notes…"
+                                onChangeText={(txt) => setNote(txt)}
+                            />
                         </View>
                     </ScrollView>
 
@@ -157,15 +197,17 @@ function Acceptance({acceptance_value, updateAccptance, data}){
                             styles.actionBar,
                             { paddingBottom: Math.max(insets.bottom, 12) },
                         ]}
-                        >
+                    >
                         <Pressable
                             onPress={e => navigation.goBack()}
-                            
-                            style={({ pressed }) => [styles.btnAccept, pressed && styles.btnAcceptPressed]}
+                            style={({ pressed }) => [
+                                styles.btnSecondary,
+                                pressed && styles.btnSecondaryPressed,
+                            ]}
                         >
-                            <Text style={styles.btnAcceptText}>Cancel</Text>
+                            <Text style={styles.btnSecondaryText}>Cancel</Text>
                         </Pressable>
-                
+
                         <Pressable
                             // onPress={onResendInvoice}
                             onPress={e => {
@@ -190,7 +232,7 @@ function Acceptance({acceptance_value, updateAccptance, data}){
                                                     notes: note,
                                                     actor_id: u.id
                                                 });
-                                                if(response.success) {
+                                                if (response.success) {
                                                     dispatch(set_orderInfo(response.result))
                                                     navigation.goBack();
                                                 }
@@ -207,44 +249,102 @@ function Acceptance({acceptance_value, updateAccptance, data}){
                 </View>
             </>
         )
-    }else{
-        return(
+    } else {
+        return (
             <>
-                <View style={styles.cnt}>
-
+                <View style={[styles.cnt, styles.processingRoot]}>
                     <ScrollView
-                        contentContainerStyle={styles.acceptScrollContent}
+                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={[
+                            styles.processingScrollContent,
+                            styles.acceptanceScrollPaddingBottom,
+                            { paddingTop: 15 },
+                        ]}
                     >
-                        <View style={styles.inputCnt}>
-                            <Text style={styles.inputLabel}>
-                                Before you accept, confirm each statement below.
+                        <View style={styles.processingCard}>
+                            <Text style={styles.processingSectionTitle}>
+                                Accept order
                             </Text>
-                            <ConfirmCheckbox
-                                checked={confirmItemsInStock}
-                                onToggle={setConfirmItemsInStock}
-                                label="Items are available in stock"
-                            />
-                            <ConfirmCheckbox
-                                checked={confirmFulfillOnTime}
-                                onToggle={setConfirmFulfillOnTime}
-                                label="I can fulfill this order on time"
-                            />
-                            <ConfirmCheckbox
-                                checked={confirmPerformancePolicy}
-                                onToggle={setConfirmPerformancePolicy}
-                                label="I understand performance policy"
+                            <Text style={styles.processingSectionSubtitle}>
+                                Confirm each statement. The customer is notified
+                                as soon as you accept.
+                            </Text>
+                            <View style={styles.processingChecklist}>
+                                <ConfirmCheckbox
+                                    checked={confirmItemsInStock}
+                                    onToggle={setConfirmItemsInStock}
+                                    label="Items are available in stock"
+                                    rowStyle={styles.processingCheckboxRow}
+                                />
+                                <View style={styles.processingChecklistDivider} />
+                                <ConfirmCheckbox
+                                    checked={confirmFulfillOnTime}
+                                    onToggle={setConfirmFulfillOnTime}
+                                    label="I can fulfill this order on time"
+                                    rowStyle={styles.processingCheckboxRow}
+                                />
+                                <View style={styles.processingChecklistDivider} />
+                                <ConfirmCheckbox
+                                    checked={confirmPerformancePolicy}
+                                    onToggle={setConfirmPerformancePolicy}
+                                    label="I understand performance policy"
+                                    rowStyle={styles.processingCheckboxRow}
+                                />
+                            </View>
+                        </View>
+
+                        <View style={styles.processingCard}>
+                            <Text style={styles.processingFieldLabel}>
+                                Estimated ship time
+                            </Text>
+                            <Text style={styles.processingFieldHint}>
+                                When do you plan to hand this order to the
+                                carrier? This helps set customer expectations.
+                            </Text>
+                            <Dropdown
+                                style={styles.processingDropdown}
+                                containerStyle={styles.dropdownContainer}
+                                placeholderStyle={styles.placeholderStyle}
+                                selectedTextStyle={styles.selectedTextStyle}
+                                itemTextStyle={styles.processingDropdownItem}
+                                iconStyle={styles.iconStyle}
+                                data={FULFILLMENT_TIMEFRAME_OPTIONS}
+                                maxHeight={280}
+                                labelField="label"
+                                valueField="value"
+                                placeholder="Select timeframe"
+                                value={fulfillmentDuration}
+                                onChange={(item) =>
+                                    setFulfillmentDuration(item.value)
+                                }
                             />
                         </View>
 
-                        <View style={styles.inputCnt}>
-                            <Text style={styles.inputLabel}>Notes (Optional)</Text>
-                            <TextInput style={[styles.textInput, styles.textInputMultiline]} multiline placeholder="Note something down..." onChangeText={txt => {
-                                updateAccptance(txt)
-                                setNote(txt)
-                            }} />
+                        <View style={styles.processingCard}>
+                            <Text style={styles.processingFieldLabel}>
+                                Notes (optional)
+                            </Text>
+                            <Text style={styles.processingFieldHint}>
+                                Optional message stored on the order.
+                            </Text>
+                            <TextInput
+                                style={[
+                                    styles.textInput,
+                                    styles.textInputMultiline,
+                                    styles.acceptanceFormInput,
+                                ]}
+                                multiline
+                                placeholder="Note something down…"
+                                onChangeText={(txt) => setNote(txt)}
+                            />
                         </View>
 
-                        <View style={[styles.inputCnt, styles.acceptIntroBlock]}>
+                        <View
+                            style={[
+                                styles.processingCard,
+                                styles.acceptDisclaimerCard,
+                            ]}
+                        >
                             <Text style={styles.acceptIntroText}>
                                 By accepting this order, you confirm that the
                                 products are available and will be shipped within
@@ -258,7 +358,7 @@ function Acceptance({acceptance_value, updateAccptance, data}){
                             styles.actionBar,
                             { paddingBottom: Math.max(insets.bottom, 12) },
                         ]}
-                        >
+                    >
                         <Pressable
                             onPress={e => navigation.goBack()}
                             style={({ pressed }) => [
@@ -282,6 +382,16 @@ function Acceptance({acceptance_value, updateAccptance, data}){
                                     );
                                     return;
                                 }
+                                if (
+                                    fulfillmentDuration == null ||
+                                    fulfillmentDuration === ""
+                                ) {
+                                    Alert.alert(
+                                        "Ship time required",
+                                        "Select when you will ship this order so the customer sees an accurate commitment."
+                                    );
+                                    return;
+                                }
                                 const u = await getStoredUser();
                                 const response = await emitSocketAck(
                                     "order_acceptance",
@@ -289,7 +399,7 @@ function Acceptance({acceptance_value, updateAccptance, data}){
                                         ...data,
                                         meta: {
                                             ...(data.meta &&
-                                            typeof data.meta === "object"
+                                                typeof data.meta === "object"
                                                 ? data.meta
                                                 : {}),
                                             vendor_confirmations: {
@@ -297,6 +407,14 @@ function Acceptance({acceptance_value, updateAccptance, data}){
                                                 fulfill_on_time: true,
                                                 performance_policy: true,
                                             },
+                                            fulfillment_duration:
+                                                fulfillmentDuration,
+                                            fulfillment_duration_label:
+                                                FULFILLMENT_TIMEFRAME_OPTIONS.find(
+                                                    (o) =>
+                                                        o.value ===
+                                                        fulfillmentDuration
+                                                )?.label ?? null,
                                         },
                                         notes: note,
                                         actor_id: u.id,
@@ -321,14 +439,224 @@ function Acceptance({acceptance_value, updateAccptance, data}){
     }
 }
 
+function Processing() {
+    const insets = useSafeAreaInsets();
+    const [startedProcessing, setStartedProcessing] = useState(false);
+    const [shipWithinCommitment, setShipWithinCommitment] = useState(false);
+    const [fulfillmentDuration, setFulfillmentDuration] = useState(null);
+
+    const navigation = useNavigation();
+
+    return (
+        <View style={[styles.cnt, styles.processingRoot]}>
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={[
+                    styles.processingScrollContent,
+                    { paddingTop: 15 },
+                ]}
+            >
+                <View style={styles.processingCard}>
+                    <Text style={styles.processingSectionTitle}>Processing order</Text>
+                    <Text style={styles.processingSectionSubtitle}>
+                        Check each item to confirm you are actively working this
+                        order.
+                    </Text>
+                    <View style={styles.processingChecklist}>
+                        <ConfirmCheckbox
+                            checked={startedProcessing}
+                            onToggle={setStartedProcessing}
+                            label="I've started processing this order"
+                            rowStyle={styles.processingCheckboxRow}
+                        />
+                        <View style={styles.processingChecklistDivider} />
+                        <ConfirmCheckbox
+                            checked={shipWithinCommitment}
+                            onToggle={setShipWithinCommitment}
+                            label="Order will ship within the required timeframe"
+                            rowStyle={styles.processingCheckboxRow}
+                        />
+                    </View>
+                </View>
+
+                <View style={styles.processingCard}>
+                    <Text style={styles.processingFieldLabel}>
+                        Estimated ship time
+                    </Text>
+                    <Text style={styles.processingFieldHint}>
+                        When do you plan to ship this order? This
+                        helps set customer expectations.
+                    </Text>
+                    <Dropdown
+                        style={styles.processingDropdown}
+                        containerStyle={styles.dropdownContainer}
+                        placeholderStyle={styles.placeholderStyle}
+                        selectedTextStyle={styles.selectedTextStyle}
+                        itemTextStyle={styles.processingDropdownItem}
+                        iconStyle={styles.iconStyle}
+                        data={FULFILLMENT_TIMEFRAME_OPTIONS}
+                        maxHeight={280}
+                        labelField="label"
+                        valueField="value"
+                        placeholder="Select timeframe"
+                        value={fulfillmentDuration}
+                        onChange={(item) => setFulfillmentDuration(item.value)}
+                    />
+                </View>
+                <View
+                    style={[
+                        styles.processingCard,
+                        styles.acceptDisclaimerCard,
+                    ]}
+                >
+                    <Text style={styles.acceptIntroText}>
+                        By starting processing, you confirm that the order is being prepared for shipment.
+                    </Text>
+                </View>
+            </ScrollView>
+            <View
+                style={[
+                    styles.actionBar,
+                    { paddingBottom: Math.max(insets.bottom, 12) },
+                ]}
+            >
+                <Pressable
+                    onPress={e => navigation.goBack()}
+                    style={({ pressed }) => [
+                        styles.btnSecondary,
+                        pressed && styles.btnSecondaryPressed,
+                    ]}
+                >
+                    <Text style={styles.btnSecondaryText}>Cancel</Text>
+                </Pressable>
+
+                <Pressable
+                    // onPress={onResendInvoice}
+                    onPress={e => {
+                        Alert.alert(
+                            "Confirm Processing",
+                            "Confirm that you have started preparing this order for shipment..",
+                            [
+                                {
+                                    text: 'Cancel',
+                                    style: 'cancel',
+                                },
+                                {
+                                    text: 'Reject',
+                                    style: 'destructive',
+                                    onPress: async () => {
+                                        const u = await getStoredUser();
+                                        const response = await emitSocketAck("order_processing", {
+                                            ...data,
+                                            meta: {
+                                                reason: reason
+                                            },
+                                            notes: note,
+                                            actor_id: u.id
+                                        });
+                                        if (response.success) {
+                                            dispatch(set_orderInfo(response.result))
+                                            navigation.goBack();
+                                        }
+                                    }
+                                }
+                            ]
+                        )
+                    }}
+                    style={({ pressed }) => [styles.btnAccept, pressed && styles.btnAcceptPressed]}
+                >
+                    <Text style={styles.btnRejectText}>Confirm</Text>
+                </Pressable>
+            </View>
+        </View>
+    );
+}
 
 const styles = StyleSheet.create({
     cnt: {
         flex: 1,
         // backgroundColor: '#FFFFFF',
     },
-    acceptScrollContent: {
+    processingRoot: {
+        backgroundColor: '#F2F3F5',
+    },
+    processingScrollContent: {
+        paddingHorizontal: 16,
+        paddingBottom: 32,
+    },
+    acceptanceScrollPaddingBottom: {
         paddingBottom: 100,
+    },
+    acceptanceFormInput: {
+        borderRadius: 5,
+        borderColor: '#DCDCE0',
+    },
+    acceptDisclaimerCard: {
+        backgroundColor: '#F8F9FA',
+        borderColor: '#ECECEF',
+    },
+    processingCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 5,
+        padding: 16,
+        marginBottom: 14,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: '#E6E7EB',
+    },
+    processingSectionTitle: {
+        fontSize: 17,
+        fontWeight: '700',
+        color: '#111111',
+        letterSpacing: -0.3,
+        marginBottom: 6,
+    },
+    processingSectionSubtitle: {
+        fontSize: 13,
+        fontWeight: '400',
+        color: '#5C5C66',
+        lineHeight: 19,
+        marginBottom: 14,
+    },
+    processingChecklist: {
+        backgroundColor: '#F8F9FA',
+        borderRadius: 5,
+        borderWidth: 1,
+        borderColor: '#ECECEF',
+        overflow: 'hidden',
+    },
+    processingChecklistDivider: {
+        height: StyleSheet.hairlineWidth,
+        backgroundColor: '#E2E2E6',
+        marginLeft: 46,
+    },
+    processingCheckboxRow: {
+        paddingVertical: 12,
+        paddingHorizontal: 12,
+    },
+    processingFieldLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#111111',
+        marginBottom: 4,
+    },
+    processingFieldHint: {
+        fontSize: 12,
+        fontWeight: '400',
+        color: '#6B6B76',
+        lineHeight: 17,
+        marginBottom: 12,
+    },
+    processingDropdown: {
+        minHeight: 50,
+        borderColor: '#DCDCE0',
+        borderWidth: 1,
+        borderRadius: 5,
+        paddingHorizontal: 14,
+        backgroundColor: '#FAFAFA',
+    },
+    processingDropdownItem: {
+        fontSize: 14,
+        color: '#111111',
     },
     actionBar: {
         position: 'absolute',
@@ -455,9 +783,6 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#111111',
         marginBottom: 8,
-    },
-    acceptIntroBlock: {
-        paddingBottom: 24,
     },
     acceptIntroText: {
         fontSize: 14,
