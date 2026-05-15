@@ -2,6 +2,7 @@ import { useNavigation, useRoute } from "@react-navigation/native";
 import { useEffect, useState } from "react";
 import {
     Alert,
+    Image,
     Pressable,
     ScrollView,
     StyleSheet,
@@ -10,6 +11,7 @@ import {
 } from "react-native";
 import { Dropdown } from "react-native-element-dropdown";
 import { TextInput } from "react-native-gesture-handler";
+import DocumentPicker from "react-native-document-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getStoredUser } from "../auth/session";
 import { connectChatSocket, emitSocketAck } from "../socket/chatSocket";
@@ -29,12 +31,27 @@ const VendorRejectReason = [
     { label: 'other', value: 'other' }
 ];
 
+/** Used when vendor commits to a delivery / ship-by window. */
 const FULFILLMENT_TIMEFRAME_OPTIONS = [
     { label: 'Within 24 hours (today)', value: '24_hrs' },
     { label: 'Within 48 hours (tomorrow)', value: '48_hrs' },
     { label: 'Within 72 hours (3 days)', value: '72_hrs' },
     { label: 'Within 96 hours (4 days)', value: '96_hrs' },
 ];
+
+const SHIPPING_METHOD_OPTIONS = [
+    { label: 'Third-party logistics partner', value: 'third_party_logistics' },
+    { label: 'Dispatch rider', value: 'dispatch_rider' },
+    { label: 'Courier service', value: 'courier_service' },
+    { label: 'Bus transport / waybill', value: 'bus_waybill' },
+    { label: 'Self delivery', value: 'self_delivery' },
+    // { label: 'Customer pickup', value: 'customer_pickup' },
+];
+
+/** Carrier-assisted methods need a tracking / reference ID; self delivery does not. */
+function shippingUsesTrackingId(method) {
+    return method != null && method !== "self_delivery";
+}
 
 export default function OrderActionScreen() {
 
@@ -51,16 +68,6 @@ export default function OrderActionScreen() {
         set_acceptance_value(data.value)
     }
 
-    function updateReason(data) {
-        setReason(data)
-    }
-
-    function updateNote(data) {
-        setNote(data)
-    }
-
-
-
     return (
         <>
             {
@@ -68,7 +75,14 @@ export default function OrderActionScreen() {
             }
 
             {
-                action === "processing" && <Processing />
+                action === "processing" && <Processing data={data} />
+            }
+
+            {
+                action === "shipping" && <Shipping data={data} />
+            }
+            {
+                action === 'delivery' && <OutForDelivery data={data}/>
             }
         </>
     )
@@ -439,13 +453,61 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
     }
 }
 
-function Processing() {
+function Processing({ data }) {
     const insets = useSafeAreaInsets();
+    const dispatch = useDispatch();
+    const navigation = useNavigation();
+
     const [startedProcessing, setStartedProcessing] = useState(false);
     const [shipWithinCommitment, setShipWithinCommitment] = useState(false);
     const [fulfillmentDuration, setFulfillmentDuration] = useState(null);
 
-    const navigation = useNavigation();
+    useEffect(() => {
+        connectChatSocket();
+    }, []);
+
+    const submitProcessingMeta = () => ({
+        ...(data.meta && typeof data.meta === "object" ? data.meta : {}),
+        started_processing: startedProcessing,
+        ship_within_commitment: shipWithinCommitment,
+        fulfillment_duration: fulfillmentDuration,
+        fulfillment_duration_label:
+            FULFILLMENT_TIMEFRAME_OPTIONS.find((o) => o.value === fulfillmentDuration)
+                ?.label ?? null,
+    });
+
+    const validateProcessing = () => {
+        if (!startedProcessing || !shipWithinCommitment) {
+            Alert.alert(
+                "Confirmations required",
+                "Check both boxes to confirm you are processing this order on schedule."
+            );
+            return false;
+        }
+        if (fulfillmentDuration == null || fulfillmentDuration === "") {
+            Alert.alert(
+                "Ship time required",
+                "Select when you expect to ship so the customer sees an accurate window."
+            );
+            return false;
+        }
+        return true;
+    };
+
+    const runProcessingConfirm = async () => {
+        if (!validateProcessing()) return;
+        const u = await getStoredUser();
+        const response = await emitSocketAck("order_processing", {
+            ...data,
+            meta: submitProcessingMeta(),
+            outcome: "success",
+            actor_id: u.id,
+        });
+        if (response.success) {
+            dispatch(set_orderInfo(response.result));
+            navigation.goBack();
+        }
+    };
 
     return (
         <View style={[styles.cnt, styles.processingRoot]}>
@@ -453,14 +515,15 @@ function Processing() {
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={[
                     styles.processingScrollContent,
-                    { paddingTop: 15 },
+                    styles.acceptanceScrollPaddingBottom,
+                    { paddingTop: 12 + insets.top },
                 ]}
             >
                 <View style={styles.processingCard}>
                     <Text style={styles.processingSectionTitle}>Processing order</Text>
                     <Text style={styles.processingSectionSubtitle}>
-                        Check each item to confirm you are actively working this
-                        order.
+                        Confirm you are actively preparing this order and will ship
+                        on time.
                     </Text>
                     <View style={styles.processingChecklist}>
                         <ConfirmCheckbox
@@ -484,7 +547,7 @@ function Processing() {
                         Estimated ship time
                     </Text>
                     <Text style={styles.processingFieldHint}>
-                        When do you plan to ship this order? This
+                        When do you plan to hand this order to the carrier? This
                         helps set customer expectations.
                     </Text>
                     <Dropdown
@@ -510,7 +573,8 @@ function Processing() {
                     ]}
                 >
                     <Text style={styles.acceptIntroText}>
-                        By starting processing, you confirm that the order is being prepared for shipment.
+                        By confirming, you state that the order is being prepared
+                        for shipment according to your commitments.
                     </Text>
                 </View>
             </ScrollView>
@@ -521,7 +585,7 @@ function Processing() {
                 ]}
             >
                 <Pressable
-                    onPress={e => navigation.goBack()}
+                    onPress={() => navigation.goBack()}
                     style={({ pressed }) => [
                         styles.btnSecondary,
                         pressed && styles.btnSecondaryPressed,
@@ -531,45 +595,299 @@ function Processing() {
                 </Pressable>
 
                 <Pressable
-                    // onPress={onResendInvoice}
-                    onPress={e => {
+                    onPress={() => {
                         Alert.alert(
-                            "Confirm Processing",
-                            "Confirm that you have started preparing this order for shipment..",
+                            "Confirm processing",
+                            "Confirm you have started preparing this order for shipment.",
                             [
+                                { text: "Cancel", style: "cancel" },
                                 {
-                                    text: 'Cancel',
-                                    style: 'cancel',
+                                    text: "Confirm",
+                                    style: "default",
+                                    onPress: runProcessingConfirm,
                                 },
-                                {
-                                    text: 'Reject',
-                                    style: 'destructive',
-                                    onPress: async () => {
-                                        const u = await getStoredUser();
-                                        const response = await emitSocketAck("order_processing", {
-                                            ...data,
-                                            meta: {
-                                                reason: reason
-                                            },
-                                            notes: note,
-                                            actor_id: u.id
-                                        });
-                                        if (response.success) {
-                                            dispatch(set_orderInfo(response.result))
-                                            navigation.goBack();
-                                        }
-                                    }
-                                }
                             ]
-                        )
+                        );
                     }}
-                    style={({ pressed }) => [styles.btnAccept, pressed && styles.btnAcceptPressed]}
+                    style={({ pressed }) => [
+                        styles.btnAccept,
+                        pressed && styles.btnAcceptPressed,
+                    ]}
                 >
-                    <Text style={styles.btnRejectText}>Confirm</Text>
+                    <Text style={styles.btnAcceptText}>Confirm</Text>
                 </Pressable>
             </View>
         </View>
     );
+}
+
+function Shipping({ data }) {
+    const insets = useSafeAreaInsets();
+    const dispatch = useDispatch();
+    const navigation = useNavigation();
+
+    const [handedOffForShipping, setHandedOffForShipping] = useState(false);
+    const [withinCommittedTimeframe, setWithinCommittedTimeframe] =
+        useState(false);
+    const [shippingMethod, setShippingMethod] = useState(null);
+    const [estimatedDelivery, setEstimatedDelivery] = useState(null);
+    const [trackingId, setTrackingId] = useState("");
+
+    useEffect(() => {
+        connectChatSocket();
+    }, []);
+
+    const optionLabel = (options, value) =>
+        options.find((o) => o.value === value)?.label ?? null;
+
+    const buildShippingMeta = () => ({
+        ...(data.meta && typeof data.meta === "object" ? data.meta : {}),
+        handed_off_for_shipping: handedOffForShipping,
+        within_committed_timeframe: withinCommittedTimeframe,
+        shipping_method: shippingMethod,
+        shipping_method_label: optionLabel(SHIPPING_METHOD_OPTIONS, shippingMethod),
+        estimated_delivery: estimatedDelivery,
+        estimated_delivery_label: optionLabel(
+            FULFILLMENT_TIMEFRAME_OPTIONS,
+            estimatedDelivery
+        ),
+        tracking_id: shippingUsesTrackingId(shippingMethod)
+            ? trackingId.trim() || null
+            : null,
+    });
+
+    const validateShipping = () => {
+        if (!handedOffForShipping || !withinCommittedTimeframe) {
+            Alert.alert(
+                "Confirmations required",
+                "Confirm both statements before you mark this order as shipping."
+            );
+            return false;
+        }
+        if (shippingMethod == null || shippingMethod === "") {
+            Alert.alert(
+                "Shipping method",
+                "Select how this order is being sent to the customer."
+            );
+            return false;
+        }
+        if (shippingUsesTrackingId(shippingMethod)) {
+            const tid = trackingId.trim();
+            if (!tid) {
+                Alert.alert(
+                    "Tracking or reference ID required",
+                    "Enter a waybill, tracking number, or reference for this shipment. Self delivery is the only option that skips this."
+                );
+                return false;
+            }
+        }
+        if (estimatedDelivery == null || estimatedDelivery === "") {
+            Alert.alert(
+                "Delivery window",
+                "Select when the customer should expect delivery (or pickup)."
+            );
+            return false;
+        }
+        return true;
+    };
+
+    const submitShipping = async () => {
+        if (!validateShipping()) return;
+        const u = await getStoredUser();
+        const response = await emitSocketAck("order_shipping", {
+            ...data,
+            meta: buildShippingMeta(),
+            outcome: "success",
+            actor_id: u.id,
+        });
+        if (response.success) {
+            dispatch(set_orderInfo(response.result));
+            navigation.goBack();
+        }
+    };
+
+    return (
+        <View style={[styles.cnt, styles.processingRoot]}>
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={[
+                    styles.processingScrollContent,
+                    styles.acceptanceScrollPaddingBottom,
+                    { paddingTop: 12 + insets.top },
+                ]}
+            >
+                {/* 1 — Commitments */}
+                <View style={styles.processingCard}>
+                    <Text style={styles.processingSectionTitle}>Ship order</Text>
+                    <Text style={styles.processingSectionSubtitle}>
+                        Confirm the order is on its way (or ready for pickup) and
+                        still matches what you promised.
+                    </Text>
+                    <View style={styles.processingChecklist}>
+                        <ConfirmCheckbox
+                            checked={handedOffForShipping}
+                            onToggle={setHandedOffForShipping}
+                            label="I've shipped this order or released it for delivery / pickup"
+                            rowStyle={styles.processingCheckboxRow}
+                        />
+                        <View style={styles.processingChecklistDivider} />
+                        <ConfirmCheckbox
+                            checked={withinCommittedTimeframe}
+                            onToggle={setWithinCommittedTimeframe}
+                            label="Delivery or pickup stays within the timeframe I committed to"
+                            rowStyle={styles.processingCheckboxRow}
+                        />
+                    </View>
+                </View>
+
+                {/* 2 — How it ships */}
+                <View style={styles.processingCard}>
+                    <Text style={styles.processingFieldLabel}>
+                        Shipping method
+                    </Text>
+                    <Text style={styles.processingFieldHint}>
+                        How is this order reaching the customer?
+                    </Text>
+                    <Dropdown
+                        style={styles.processingDropdown}
+                        containerStyle={styles.dropdownContainer}
+                        placeholderStyle={styles.placeholderStyle}
+                        selectedTextStyle={styles.selectedTextStyle}
+                        itemTextStyle={styles.processingDropdownItem}
+                        iconStyle={styles.iconStyle}
+                        data={SHIPPING_METHOD_OPTIONS}
+                        maxHeight={320}
+                        labelField="label"
+                        valueField="value"
+                        placeholder="Select shipping method"
+                        value={shippingMethod}
+                        onChange={(item) => {
+                            setShippingMethod(item.value);
+                            if (!shippingUsesTrackingId(item.value)) {
+                                setTrackingId("");
+                            }
+                        }}
+                    />
+                    {shippingUsesTrackingId(shippingMethod) ? (
+                        <>
+                            <Text
+                                style={[
+                                    styles.processingFieldLabel,
+                                    styles.shippingTrackingLabel,
+                                ]}
+                            >
+                                Tracking or reference ID
+                            </Text>
+                            <Text style={styles.processingFieldHint}>
+                                Waybill, AWB, rider/courier reference, bus waybill,
+                                or pickup code — anything the customer can use to
+                                trace the handoff. Not required for self delivery.
+                            </Text>
+                            <TextInput
+                                style={[
+                                    styles.textInput,
+                                    styles.acceptanceFormInput,
+                                ]}
+                                placeholder="Enter tracking or reference number"
+                                value={trackingId}
+                                onChangeText={setTrackingId}
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                            />
+                        </>
+                    ) : null}
+                </View>
+
+                {/* 3 — When it arrives */}
+                <View style={styles.processingCard}>
+                    <Text style={styles.processingFieldLabel}>
+                        Expected delivery window
+                    </Text>
+                    <Text style={styles.processingFieldHint}>
+                        When should the customer expect the order? Align this with
+                        the method you chose.
+                    </Text>
+                    <Dropdown
+                        style={styles.processingDropdown}
+                        containerStyle={styles.dropdownContainer}
+                        placeholderStyle={styles.placeholderStyle}
+                        selectedTextStyle={styles.selectedTextStyle}
+                        itemTextStyle={styles.processingDropdownItem}
+                        iconStyle={styles.iconStyle}
+                        data={FULFILLMENT_TIMEFRAME_OPTIONS}
+                        maxHeight={280}
+                        labelField="label"
+                        valueField="value"
+                        placeholder="Select timeframe"
+                        value={estimatedDelivery}
+                        onChange={(item) => setEstimatedDelivery(item.value)}
+                    />
+                </View>
+
+                {/* 4 — Disclaimer */}
+                <View
+                    style={[
+                        styles.processingCard,
+                        styles.acceptDisclaimerCard,
+                    ]}
+                >
+                    <Text style={styles.acceptIntroText}>
+                        By confirming, you state that shipment or pickup details
+                        above are accurate. Keep the customer updated if anything
+                        changes.
+                    </Text>
+                </View>
+            </ScrollView>
+            <View
+                style={[
+                    styles.actionBar,
+                    { paddingBottom: Math.max(insets.bottom, 12) },
+                ]}
+            >
+                <Pressable
+                    onPress={() => navigation.goBack()}
+                    style={({ pressed }) => [
+                        styles.btnSecondary,
+                        pressed && styles.btnSecondaryPressed,
+                    ]}
+                >
+                    <Text style={styles.btnSecondaryText}>Cancel</Text>
+                </Pressable>
+
+                <Pressable
+                    onPress={() => {
+                        Alert.alert(
+                            "Confirm shipping",
+                            "Submit this shipping update for the customer?",
+                            [
+                                { text: "Cancel", style: "cancel" },
+                                {
+                                    text: "Confirm",
+                                    style: "default",
+                                    onPress: submitShipping,
+                                },
+                            ]
+                        );
+                    }}
+                    style={({ pressed }) => [
+                        styles.btnAccept,
+                        pressed && styles.btnAcceptPressed,
+                    ]}
+                >
+                    <Text style={styles.btnAcceptText}>Confirm</Text>
+                </Pressable>
+            </View>
+        </View>
+    );
+}
+
+function OutForDelivery({data}){
+
+    return(
+        <>
+
+        </>
+    )
 }
 
 const styles = StyleSheet.create({
@@ -657,6 +975,9 @@ const styles = StyleSheet.create({
     processingDropdownItem: {
         fontSize: 14,
         color: '#111111',
+    },
+    shippingTrackingLabel: {
+        marginTop: 16,
     },
     actionBar: {
         position: 'absolute',

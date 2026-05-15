@@ -498,12 +498,24 @@ export default function OrderDetailScreen() {
     );
   }, []);
 
-  const onUpdateStatus = () => navigation.navigate("Order-action", {
-    action: "processing",
-    data: {
-      
-    }
-  });
+  const onUpdateStatus = async() => {
+      let u = await getStoredUser();
+      navigation.navigate("Order-action", {
+      action: "delivery",
+      data: {
+        order_id: orderInfo.order.id,
+        event_type: "delivery",
+        stage: "order_delivery",
+        actor_type: "vendor",
+        actor_id: u.id,
+        outcome: "pending",
+        notes: "",
+        recipient: orderInfo.order.customer_id,
+        meta: {}
+      }
+    
+    })
+  }
 
   const ORDER_ACTIONS = [
     {
@@ -898,6 +910,8 @@ export default function OrderDetailScreen() {
               statusKey === "processing"
                 ? "Mark as shipped"
                 : statusKey === "shipped"
+                ? "Out for delivery"
+                : statusKey === "out_for_delivery"
                 ? "Mark as delivered"
                 : "Update status"
             }
