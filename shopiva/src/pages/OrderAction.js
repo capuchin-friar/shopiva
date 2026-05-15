@@ -94,9 +94,13 @@ export default function OrderActionScreen() {
                 action === "shipping" && <Shipping data={data} />
             }
 
-            {action === "out_for_delivery" && <OutForDelivery data={data} />}
+            {   
+                action === "out_for_delivery" && <OutForDelivery data={data} />
+            }
 
-            {action === "delivery" && <MarkAsDelivered data={data} />}
+            {   
+                action === "delivery" && <MarkAsDelivered data={data} />
+            }
         </>
     );
 }
@@ -529,7 +533,7 @@ function Processing({ data }) {
                 contentContainerStyle={[
                     styles.processingScrollContent,
                     styles.acceptanceScrollPaddingBottom,
-                    { paddingTop: 12 + insets.top },
+                    { paddingTop: 15 },
                 ]}
             >
                 <View style={styles.processingCard}>
@@ -726,7 +730,7 @@ function Shipping({ data }) {
                 contentContainerStyle={[
                     styles.processingScrollContent,
                     styles.acceptanceScrollPaddingBottom,
-                    { paddingTop: 12 + insets.top },
+                    { paddingTop: 15 },
                 ]}
             >
                 {/* 1 — Commitments */}
@@ -974,7 +978,7 @@ function OutForDelivery({ data }) {
                 contentContainerStyle={[
                     styles.processingScrollContent,
                     styles.acceptanceScrollPaddingBottom,
-                    { paddingTop: 12 + insets.top },
+                    { paddingTop: 15 },
                 ]}
             >
                 <View style={styles.processingCard}>
@@ -1194,7 +1198,7 @@ function MarkAsDelivered({ data }) {
                 contentContainerStyle={[
                     styles.processingScrollContent,
                     styles.acceptanceScrollPaddingBottom,
-                    { paddingTop: 12 + insets.top },
+                    { paddingTop: 15 },
                 ]}
             >
                 <View style={styles.processingCard}>
