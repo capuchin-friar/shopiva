@@ -36,43 +36,80 @@ const FILTERS = [
 ];
 
 const STATUS_THEME = {
-  pending: {
-    pillBg: '#E8F5C8',
-    pillText: '#5C6C1A',
-    iconBg: '#E8F5C8',
-    icon: 'time-outline',
-    iconColor: '#5C6C1A',
+  payment_received: {
+    bg: '#FFF4D6',
+    dot: '#B58100',
+    text: '#7A5800',
+    label: 'Payment received',
   },
-  processing: {
-    pillBg: '#FFF0E0',
-    pillText: '#C45C00',
-    iconBg: '#FFF0E0',
-    icon: 'cube-outline',
-    iconColor: '#C45C00',
+  order_accepted: {
+    bg: '#FFF4D6',
+    dot: '#B58100',
+    text: '#7A5800',
+    label: 'Order accepted',
   },
-  delivered: {
-    pillBg: '#E0F2E9',
-    pillText: '#0D5C2F',
-    iconBg: '#E0F2E9',
-    icon: 'checkmark-circle-outline',
-    iconColor: '#0D5C2F',
+  order_processing: {
+    bg: '#FFF0E0',
+    dot: '#C45C00',
+    text: '#7A3A00',
+    label: 'Processing',
+  },
+  order_shipping: {
+    bg: '#E0EAFF',
+    dot: '#2F5DDB',
+    text: '#1B3FA1',
+    label: 'Shipping',
+  },
+  order_out_for_delivery: {
+    bg: '#E0F2E9',
+    dot: '#08ccfd',
+    text: '#075646',
+    label: 'Out For Delivery',
+  },
+  order_delivered: {
+    bg: '#E0F2E9',
+    dot: '#0D8A4A',
+    text: '#0D5C2F',
+    label: 'Delivered',
+  },
+  order_cancellation: {
+    bg: '#FDE3E3',
+    dot: '#C62828',
+    text: '#9F1818',
+    label: 'Cancelled',
   },
 };
+
+/** @param {unknown} raw */
+function statusThemeFor(raw) {
+  const key = String(raw ?? '').toLowerCase().trim();
+  if (STATUS_THEME[key]) return STATUS_THEME[key];
+  if (key.includes('cancel')) return STATUS_THEME.order_cancellation;
+  if (key.includes('deliver') && !key.includes('out_for'))
+    return STATUS_THEME.order_delivered;
+  if (key.includes('out_for') || key.includes('out-for'))
+    return STATUS_THEME.order_out_for_delivery;
+  if (key.includes('ship')) return STATUS_THEME.order_shipping;
+  if (key.includes('process')) return STATUS_THEME.order_processing;
+  if (key.includes('accept')) return STATUS_THEME.order_accepted;
+  if (key.includes('payment') || key.includes('pending') || key.includes('paid'))
+    return STATUS_THEME.payment_received;
+  return STATUS_THEME.payment_received;
+}
 
 /**
  * @param {{ item: Record<string, unknown>; onPress: () => void }} p
  */
 function OrderCard({ item, onPress }) {
-  const t = STATUS_THEME[item.status] ?? STATUS_THEME.pending;
-  // console.log("item: ", item)
+  const t = statusThemeFor(item.statusRaw ?? item.status);
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
       onPress={onPress}
     >
       <View style={styles.cardTop}>
-        <View style={[styles.iconCircle, { backgroundColor: t.iconBg }]}>
-          <Icon name={t.icon} size={22} color={t.iconColor} />
+        <View style={[styles.iconCircle, { backgroundColor: t.bg }]}>
+          <View style={[styles.statusDot, { backgroundColor: t.dot }]} />
         </View>
         <View style={styles.cardTitleCol}>
           <Text style={styles.orderId}>{item.id}</Text>
@@ -94,8 +131,9 @@ function OrderCard({ item, onPress }) {
         </View>
         <View style={[styles.gridCol, styles.gridColLast]}>
           <Text style={styles.gridLabel}>Status</Text>
-          <View style={[styles.statusPill, { backgroundColor: t.pillBg }]}>
-            <Text style={[styles.statusPillText, { color: t.pillText }]}>{item.statusRaw.split("_").join(" ")}</Text>
+          <View style={[styles.statusPill, { backgroundColor: t.bg }]}>
+            <View style={[styles.statusDot, { backgroundColor: t.dot }]} />
+            <Text style={[styles.statusPillText, { color: t.text }]}>{t.label}</Text>
           </View>
         </View>
       </View>
@@ -404,20 +442,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: BLACK,
   },
+  statusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    marginRight: 6,
+  },
   statusPill: {
-    paddingHorizontal: 5,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 10,
     alignSelf: 'flex-start',
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    flexWrap: "nowrap"
   },
   statusPillText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     flexShrink: 0,
-    textTransform: 'lowercase',
   },
 });
