@@ -518,52 +518,66 @@ export default function OrderDetailScreen() {
       meta: {},
     };
 
-    if (statusKey === "order_accepted") {
-      navigation.navigate("Order-action", {
-        action: "processing",
-        data: {
-          ...base,
-          event_type: "processing",
-          stage: "order_processing",
-        },
-      });
-      return;
-    }
-
-    if (statusKey === "order_processing") {
-      navigation.navigate("Order-action", {
-        action: "shipping",
-        data: {
-          ...base,
-          event_type: "shipping",
-          stage: "order_shipping",
-        },
-      });
-      return;
-    }
-
-    if (statusKey === "order_shipping") {
-      navigation.navigate("Order-action", {
-        action: "out_for_delivery",
-        data: {
-          ...base,
-          event_type: "delivery",
-          stage: "order_out_for_delivery",
-        },
-      });
-      return;
-    }
-
-    if (statusKey === "order_out_for_delivery") {
-      navigation.navigate("Order-action", {
-        action: "delivered",
-        data: {
-          ...base,
-          event_type: "delivered",
-          stage: "order_delivered",
-        },
-      });
-    }
+    if (auth.activeRole === "vendor") {
+      if (statusKey === "order_accepted") {
+        navigation.navigate("Order-action", {
+          action: "processing",
+          data: {
+            ...base,
+            event_type: "processing",
+            stage: "order_processing",
+          },
+        });
+        return;
+      }
+  
+      if (statusKey === "order_processing") {
+        navigation.navigate("Order-action", {
+          action: "shipping",
+          data: {
+            ...base,
+            event_type: "shipping",
+            stage: "order_shipping",
+          },
+        });
+        return;
+      }
+  
+      if (statusKey === "order_shipping") {
+        navigation.navigate("Order-action", {
+          action: "out_for_delivery",
+          data: {
+            ...base,
+            event_type: "delivery",
+            stage: "order_out_for_delivery",
+          },
+        });
+        return;
+      }
+  
+      if (statusKey === "order_out_for_delivery") {
+        navigation.navigate("Order-action", {
+          action: "delivered",
+          data: {
+            ...base,
+            event_type: "delivered",
+            stage: "order_delivered",
+          },
+        });
+      }
+    }else{
+      if (statusKey === "order_delivered") {
+        navigation.navigate("Order-action", {
+          action: "confirmation",
+          data: {
+            ...base,
+            event_type: "confirmation",
+            stage: "order_confirmation",
+          },
+        });
+        return;
+      }
+    } 
   };
 
   const ORDER_ACTIONS = [
@@ -939,19 +953,30 @@ export default function OrderDetailScreen() {
         {orderInfo.order_events.length > 1 &&
         <Pressable
           onPress={onUpdateStatus}
+          disabled={
+            statusKey === "delivered" && auth.activeRole === "customer"
+            ? true : false
+          }
           style={({ pressed }) => [styles.btnPrimary, pressed && styles.btnPrimaryPressed]}
         >
           <Text style={styles.btnPrimaryText}>
+            { 
+              auth.activeRole === "vendor" ?
+                statusKey === "order_accepted"
+                  ? "Start Processing Order"
+                  : statusKey === "order_processing"
+                  ? "Start Shipping Order"
+                  : statusKey === "order_shipping"
+                  ? "Notify Buyer For Pickup"
+                  : statusKey === "order_out_for_delivery"
+                  ? "Confirm Buyer Has Recieved The Order"
+                  : "Awaiting Buyer's Confirmation"
+              : ""
+            }
             {
-              statusKey === "order_accepted"
-                ? "Start Processing Order"
-                : statusKey === "order_processing"
-                ? "Start Shipping Order"
-                : statusKey === "order_shipping"
-                ? "Notify Buyer For Pickup"
-                : statusKey === "order_out_for_delivery"
-                ? "Confirm Buyer Has Recieved The Order"
-                : "Withdraw Funds to Bank"
+               auth.activeRole !== "vendor" ? 
+                "Confirm delivery"
+                : ""
             }
           </Text>
         </Pressable>}

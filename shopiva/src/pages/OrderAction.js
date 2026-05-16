@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { Dropdown } from "react-native-element-dropdown";
 import { TextInput } from "react-native-gesture-handler";
-import DocumentPicker from "react-native-document-picker";
+import DocumentPicker from "@react-native-documents/picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getStoredUser } from "../auth/session";
 import { connectChatSocket, emitSocketAck } from "../socket/chatSocket";
@@ -100,6 +100,10 @@ export default function OrderActionScreen() {
 
             {   
                 action === "delivered" && <MarkAsDelivered data={data} />
+            }
+
+            {
+                action === "confirmation" && <ConfirmDelivery data={data} />
             }
         </>
     );
@@ -1318,6 +1322,181 @@ function MarkAsDelivered({ data }) {
     );
 }
 
+function ConfirmDelivery({data}) {
+    const insets = useSafeAreaInsets();
+    const dispatch = useDispatch();
+    const navigation = useNavigation();
+
+    const [handedOffForShipping, setHandedOffForShipping] = useState(false);
+    const [withinCommittedTimeframe, setWithinCommittedTimeframe] =
+        useState(false);
+    const [shippingMethod, setShippingMethod] = useState(null);
+    const [estimatedDelivery, setEstimatedDelivery] = useState(null);
+    const [trackingId, setTrackingId] = useState("");
+
+    useEffect(() => {
+        connectChatSocket();
+    }, []);
+
+    const optionLabel = (options, value) =>
+        options.find((o) => o.value === value)?.label ?? null;
+
+    const buildShippingMeta = () => ({
+        ...(data.meta && typeof data.meta === "object" ? data.meta : {}),
+        handed_off_for_shipping: handedOffForShipping,
+        within_committed_timeframe: withinCommittedTimeframe,
+        shipping_method: shippingMethod,
+        shipping_method_label: optionLabel(SHIPPING_METHOD_OPTIONS, shippingMethod),
+        estimated_delivery: estimatedDelivery,
+        estimated_delivery_label: optionLabel(
+            FULFILLMENT_TIMEFRAME_OPTIONS,
+            estimatedDelivery
+        ),
+        tracking_id: shippingUsesTrackingId(shippingMethod)
+            ? trackingId.trim() || null
+            : null,
+    });
+
+    const validateShipping = () => {
+        if (!handedOffForShipping || !withinCommittedTimeframe) {
+            Alert.alert(
+                "Confirmations required",
+                "Confirm both statements before you mark this order as shipping."
+            );
+            return false;
+        }
+        if (shippingMethod == null || shippingMethod === "") {
+            Alert.alert(
+                "Shipping method",
+                "Select how this order is being sent to the customer."
+            );
+            return false;
+        }
+        if (shippingUsesTrackingId(shippingMethod)) {
+            const tid = trackingId.trim();
+            if (!tid) {
+                Alert.alert(
+                    "Tracking or reference ID required",
+                    "Enter a waybill, tracking number, or reference for this shipment. Self delivery is the only option that skips this."
+                );
+                return false;
+            }
+        }
+        if (estimatedDelivery == null || estimatedDelivery === "") {
+            Alert.alert(
+                "Delivery window",
+                "Select when the customer should expect delivery (or pickup)."
+            );
+            return false;
+        }
+        return true;
+    };
+
+    const submitShipping = async () => {
+        if (!validateShipping()) return;
+        const u = await getStoredUser();
+        const response = await emitSocketAck("order_shipping", {
+            ...data,
+            meta: buildShippingMeta(),
+            outcome: "success",
+            actor_id: u.id,
+        });
+        if (response.success) {
+            dispatch(set_orderInfo(response.result));
+            navigation.goBack();
+        }
+    };
+
+    return (
+        <View style={[styles.cnt, styles.processingRoot]}>
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={[
+                    styles.processingScrollContent,
+                    styles.acceptanceScrollPaddingBottom,
+                    { paddingTop: 15 },
+                ]}
+            >
+                {/* 1 — Commitments */}
+                <View style={styles.processingCard}>
+                    <Text style={styles.processingSectionTitle}>Confirm Delivery & Release Payment</Text>
+                    <Text style={styles.processingSectionSubtitle}>
+                        Please confirm the following to release the escrow funds to the vendor:
+                    </Text>
+                    <View style={styles.processingChecklist}>
+                        <ConfirmCheckbox
+                            checked={handedOffForShipping}
+                            onToggle={setHandedOffForShipping}
+                            label="I have received all items in the correct quantity."
+                            rowStyle={styles.processingCheckboxRow}
+                        />
+                        <View style={styles.processingChecklistDivider} />
+                        <ConfirmCheckbox
+                            checked={withinCommittedTimeframe}
+                            onToggle={setWithinCommittedTimeframe}
+                            label="The items are in good condition and match the description."
+                            rowStyle={styles.processingCheckboxRow}
+                        />
+                    </View>
+                </View>
+
+               
+                {/* 4 — Disclaimer */}
+                <View
+                    style={[
+                        styles.processingCard,
+                        styles.acceptDisclaimerCard,
+                    ]}
+                >
+                    <Text style={styles.acceptIntroText}>
+                        Warning: Once you confirm, funds will be released to the vendor and this order cannot be disputed.
+                    </Text>
+                </View>
+            </ScrollView>
+            <View
+                style={[
+                    styles.actionBar,
+                    { paddingBottom: Math.max(insets.bottom, 12) },
+                ]}
+            >
+                <Pressable
+                    onPress={() => {
+                        Alert.alert("link to dispute screen")
+                    }}
+                    style={({ pressed }) => [
+                        styles.btnSecondary,
+                        pressed && styles.btnSecondaryPressed,
+                    ]}
+                >
+                    <Text style={styles.btnSecondaryText}>Raise Dispute</Text>
+                </Pressable>
+
+                <Pressable
+                    onPress={() => {
+                        Alert.alert(
+                            "Confirm shipping",
+                            "Submit this shipping update for the customer?",
+                            [
+                                { text: "Cancel", style: "cancel" },
+                                {
+                                    text: "Confirm",
+                                    style: "default",
+                                    onPress: submitShipping,
+                                },
+                            ]
+                        );
+                    }}
+                    style={({ pressed }) => [
+                        styles.btnAccept,
+                        pressed && styles.btnAcceptPressed,
+                    ]}
+                >
+                    <Text style={styles.btnAcceptText}>Confirm & Pay Vendor</Text>
+                </Pressable>
+            </View>
+        </View>
+    );
+}
 const styles = StyleSheet.create({
     cnt: {
         flex: 1,
