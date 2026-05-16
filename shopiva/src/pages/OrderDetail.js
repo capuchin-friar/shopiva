@@ -367,6 +367,7 @@ export default function OrderDetailScreen() {
     });
     client.on('order_processing', res => {
       if (auth.activeRole === 'customer') {
+        console.log("testing: ", res.result);
         dispatch(set_orderInfo(res.result))
       }
     });
@@ -388,7 +389,7 @@ export default function OrderDetailScreen() {
     client.on('order_cancelled', res => {
       dispatch(set_orderInfo(res.result));
     });
-  }, [auth.activeRole, dispatch]);
+  }, []);
 
   const isOrderCancelled = statusKey === 'order_cancellation';
 

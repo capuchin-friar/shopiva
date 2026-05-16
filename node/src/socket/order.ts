@@ -456,17 +456,7 @@ export const handleOrderCancellation = async(
                     refundAmount,
                 );
             } 
-            // else if (actor_type === "vendor") {
-            //     const refundAmount = await resolveOrderRefundTotal(order_id);
-            //     await createRefund(
-            //         order_id,
-            //         recipient,
-            //         actor_id,
-            //         cancelReason,
-            //         refundAmount,
-            //     );
-            // }
-           
+
             nsp.to(`user:${recipient}`).emit("order_cancelled", {
                 result: await orderTransformer(order_id),
             });
