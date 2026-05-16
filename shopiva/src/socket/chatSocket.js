@@ -1,11 +1,36 @@
 import { io } from 'socket.io-client';
 import { getStoredAccessToken, getStoredActiveRole } from '../auth/session';
 import { getApiBaseUrl } from '../api/config';
+import store from '../../redux/store';
+import { set_orderInfo } from '../../redux/order';
 
 /** @type {import('socket.io-client').Socket | null} */
 let socketSingleton = null;
 /** @type {Promise<import('socket.io-client').Socket | null> | null} */
 let connectPromise = null;
+
+const ORDER_SOCKET_EVENTS = [
+  'order_acceptance',
+  'order_processing',
+  'order_shipping',
+  'order_out_for_delivery',
+  'order_delivered',
+  'order_cancelled',
+];
+
+/** @param {import('socket.io-client').Socket} socket */
+function bindOrderSocketListeners(socket) {
+  if (socket.__orderListenersBound) return;
+  socket.__orderListenersBound = true;
+
+  const onOrderUpdate = (res) => {
+    if (res?.result) {
+      store.dispatch(set_orderInfo(res.result));
+    }
+  };
+
+  ORDER_SOCKET_EVENTS.forEach((event) => socket.on(event, onOrderUpdate));
+}
 
 /**
  * @param {unknown} payload
@@ -53,6 +78,8 @@ export async function connectChatSocket() {
         socketSingleton.connect();
       });
     }
+
+    bindOrderSocketListeners(socketSingleton);
     return socketSingleton;
   })();
 

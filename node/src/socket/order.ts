@@ -1,6 +1,30 @@
 import type { Namespace } from "socket.io";
 import { db } from "../config/database.js"
 import { orderTransformer } from "../transformers/business/order.js";
+import { notifyUser } from "../services/socketBroadcast.js";
+
+/** Room name must match `client.join(\`user:${userId}\`)` in services/socket.ts */
+function parseRecipientUserId(recipient: unknown): number | null {
+    const userId = Number(recipient);
+    return Number.isFinite(userId) ? userId : null;
+}
+
+async function buildOrderPayload(orderId: unknown) {
+    return { result: await orderTransformer(orderId) };
+}
+
+function emitOrderUpdate(
+    recipient: unknown,
+    event: string,
+    payload: { result: unknown },
+): void {
+    const userId = parseRecipientUserId(recipient);
+    if (userId == null) {
+        console.warn(`[order] skip ${event}: invalid recipient`, recipient);
+        return;
+    }
+    notifyUser(userId, event, payload);
+}
 
 
 
@@ -47,16 +71,15 @@ export const handleOrderAcceptance = async(
             if (fulfillment_duration != null) {
                 await updateShipping(fulfillment_duration, order_id);
             }
-            nsp.to(`user:${recipient}`).emit("order_acceptance", {
-                result: await orderTransformer(order_id),
-            })
+            const payload = await buildOrderPayload(order_id);
+            emitOrderUpdate(recipient, "order_acceptance", payload);
             if(typeof ack === 'function') {
 
                 ack({
                     success: true,
                     message: "Order event recorded successfully",
                     error: null,
-                    result: await orderTransformer(order_id),
+                    result: payload.result,
                 })
             }
         } else {
@@ -126,15 +149,14 @@ export const handleOrderProcessing = async(
             if (fulfillment_duration != null) {
                 await updateShipping(fulfillment_duration, order_id);
             }
-            nsp.to(`user:${recipient}`).emit("order_processing", {
-                result: await orderTransformer(order_id),
-            })
+            const payload = await buildOrderPayload(order_id);
+            emitOrderUpdate(recipient, "order_processing", payload);
             if(typeof ack === 'function') {
                 ack({
                     success: true,
                     message: "Order event recorded successfully",
                     error: null,
-                    result: await orderTransformer(order_id),
+                    result: payload.result,
                 })
             }
         } else {
@@ -209,15 +231,14 @@ export const handleOrderShipping = async(
             if (shipping_method !== null) {
                 await updateShippingMethod(shipping_method, tracking_id, order_id);
             }
-            nsp.to(`user:${recipient}`).emit("order_shipping", {
-                result: await orderTransformer(order_id)
-            })
+            const payload = await buildOrderPayload(order_id);
+            emitOrderUpdate(recipient, "order_shipping", payload);
             if(typeof ack === 'function') {
                 ack({
                     success: true,
                     message: "Order event recorded successfully",
                     error: null,
-                    result: await orderTransformer(order_id),
+                    result: payload.result,
                 })
             }
         } else {
@@ -287,15 +308,14 @@ export const handleOrderOutForDelivery = async(
             if (expected_delivery !== null) {
                 await updateShipping(expected_delivery, order_id)
             }
-            nsp.to(`user:${recipient}`).emit("order_out_for_delivery", {
-                result: await orderTransformer(order_id),
-            })
+            const payload = await buildOrderPayload(order_id);
+            emitOrderUpdate(recipient, "order_out_for_delivery", payload);
             if(typeof ack === 'function') {
                 ack({
                     success: true,
                     message: "Order event recorded successfully",
                     error: null,
-                    result: await orderTransformer(order_id),
+                    result: payload.result,
                 })
             }
         } else {
@@ -362,15 +382,14 @@ export const handleOrderDelivered = async(
             
             await updateFulfillmentStatus(stage, order_id);
 
-            nsp.to(`user:${recipient}`).emit("order_delivered", {
-                result: await orderTransformer(order_id),
-            })
+            const payload = await buildOrderPayload(order_id);
+            emitOrderUpdate(recipient, "order_delivered", payload);
             if(typeof ack === 'function') {
                 ack({
                     success: true,
                     message: "Order event recorded successfully",
                     error: null,
-                    result: await orderTransformer(order_id),
+                    result: payload.result,
                 })
             }
         } else {
@@ -448,24 +467,27 @@ export const handleOrderCancellation = async(
 
             if (actor_type === "customer") {
                 const refundAmount = Number(metaObj.refund_amount ?? 0);
-                await createRefund(
-                    order_id,
-                    actor_id,
-                    recipient,
-                    cancelReason,
-                    refundAmount,
-                );
-            } 
+                try {
+                    await createRefund(
+                        order_id,
+                        actor_id,
+                        recipient,
+                        cancelReason,
+                        refundAmount,
+                    );
+                } catch (refundErr) {
+                    console.error("[order] refund record failed:", refundErr);
+                }
+            }
 
-            nsp.to(`user:${recipient}`).emit("order_cancelled", {
-                result: await orderTransformer(order_id),
-            });
+            const payload = await buildOrderPayload(order_id);
+            emitOrderUpdate(recipient, "order_cancelled", payload);
             if(typeof ack === 'function') {
                 ack({
                     success: true,
                     message: "Order event recorded successfully",
                     error: null,
-                    result: await orderTransformer(order_id),
+                    result: payload.result,
                 })
             }
         } else {

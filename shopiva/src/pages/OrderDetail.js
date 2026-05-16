@@ -25,11 +25,7 @@ import { formatNaira } from '../utils/formatNaira';
 import { fetchBuyerOrder, fetchOwnerShops, fetchShopOrderDetail, fetchShopOwner } from '../api';
 import { useDispatch, useSelector } from 'react-redux';
 import { getStoredUser } from '../auth/session';
-import {
-  connectChatSocket,
-  emitSocketAck,
-  getChatSocket,
-} from '../socket/chatSocket';
+import { connectChatSocket } from '../socket/chatSocket';
 import { set_orderInfo } from '../../redux/order';
 
 const PAGE_BG = '#FFF';
@@ -358,37 +354,7 @@ export default function OrderDetailScreen() {
   const dispatch = useDispatch();
 
   useEffect(() => {
-    const client = getChatSocket();
-    if(!client)return;
-    client.on('order_acceptance', res => {
-      if (auth.activeRole === 'customer') {
-        dispatch(set_orderInfo(res.result))
-      }
-    });
-    client.on('order_processing', res => {
-      if (auth.activeRole === 'customer') {
-        console.log("testing: ", res.result);
-        dispatch(set_orderInfo(res.result))
-      }
-    });
-    client.on('order_shipping', res => {
-      if (auth.activeRole === 'customer') {
-        dispatch(set_orderInfo(res.result))
-      }
-    });
-    client.on('order_out_for_delivery', res => {
-      if (auth.activeRole === 'customer') {
-        dispatch(set_orderInfo(res.result))
-      }
-    });
-    client.on('order_delivered', res => {
-      if (auth.activeRole === 'customer') {
-        dispatch(set_orderInfo(res.result))
-      }
-    });
-    client.on('order_cancelled', res => {
-      dispatch(set_orderInfo(res.result));
-    });
+    connectChatSocket();
   }, []);
 
   const isOrderCancelled = statusKey === 'order_cancellation';
