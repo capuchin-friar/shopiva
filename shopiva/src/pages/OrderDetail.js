@@ -96,7 +96,7 @@ const STATUS_THEME = {
     text: '#0D5C2F',
     label: 'Delivered',
   },
-  cancelled: {
+  order_cancellation: {
     bg: '#FDE3E3',
     dot: '#C62828',
     text: '#9F1818',
@@ -138,6 +138,23 @@ const ESCROW_STATUS_THEME = {
     caption: 'Funds have been refunded from escrow to the buyer.',
   },
 };
+
+/** @param {unknown} meta */
+function parseEventMeta(meta) {
+  if (meta == null) return {};
+  if (typeof meta === 'object') return /** @type {Record<string, unknown>} */ (meta);
+  if (typeof meta === 'string') {
+    try {
+      const parsed = JSON.parse(meta);
+      return parsed && typeof parsed === 'object'
+        ? /** @type {Record<string, unknown>} */ (parsed)
+        : {};
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
 
 /** @param {string | null | undefined} name */
 function initialsOf(name) {
@@ -335,6 +352,7 @@ export default function OrderDetailScreen() {
   const [statusKey, setStatusKey] = useState(null);
   const [statusOpen, setStatusOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
+  const [cancelledModalOpen, setCancelledModalOpen] = useState(false);
   // const [orderInfo, setOrderInfo] = useState(null);
   const { orderInfo } = useSelector(s => s.orderInfo);
   const dispatch = useDispatch();
@@ -367,9 +385,78 @@ export default function OrderDetailScreen() {
         dispatch(set_orderInfo(res.result))
       }
     });
+    client.on('order_cancelled', res => {
+      dispatch(set_orderInfo(res.result));
+    });
+  }, [auth.activeRole, dispatch]);
+
+  const isOrderCancelled = statusKey === 'order_cancellation';
+
+  const cancellationDetails = useMemo(() => {
+    if (!isOrderCancelled) return null;
+
+    const events = Array.isArray(orderInfo?.order_events)
+      ? orderInfo.order_events
+      : [];
+    const cancelEvent = [...events].reverse().find(e => {
+      const stage = String(e?.stage ?? '').toLowerCase();
+      const type = String(e?.event_type ?? '').toLowerCase();
+      return (
+        stage === 'order_cancellation' ||
+        type === 'cancellation' ||
+        stage.includes('cancel')
+      );
+    });
+
+    const meta = parseEventMeta(cancelEvent?.meta);
+    const actor = String(cancelEvent?.actor_type ?? '').toLowerCase();
+    const cancelledBy =
+      meta.cancelled_by === 'vendor' || meta.cancelled_by === 'customer'
+        ? String(meta.cancelled_by)
+        : actor === 'vendor' || actor === 'customer'
+          ? actor
+          : null;
+
+    const reason =
+      meta.reason != null && String(meta.reason).trim()
+        ? String(meta.reason).trim()
+        : cancelEvent?.notes != null && String(cancelEvent.notes).trim()
+          ? String(cancelEvent.notes).trim()
+          : null;
+
+    let message;
+    if (cancelledBy === 'customer') {
+      message =
+        auth.activeRole === 'customer'
+          ? 'You cancelled this order. No further actions are available.'
+          : 'The buyer cancelled this order. No further actions are available.';
+    } else if (cancelledBy === 'vendor') {
+      message =
+        auth.activeRole === 'vendor'
+          ? 'You cancelled this order. No further actions are available.'
+          : 'The vendor cancelled this order. No further actions are available.';
+    } else {
+      message =
+        'This order has been cancelled. No further actions are available.';
+    }
+
+    return { cancelledBy, message, reason };
+  }, [auth.activeRole, isOrderCancelled, orderInfo?.order_events]);
+
+  const showCancelledModal = useCallback(() => {
+    setCancelledModalOpen(true);
   }, []);
 
-  const openActions = useCallback(() => setActionsOpen(true), []);
+  const blockIfCancelled = useCallback(() => {
+    if (!isOrderCancelled) return false;
+    showCancelledModal();
+    return true;
+  }, [isOrderCancelled, showCancelledModal]);
+
+  const openActions = useCallback(() => {
+    if (blockIfCancelled()) return;
+    setActionsOpen(true);
+  }, [blockIfCancelled]);
   const closeActions = useCallback(() => setActionsOpen(false), []);
 
   const orderNumber = useMemo(() => {
@@ -408,6 +495,9 @@ export default function OrderDetailScreen() {
     }
   }, [route]);
 
+  const payKey = String(order?.paymentStatus ?? 'paid').toLowerCase();
+  const payTheme = PAY_THEME[payKey] ?? PAY_THEME.paid;
+
   useLayoutEffect(() => {
     navigation.setOptions({
       headerTitle: () => (
@@ -433,10 +523,7 @@ export default function OrderDetailScreen() {
         </Pressable>
       ),
     });
-  }, [navigation, orderNumber, openActions]);
-
-  const payKey = String(order?.paymentStatus ?? 'paid').toLowerCase();
-  const payTheme = PAY_THEME[payKey] ?? PAY_THEME.paid;
+  }, [navigation, orderNumber, openActions, payTheme]);
   const statusTheme =
     STATUS_THEME[orderInfo?.order?.fulfillment_status] ?? 'Not Available';
   const isNaira = order && 'valueRupees' in order;
@@ -618,6 +705,7 @@ export default function OrderDetailScreen() {
   };
 
   const onMail = () => {
+    if (blockIfCancelled()) return;
     if (!counterpartEmail) {
       Alert.alert(
         'Message',
@@ -629,6 +717,7 @@ export default function OrderDetailScreen() {
   };
 
   const onDownloadInvoice = () => {
+    if (blockIfCancelled()) return;
     Alert.alert(
       'Download invoice',
       'Invoice will be generated and downloaded.',
@@ -636,6 +725,7 @@ export default function OrderDetailScreen() {
   };
 
   const onRefund = () => {
+    if (blockIfCancelled()) return;
     Alert.alert('Refund order', `Refund order #${orderNumber}?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Refund', style: 'destructive', onPress: () => {} },
@@ -643,7 +733,8 @@ export default function OrderDetailScreen() {
   };
 
   const onCancelDelivery = useCallback(async () => {
-    // if (auth.activeRole !== 'customer' || !orderInfo?.order) return;
+    if (blockIfCancelled()) return;
+    if (!orderInfo?.order) return;
 
     if (auth.activeRole === 'customer' ) {
       const u = await getStoredUser();
@@ -696,28 +787,10 @@ export default function OrderDetailScreen() {
         },
       });
     }
-  }, [auth.activeRole, navigation, orderInfo]);
-
-  const onCancelOrderAsVendor = useCallback(async () => {
-    if (auth.activeRole !== 'vendor' || !orderInfo?.order) return;
-
-    const u = await getStoredUser();
-    navigation.navigate('Order-action', {
-      action: 'cancellation',
-      data: {
-        order_id: orderInfo.order.id,
-        event_type: 'cancellation',
-        stage: 'order_cancellation',
-        actor_type: 'vendor',
-        actor_id: u.id,
-        outcome: 'success',
-        notes: '',
-        recipient: orderInfo.order.customer_id,
-      },
-    });
-  }, [auth.activeRole, navigation, orderInfo]);
+  }, [auth.activeRole, blockIfCancelled, navigation, orderInfo]);
 
   const onOpenDispute = useCallback(() => {
+    if (blockIfCancelled()) return;
     // Alert.alert(
     //   'Open dispute',
     //   'To dispute this order, open the Disputes section from your Activities tab.',
@@ -748,9 +821,10 @@ export default function OrderDetailScreen() {
         });
       }
     }
-  }, []);
+  }, [auth.activeRole, blockIfCancelled, navigation, statusKey]);
 
   const onUpdateStatus = async () => {
+    if (blockIfCancelled()) return;
     if (!orderInfo?.order) return;
     const u = await getStoredUser();
     const base = {
@@ -866,7 +940,7 @@ export default function OrderDetailScreen() {
     },
     ...(auth.activeRole === 'vendor' &&
     orderInfo?.order_events?.length > 1 &&
-    !String(statusKey ?? '').includes('cancel')
+    !isOrderCancelled
       ? [
           {
             key: 'cancel-order',
@@ -874,7 +948,7 @@ export default function OrderDetailScreen() {
             icon: 'close-circle-outline',
             onPress: () => {
               closeActions();
-              onCancelOrderAsVendor();
+              onCancelDelivery();
             },
             destructive: true,
           },
@@ -968,6 +1042,16 @@ export default function OrderDetailScreen() {
               </Text>
             </View>
             <Text style={styles.escrowCaption}>{escrowInfo.theme.caption}</Text>
+            {isOrderCancelled ? (
+              <View style={styles.cancelledBanner}>
+                <Icon name="close-circle-outline" size={20} color="#C62828" />
+                <Text style={styles.cancelledBannerText}>
+                  {cancellationDetails?.message ??
+                    'This order has been cancelled.'}
+                </Text>
+              </View>
+            ) : null}
+            {!isOrderCancelled ? (
             <View style={styles.escrowActions}>
               <Pressable
                 onPress={onCancelDelivery}
@@ -994,6 +1078,7 @@ export default function OrderDetailScreen() {
                 <Text style={styles.escrowBtnSecondaryText}>Open dispute</Text>
               </Pressable>
             </View>
+            ) : null}
           </View>
         )}
 
@@ -1227,11 +1312,12 @@ export default function OrderDetailScreen() {
           { paddingBottom: Math.max(insets.bottom, 12) },
         ]}
       >
-        {orderInfo.order_events.length === 1 && auth.activeRole === "vendor" && (
+        {!isOrderCancelled && orderInfo.order_events.length === 1 && auth.activeRole === "vendor" && (
           <>
             <Pressable
               // onPress={onRefund}
               onPress={e => {
+                if (blockIfCancelled()) return;
                 const u = getStoredUser();
                 navigation.navigate('Order-action', {
                   action: 'acceptance',
@@ -1259,6 +1345,7 @@ export default function OrderDetailScreen() {
             <Pressable
               // onPress={onResendInvoice}
               onPress={e => {
+                if (blockIfCancelled()) return;
                 const u = getStoredUser();
                 navigation.navigate('Order-action', {
                   action: 'acceptance',
@@ -1284,7 +1371,7 @@ export default function OrderDetailScreen() {
             </Pressable>
           </>
         )}
-        {orderInfo.order_events.length > 1 &&  (
+        {!isOrderCancelled && orderInfo.order_events.length > 1 &&  (
           statusKey !== "delivered" && auth.activeRole === 'customer' ? '' : 
           <Pressable
             onPress={onUpdateStatus}
@@ -1315,7 +1402,7 @@ export default function OrderDetailScreen() {
           </Pressable>
         )}
 
-        {auth.activeRole === 'customer' && statusKey !== "delivered" ? 
+        {!isOrderCancelled && auth.activeRole === 'customer' && statusKey !== "delivered" ? 
           <Pressable 
           disabled
           style={({ pressed }) => [
@@ -1353,7 +1440,10 @@ export default function OrderDetailScreen() {
             {ORDER_ACTIONS.map(action => (
               <Pressable
                 key={action.key}
-                onPress={action.onPress}
+                onPress={() => {
+                  if (blockIfCancelled()) return;
+                  action.onPress();
+                }}
                 style={({ pressed }) => [
                   styles.sheetRow,
                   pressed && styles.sheetRowPressed,
@@ -1383,6 +1473,42 @@ export default function OrderDetailScreen() {
               ]}
             >
               <Text style={styles.sheetCloseText}>Close</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={cancelledModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCancelledModalOpen(false)}
+      >
+        <View style={styles.cancelledModalRoot}>
+          <Pressable
+            style={styles.sheetDismiss}
+            onPress={() => setCancelledModalOpen(false)}
+          />
+          <View style={styles.cancelledModalCard}>
+            <Icon name="close-circle-outline" size={44} color="#C62828" />
+            <Text style={styles.cancelledModalTitle}>Order cancelled</Text>
+            <Text style={styles.cancelledModalBody}>
+              {cancellationDetails?.message ??
+                'This order has been cancelled. No further actions are available.'}
+            </Text>
+            {cancellationDetails?.reason ? (
+              <Text style={styles.cancelledModalReason}>
+                Reason: {cancellationDetails.reason}
+              </Text>
+            ) : null}
+            <Pressable
+              onPress={() => setCancelledModalOpen(false)}
+              style={({ pressed }) => [
+                styles.cancelledModalBtn,
+                pressed && styles.btnPrimaryPressed,
+              ]}
+            >
+              <Text style={styles.cancelledModalBtnText}>OK</Text>
             </Pressable>
           </View>
         </View>
@@ -1608,6 +1734,71 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: TEXT,
+  },
+  cancelledBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginTop: 12,
+    marginBottom: 6,
+    padding: 12,
+    borderRadius: 5,
+    backgroundColor: '#FFF8F7',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#F2B8B5',
+  },
+  cancelledBannerText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#9F1818',
+    fontWeight: '500',
+  },
+  cancelledModalRoot: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  cancelledModalCard: {
+    backgroundColor: WHITE,
+    borderRadius: 8,
+    padding: 24,
+    alignItems: 'center',
+    gap: 10,
+  },
+  cancelledModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: BLACK,
+    marginTop: 4,
+  },
+  cancelledModalBody: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: MUTED,
+    textAlign: 'center',
+  },
+  cancelledModalReason: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: TEXT,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  cancelledModalBtn: {
+    marginTop: 8,
+    width: '100%',
+    height: 48,
+    borderRadius: 5,
+    backgroundColor: ACCENT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelledModalBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: WHITE,
   },
   customerHead: {
     flexDirection: 'row',

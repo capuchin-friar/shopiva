@@ -438,9 +438,38 @@ export const handleOrderCancellation = async(
             
             await updateFulfillmentStatus(stage, order_id);
 
+            const metaObj =
+                meta && typeof meta === "object"
+                    ? (meta as Record<string, unknown>)
+                    : {};
+            const cancelReason = String(
+                metaObj.reason ?? notes ?? reason ?? "order_cancelled",
+            );
+
+            if (actor_type === "customer") {
+                const refundAmount = Number(metaObj.refund_amount ?? 0);
+                await createRefund(
+                    order_id,
+                    actor_id,
+                    recipient,
+                    cancelReason,
+                    refundAmount,
+                );
+            } 
+            // else if (actor_type === "vendor") {
+            //     const refundAmount = await resolveOrderRefundTotal(order_id);
+            //     await createRefund(
+            //         order_id,
+            //         recipient,
+            //         actor_id,
+            //         cancelReason,
+            //         refundAmount,
+            //     );
+            // }
+           
             nsp.to(`user:${recipient}`).emit("order_cancelled", {
                 result: await orderTransformer(order_id),
-            })
+            });
             if(typeof ack === 'function') {
                 ack({
                     success: true,
@@ -507,6 +536,50 @@ async function updateShippingMethod(shipping_method: unknown, tracking_number: u
     )
 }
 
+async function resolveOrderRefundTotal(order_id: unknown): Promise<number> {
+    const pool = await db();
+    const { rows } = await pool.query<{ total_paid: string; amount_paid: string }>(
+        `SELECT total_paid, amount_paid FROM orders WHERE id = $1 LIMIT 1`,
+        [order_id],
+    );
+    const row = rows[0];
+    if (!row) return 0;
+    const total = Number(row.total_paid ?? row.amount_paid ?? 0);
+    return Number.isFinite(total) && total >= 0 ? total : 0;
+}
+
+async function createRefund(
+    order_id: unknown,
+    buyer_id: unknown,
+    vendor_id: unknown,
+    reason: string,
+    refund_amount: unknown,
+    status = "pending",
+) {
+    const amount = Number(refund_amount);
+    if (!Number.isFinite(amount) || amount < 0) {
+        throw new Error("Invalid refund amount");
+    }
+
+    const trimmedReason = String(reason ?? "").trim() || "order_cancelled";
+    const pool = await db();
+    const { rows } = await pool.query(
+        `
+            INSERT INTO refunds (
+                order_id,
+                customer_id,
+                vendor_id,
+                reason,
+                refund_amount,
+                status
+            )
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING *
+        `,
+        [order_id, buyer_id, vendor_id, trimmedReason, amount, status],
+    );
+    return rows[0] ?? null;
+}
 
 // export const handleOrderEscrow = async(payload: any) => {
     
