@@ -643,41 +643,76 @@ export default function OrderDetailScreen() {
   };
 
   const onCancelDelivery = useCallback(async () => {
-    if (auth.activeRole !== 'customer' || !orderInfo?.order) return;
+    // if (auth.activeRole !== 'customer' || !orderInfo?.order) return;
+
+    if (auth.activeRole === 'customer' ) {
+      const u = await getStoredUser();
+      const owners = await fetchShopOwner(orderInfo.order.shop_id);
+      const vendorId = owners[0]?.id;
+      if (vendorId == null) {
+        Alert.alert(
+          'Cannot cancel',
+          'Unable to load the vendor for this order. Try again later.',
+        );
+        return;
+      }
+  
+      const totalPaid = Number(
+        orderInfo.order.total_paid ?? orderInfo.order.amount_paid ?? 0,
+      );
+      const postShipment = (orderInfo.order_events?.length ?? 0) > 3;
+      const restockingFee = orderInfo.order.shipping_fee;
+  
+      navigation.navigate('Order-action', {
+        action: 'cancellation',
+        data: {
+          order_id: orderInfo.order.id,
+          event_type: 'cancellation',
+          stage: 'order_cancellation',
+          actor_type: 'customer',
+          actor_id: u.id,
+          outcome: 'success',
+          notes: '',
+          recipient: vendorId,
+          post_shipment: true,
+          order_total: totalPaid,
+          restocking_fee: restockingFee,
+        },
+      });
+    }else{
+      const u = await getStoredUser();
+  
+      navigation.navigate('Order-action', {
+        action: 'cancellation',
+        data: {
+          order_id: orderInfo.order.id,
+          event_type: 'cancellation',
+          stage: 'order_cancellation',
+          actor_type: 'vendor',
+          actor_id: u.id,
+          outcome: 'success',
+          notes: '',
+          recipient: orderInfo.order.customer_id,
+        },
+      });
+    }
+  }, [auth.activeRole, navigation, orderInfo]);
+
+  const onCancelOrderAsVendor = useCallback(async () => {
+    if (auth.activeRole !== 'vendor' || !orderInfo?.order) return;
 
     const u = await getStoredUser();
-    const owners = await fetchShopOwner(orderInfo.order.shop_id);
-    const vendorId = owners[0]?.id;
-    if (vendorId == null) {
-      Alert.alert(
-        'Cannot cancel',
-        'Unable to load the vendor for this order. Try again later.',
-      );
-      return;
-    }
-
-    const totalPaid = Number(
-      orderInfo.order.total_paid ?? orderInfo.order.amount_paid ?? 0,
-    );
-    const postShipment = (orderInfo.order_events?.length ?? 0) > 3;
-    const restockingFee = postShipment
-      ? Math.round(totalPaid * 0.05)
-      : 0;
-
     navigation.navigate('Order-action', {
       action: 'cancellation',
       data: {
         order_id: orderInfo.order.id,
         event_type: 'cancellation',
         stage: 'order_cancellation',
-        actor_type: 'customer',
+        actor_type: 'vendor',
         actor_id: u.id,
         outcome: 'success',
         notes: '',
-        recipient: vendorId,
-        post_shipment: postShipment,
-        order_total: totalPaid,
-        restocking_fee: restockingFee,
+        recipient: orderInfo.order.customer_id,
       },
     });
   }, [auth.activeRole, navigation, orderInfo]);
@@ -829,6 +864,22 @@ export default function OrderDetailScreen() {
       },
       destructive: true,
     },
+    ...(auth.activeRole === 'vendor' &&
+    orderInfo?.order_events?.length > 1 &&
+    !String(statusKey ?? '').includes('cancel')
+      ? [
+          {
+            key: 'cancel-order',
+            label: 'Cancel order',
+            icon: 'close-circle-outline',
+            onPress: () => {
+              closeActions();
+              onCancelOrderAsVendor();
+            },
+            destructive: true,
+          },
+        ]
+      : []),
   ];
 
   if (!orderInfo) {

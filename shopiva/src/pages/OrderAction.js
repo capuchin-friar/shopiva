@@ -114,9 +114,14 @@ export default function OrderActionScreen() {
             {
                 action === "confirmation" && <ConfirmDelivery data={data} />
             }
-            {
-                action === "cancellation" && <CancelOrder data={data} />
-            }
+            {action === "cancellation" &&
+                data?.actor_type === "vendor" && (
+                    <VendorCancelOrder data={data} />
+                )}
+            {action === "cancellation" &&
+                data?.actor_type === "customer" && (
+                    <CancelOrder data={data} />
+                )}
         </>
     );
 }
@@ -1510,6 +1515,235 @@ function ConfirmDelivery({data}) {
     );
 }
 
+/** Vendor cancels an accepted / in-progress order (not the same as declining at acceptance). */
+function VendorCancelOrder({ data }) {
+    const insets = useSafeAreaInsets();
+    const dispatch = useDispatch();
+    const navigation = useNavigation();
+
+    const [cancelReason, setCancelReason] = useState(null);
+    const [otherReason, setOtherReason] = useState("");
+    const [note, setNote] = useState("");
+    const [confirmCancel, setConfirmCancel] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
+
+    useEffect(() => {
+        connectChatSocket();
+    }, []);
+
+    const validate = () => {
+        if (!cancelReason) {
+            Alert.alert(
+                "Reason required",
+                "Select why you are cancelling this order."
+            );
+            return false;
+        }
+        if (cancelReason === "other" && !otherReason.trim()) {
+            Alert.alert(
+                "Details required",
+                "Briefly explain why you are cancelling."
+            );
+            return false;
+        }
+        if (!confirmCancel) {
+            Alert.alert(
+                "Confirmation required",
+                "Confirm that you want to cancel this order for the customer."
+            );
+            return false;
+        }
+        return true;
+    };
+
+    const submitCancellation = async () => {
+        if (!validate()) return;
+        setSubmitting(true);
+        try {
+            const u = await getStoredUser();
+            const reason =
+                cancelReason === "other"
+                    ? otherReason.trim()
+                    : cancelReason;
+            const response = await emitSocketAck("order_cancelled", {
+                ...data,
+                meta: {
+                    ...(data.meta && typeof data.meta === "object"
+                        ? data.meta
+                        : {}),
+                    reason,
+                    cancel_reason_code: cancelReason,
+                    cancelled_by: "vendor",
+                },
+                notes:
+                    note.trim() ||
+                    (cancelReason === "other" ? otherReason.trim() : ""),
+                outcome: "success",
+                actor_id: u.id,
+            });
+            if (response.success) {
+                dispatch(set_orderInfo(response.result));
+                navigation.goBack();
+            } else {
+                Alert.alert(
+                    "Cancellation failed",
+                    response?.message ||
+                        response?.error ||
+                        "Could not cancel this order. Try again."
+                );
+            }
+        } catch (e) {
+            Alert.alert(
+                "Cancellation failed",
+                e instanceof Error ? e.message : String(e)
+            );
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const onPressConfirm = () => {
+        if (!validate()) return;
+        Alert.alert(
+            "Cancel order",
+            "This order will be cancelled for your shop and the customer will be notified. You cannot undo this from the app.",
+            [
+                { text: "Keep order", style: "cancel" },
+                {
+                    text: "Cancel order",
+                    style: "destructive",
+                    onPress: submitCancellation,
+                },
+            ]
+        );
+    };
+
+    return (
+        <View style={[styles.cnt, styles.processingRoot]}>
+            <ScrollView
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={[
+                    styles.processingScrollContent,
+                    styles.acceptanceScrollPaddingBottom,
+                    { paddingTop: 15 },
+                ]}
+            >
+                <View style={styles.processingCard}>
+                    <Text style={styles.processingSectionTitle}>
+                        Cancel order
+                    </Text>
+                    <Text style={styles.processingSectionSubtitle}>
+                        Tell the customer why you cannot complete this order.
+                        They may receive a refund according to Shopiva policy.
+                    </Text>
+                </View>
+
+                <View style={styles.processingCard}>
+                    <Text style={styles.processingFieldLabel}>
+                        Cancellation reason
+                    </Text>
+                    <Text style={styles.processingFieldHint}>
+                        Choose the reason that best matches your situation.
+                    </Text>
+                    <Dropdown
+                        style={styles.processingDropdown}
+                        containerStyle={styles.dropdownContainer}
+                        placeholderStyle={styles.placeholderStyle}
+                        selectedTextStyle={styles.selectedTextStyle}
+                        itemTextStyle={styles.itemTextStyle}
+                        inputSearchStyle={styles.inputSearchStyle}
+                        iconStyle={styles.iconStyle}
+                        data={VendorRejectReason}
+                        search
+                        maxHeight={320}
+                        labelField="label"
+                        valueField="value"
+                        placeholder="Select reason"
+                        searchPlaceholder="Search reasons..."
+                        value={cancelReason}
+                        onChange={(item) => setCancelReason(item.value)}
+                    />
+                </View>
+
+                {cancelReason === "other" ? (
+                    <View style={styles.processingCard}>
+                        <Text style={styles.processingFieldLabel}>
+                            Other reason
+                        </Text>
+                        <TextInput
+                            style={[styles.textInput, styles.acceptanceFormInput]}
+                            placeholder="Describe the reason"
+                            onChangeText={setOtherReason}
+                        />
+                    </View>
+                ) : null}
+
+                <View style={styles.processingCard}>
+                    <Text style={styles.processingFieldLabel}>
+                        Message to customer (optional)
+                    </Text>
+                    <Text style={styles.processingFieldHint}>
+                        Extra context shown in order history or support.
+                    </Text>
+                    <TextInput
+                        style={[
+                            styles.textInput,
+                            styles.textInputMultiline,
+                            styles.acceptanceFormInput,
+                        ]}
+                        multiline
+                        placeholder="Add optional notes…"
+                        value={note}
+                        onChangeText={setNote}
+                    />
+                </View>
+
+                <View style={styles.processingCard}>
+                    <View style={styles.processingChecklist}>
+                        <ConfirmCheckbox
+                            checked={confirmCancel}
+                            onToggle={setConfirmCancel}
+                            label="I understand this order will be cancelled and the customer will be notified."
+                            rowStyle={styles.processingCheckboxRow}
+                        />
+                    </View>
+                </View>
+            </ScrollView>
+
+            <View
+                style={[
+                    styles.actionBar,
+                    { paddingBottom: Math.max(insets.bottom, 12) },
+                ]}
+            >
+                <Pressable
+                    onPress={() => navigation.goBack()}
+                    disabled={submitting}
+                    style={({ pressed }) => [
+                        styles.btnSecondary,
+                        pressed && styles.btnSecondaryPressed,
+                    ]}
+                >
+                    <Text style={styles.btnSecondaryText}>Keep order</Text>
+                </Pressable>
+                <Pressable
+                    onPress={onPressConfirm}
+                    disabled={submitting}
+                    style={({ pressed }) => [
+                        styles.btnReject,
+                        pressed && styles.btnRejectPressed,
+                    ]}
+                >
+                    <Text style={styles.btnRejectText}>
+                        {submitting ? "Cancelling…" : "Cancel order"}
+                    </Text>
+                </Pressable>
+            </View>
+        </View>
+    );
+}
+
+/** Customer cancels before / during fulfillment (escrow cancel delivery). */
 function CancelOrder({ data }) {
     const insets = useSafeAreaInsets();
     const dispatch = useDispatch();
@@ -1670,6 +1904,7 @@ function CancelOrder({ data }) {
                         style={[
                             styles.processingCard,
                             styles.acceptDisclaimerCard,
+                            {backgroundColor: "#fff"}
                         ]}
                     >
                         <Text style={styles.acceptIntroText}>
