@@ -758,11 +758,6 @@ export default function OrderDetailScreen() {
 
   const onOpenDispute = useCallback(() => {
     if (blockIfCancelled()) return;
-    // Alert.alert(
-    //   'Open dispute',
-    //   'To dispute this order, open the Disputes section from your Activities tab.',
-    //   [{ text: 'OK' }],
-    // );
     if(auth.activeRole === "customer"){
       if(statusKey !== "order_delivered"){
         Alert.alert(

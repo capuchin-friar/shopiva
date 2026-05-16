@@ -1,6 +1,8 @@
 import type { Namespace } from "socket.io";
 import { db } from "../config/database.js"
 import { orderTransformer } from "../transformers/business/order.js";
+import { ordersTransformer as vendorOrdersTransformer } from "../transformers/business/orders.js";
+import { ordersTransformer as customerOrdersTransformer } from "../transformers/buyer/orders.js";
 import { notifyUser } from "../services/socketBroadcast.js";
 
 /** Room name must match `client.join(\`user:${userId}\`)` in services/socket.ts */
@@ -9,21 +11,86 @@ function parseRecipientUserId(recipient: unknown): number | null {
     return Number.isFinite(userId) ? userId : null;
 }
 
-async function buildOrderPayload(orderId: unknown) {
-    return { result: await orderTransformer(orderId) };
+type OrderSocketPayload = {
+    result: unknown;
+    list: unknown[];
+};
+
+async function buildOrderLists(orderId: unknown): Promise<{
+    result: unknown;
+    vendorList: unknown[];
+    customerList: unknown[];
+}> {
+    const result = await orderTransformer(orderId);
+    const order = (result as { order?: { shop_id?: string; customer_id?: string } })
+        ?.order;
+    const shopId = order?.shop_id;
+    const customerId = order?.customer_id;
+
+    const [vendorList, customerList] = await Promise.all([
+        shopId != null
+            ? vendorOrdersTransformer(shopId)
+            : Promise.resolve([]),
+        customerId != null
+            ? customerOrdersTransformer(customerId)
+            : Promise.resolve([]),
+    ]);
+
+    return { result, vendorList, customerList };
 }
 
-function emitOrderUpdate(
-    recipient: unknown,
+function listForRole(
+    role: string,
+    vendorList: unknown[],
+    customerList: unknown[],
+): unknown[] {
+    const r = role.toLowerCase();
+    if (r === "vendor") return vendorList;
+    if (r === "customer") return customerList;
+    return [];
+}
+
+function emitOrderUpdateToUser(
+    userId: unknown,
     event: string,
-    payload: { result: unknown },
+    result: unknown,
+    list: unknown[],
 ): void {
-    const userId = parseRecipientUserId(recipient);
-    if (userId == null) {
-        console.warn(`[order] skip ${event}: invalid recipient`, recipient);
+    const id = parseRecipientUserId(userId);
+    if (id == null) {
+        console.warn(`[order] skip ${event}: invalid user id`, userId);
         return;
     }
-    notifyUser(userId, event, payload);
+    notifyUser(id, event, { result, list });
+}
+
+/**
+ * Push order detail + role-appropriate list to recipient and actor (socket rooms).
+ * Ack should return the same payload shape for the actor's list.
+ */
+async function broadcastOrderUpdate(
+    event: string,
+    orderId: unknown,
+    actorType: unknown,
+    actorId: unknown,
+    recipient: unknown,
+): Promise<OrderSocketPayload> {
+    const { result, vendorList, customerList } = await buildOrderLists(orderId);
+    const actor = String(actorType ?? "").toLowerCase();
+    const recipientRole =
+        actor === "vendor"
+            ? "customer"
+            : actor === "customer"
+              ? "vendor"
+              : "";
+
+    const actorList = listForRole(actor, vendorList, customerList);
+    const recipientList = listForRole(recipientRole, vendorList, customerList);
+
+    emitOrderUpdateToUser(recipient, event, result, recipientList);
+    emitOrderUpdateToUser(actorId, event, result, actorList);
+
+    return { result, list: actorList };
 }
 
 
@@ -71,15 +138,21 @@ export const handleOrderAcceptance = async(
             if (fulfillment_duration != null) {
                 await updateShipping(fulfillment_duration, order_id);
             }
-            const payload = await buildOrderPayload(order_id);
-            emitOrderUpdate(recipient, "order_acceptance", payload);
+            const orderPayload = await broadcastOrderUpdate(
+                "order_acceptance",
+                order_id,
+                actor_type,
+                actor_id,
+                recipient,
+            );
             if(typeof ack === 'function') {
 
                 ack({
                     success: true,
                     message: "Order event recorded successfully",
                     error: null,
-                    result: payload.result,
+                    result: orderPayload.result,
+                    list: orderPayload.list,
                 })
             }
         } else {
@@ -149,14 +222,20 @@ export const handleOrderProcessing = async(
             if (fulfillment_duration != null) {
                 await updateShipping(fulfillment_duration, order_id);
             }
-            const payload = await buildOrderPayload(order_id);
-            emitOrderUpdate(recipient, "order_processing", payload);
+            const orderPayload = await broadcastOrderUpdate(
+                "order_processing",
+                order_id,
+                actor_type,
+                actor_id,
+                recipient,
+            );
             if(typeof ack === 'function') {
                 ack({
                     success: true,
                     message: "Order event recorded successfully",
                     error: null,
-                    result: payload.result,
+                    result: orderPayload.result,
+                    list: orderPayload.list,
                 })
             }
         } else {
@@ -231,14 +310,20 @@ export const handleOrderShipping = async(
             if (shipping_method !== null) {
                 await updateShippingMethod(shipping_method, tracking_id, order_id);
             }
-            const payload = await buildOrderPayload(order_id);
-            emitOrderUpdate(recipient, "order_shipping", payload);
+            const orderPayload = await broadcastOrderUpdate(
+                "order_shipping",
+                order_id,
+                actor_type,
+                actor_id,
+                recipient,
+            );
             if(typeof ack === 'function') {
                 ack({
                     success: true,
                     message: "Order event recorded successfully",
                     error: null,
-                    result: payload.result,
+                    result: orderPayload.result,
+                    list: orderPayload.list,
                 })
             }
         } else {
@@ -308,14 +393,20 @@ export const handleOrderOutForDelivery = async(
             if (expected_delivery !== null) {
                 await updateShipping(expected_delivery, order_id)
             }
-            const payload = await buildOrderPayload(order_id);
-            emitOrderUpdate(recipient, "order_out_for_delivery", payload);
+            const orderPayload = await broadcastOrderUpdate(
+                "order_out_for_delivery",
+                order_id,
+                actor_type,
+                actor_id,
+                recipient,
+            );
             if(typeof ack === 'function') {
                 ack({
                     success: true,
                     message: "Order event recorded successfully",
                     error: null,
-                    result: payload.result,
+                    result: orderPayload.result,
+                    list: orderPayload.list,
                 })
             }
         } else {
@@ -382,14 +473,20 @@ export const handleOrderDelivered = async(
             
             await updateFulfillmentStatus(stage, order_id);
 
-            const payload = await buildOrderPayload(order_id);
-            emitOrderUpdate(recipient, "order_delivered", payload);
+            const orderPayload = await broadcastOrderUpdate(
+                "order_delivered",
+                order_id,
+                actor_type,
+                actor_id,
+                recipient,
+            );
             if(typeof ack === 'function') {
                 ack({
                     success: true,
                     message: "Order event recorded successfully",
                     error: null,
-                    result: payload.result,
+                    result: orderPayload.result,
+                    list: orderPayload.list,
                 })
             }
         } else {
@@ -480,14 +577,20 @@ export const handleOrderCancellation = async(
                 }
             }
 
-            const payload = await buildOrderPayload(order_id);
-            emitOrderUpdate(recipient, "order_cancelled", payload);
+            const orderPayload = await broadcastOrderUpdate(
+                "order_cancelled",
+                order_id,
+                actor_type,
+                actor_id,
+                recipient,
+            );
             if(typeof ack === 'function') {
                 ack({
                     success: true,
                     message: "Order event recorded successfully",
                     error: null,
-                    result: payload.result,
+                    result: orderPayload.result,
+                    list: orderPayload.list,
                 })
             }
         } else {

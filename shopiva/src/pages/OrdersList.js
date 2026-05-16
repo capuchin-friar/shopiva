@@ -17,10 +17,11 @@ import { formatNaira } from '../utils/formatNaira';
 import { fetchBuyerOrders } from '../api/buyer';
 // import { fetchVendorOrders } from '../../api/vendors'
 import { mapOrderRowToListItem } from '../utils/buyerUi';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getStoredUser } from '../auth/session';
 import { fetchOwnerShops, fetchShopOrders } from '../api';
+import { set_orderList } from '../../redux/orders';
 
 const PAGE_BG = '#F2F2F4';
 const BLACK = '#111111';
@@ -103,13 +104,14 @@ function OrderCard({ item, onPress }) {
 }
 
 export default function OrderListScreen() {
+  const dispatch = useDispatch();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const auth = useSelector(s => s.auth)
   const [filter, setFilter] = useState('all');
-  const [orders, setOrders] = useState(/** @type {Record<string, unknown>[]} */ ([]));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const { orderList } = useSelector(s => s.orderList);
 
   /** @param {Record<string, unknown>} row */
   function shopIdOf(row) {
@@ -160,10 +162,10 @@ export default function OrderListScreen() {
         const mapped = (Array.isArray(data) ? data : data.orders).map((r) =>
           mapOrderRowToListItem(/** @type {Record<string, unknown>} */ (r)),
         );
-        setOrders(mapped);
+        dispatch(set_orderList(mapped))
       } catch (e) {
         if (!cancelled) {
-          setOrders([]);
+          dispatch(set_orderList([]))
           setError(e instanceof Error ? e.message : String(e));
         }
       } finally {
@@ -176,9 +178,9 @@ export default function OrderListScreen() {
   }, []);
 
   const data = useMemo(() => {
-    if (filter === 'all') return orders;
-    return orders.filter((o) => o.status === filter);
-  }, [filter, orders]);
+    if (filter === 'all') return orderList;
+    return orderList.filter((o) => o.status === filter);
+  }, [filter, orderList]);
 
   const renderItem = useCallback(
     ({ item }) => (
