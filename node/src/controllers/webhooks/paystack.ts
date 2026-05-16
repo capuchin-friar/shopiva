@@ -134,7 +134,7 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
         charges: 0,
         total_paid: subtotal,
         currency: "NGN",
-        fulfillment_status: 'pending',
+        fulfillment_status: 'payment_received',
         escrow_status: 'held',
         payment_status: paystackData.status,
         shipping_address: shipping_address || '',

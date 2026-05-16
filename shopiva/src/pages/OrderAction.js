@@ -99,7 +99,7 @@ export default function OrderActionScreen() {
             }
 
             {   
-                action === "delivery" && <MarkAsDelivered data={data} />
+                action === "delivered" && <MarkAsDelivered data={data} />
             }
         </>
     );
@@ -537,7 +537,7 @@ function Processing({ data }) {
                 ]}
             >
                 <View style={styles.processingCard}>
-                    <Text style={styles.processingSectionTitle}>Processing order</Text>
+                    <Text style={styles.processingSectionTitle}>Process order</Text>
                     <Text style={styles.processingSectionSubtitle}>
                         Confirm you are actively preparing this order and will ship
                         on time.
@@ -1171,7 +1171,7 @@ function MarkAsDelivered({ data }) {
             return;
         }
         const u = await getStoredUser();
-        const response = await emitSocketAck("order_delivery", {
+        const response = await emitSocketAck("order_delivered", {
             ...data,
             meta: {
                 ...(data.meta && typeof data.meta === "object" ? data.meta : {}),

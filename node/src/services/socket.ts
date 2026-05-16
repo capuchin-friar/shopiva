@@ -8,7 +8,7 @@ import {
   handleMarkMessageRead,
   handleTyping,
 } from "../socket/chat.js";
-import { handleOrderAcceptance, handleOrderOutForDelivery, handleOrderProcessing, handleOrderShipping } from "../socket/order.js";
+import { handleOrderAcceptance, handleOrderDelivered, handleOrderOutForDelivery, handleOrderProcessing, handleOrderShipping } from "../socket/order.js";
 
 type SocketWithAuth = Socket & {
   user?: { id: string };
@@ -66,8 +66,8 @@ export default function handleSocketConnection(client: SocketWithAuth) {
   client.on("order_out_for_delivery", wrapSocketHandler((p, a) =>
     handleOrderOutForDelivery(userId, nsp, asPayload(p), a)
   ));
-  client.on("order_delivery", wrapSocketHandler((p, a) =>
-    handleOrderOutForDelivery(userId, nsp, asPayload(p), a)
+  client.on("order_delivered", wrapSocketHandler((p, a) =>
+    handleOrderDelivered(userId, nsp, asPayload(p), a)
   ));
 
 

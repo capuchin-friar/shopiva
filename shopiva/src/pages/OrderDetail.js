@@ -40,11 +40,12 @@ const PAY_THEME = {
 };
 
 const STATUS_THEME = {
-  delivered: { bg: '#E0F2E9', dot: '#0D8A4A', text: '#0D5C2F', label: 'Delivered' },
-  out_for_delivery: { bg: '#E0F2E9', dot: '#08ccfd', text: '#075646', label: 'Delivered' },
-  pending: { bg: '#FFF4D6', dot: '#B58100', text: '#7A5800', label: 'Pending' },
-  processing: { bg: '#FFF0E0', dot: '#C45C00', text: '#7A3A00', label: 'Processing' },
-  shipped: { bg: '#E0EAFF', dot: '#2F5DDB', text: '#1B3FA1', label: 'Shipped' },
+  payment_received: { bg: '#FFF4D6', dot: '#B58100', text: '#7A5800', label: 'Payment received' },
+  order_accepted: { bg: '#FFF4D6', dot: '#B58100', text: '#7A5800', label: 'Order accepted' },
+  order_processing: { bg: '#FFF0E0', dot: '#C45C00', text: '#7A3A00', label: 'Processing' },
+  order_shipping: { bg: '#E0EAFF', dot: '#2F5DDB', text: '#1B3FA1', label: 'Shipped' },
+  order_out_for_delivery: { bg: '#E0F2E9', dot: '#08ccfd', text: '#075646', label: 'Out For Delivery' },
+  order_delivered: { bg: '#E0F2E9', dot: '#0D8A4A', text: '#0D5C2F', label: 'Delivered' },
   cancelled: { bg: '#FDE3E3', dot: '#C62828', text: '#9F1818', label: 'Cancelled' },
 };
 
@@ -235,15 +236,15 @@ export default function OrderDetailScreen() {
   const route = useRoute();
   const auth = useSelector(s => s.auth)
   const order = /** @type {Record<string, unknown> | undefined} */ (route.params?.order);
-  const [statusKey, setStatusKey] = useState(
-    String(order?.status ?? 'delivered').toLowerCase(),
-  );
+  const [statusKey, setStatusKey] = useState(null);
   const [statusOpen, setStatusOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   // const [orderInfo, setOrderInfo] = useState(null);
   const {
     orderInfo
   } = useSelector(s => s.orderInfo);
+
+
 
   const openActions = useCallback(() => setActionsOpen(true), []);
   const closeActions = useCallback(() => setActionsOpen(false), []);
@@ -254,6 +255,12 @@ export default function OrderDetailScreen() {
   }, [order]);
 
   const dispatch = useDispatch();
+
+  useEffect(() => {
+    if(!orderInfo)return;
+    setStatusKey(orderInfo.order.fulfillment_status)
+  },[orderInfo]);
+
   useEffect(() => {
     
     if(auth.activeRole === "customer"){
@@ -304,7 +311,7 @@ export default function OrderDetailScreen() {
 
   const payKey = String(order?.paymentStatus ?? 'paid').toLowerCase();
   const payTheme = PAY_THEME[payKey] ?? PAY_THEME.paid;
-  const statusTheme = STATUS_THEME[orderInfo?.order?.fulfillment_status] ?? STATUS_THEME.delivered;
+  const statusTheme = STATUS_THEME[orderInfo?.order?.fulfillment_status] ?? "Not Available";
   const isNaira = order && 'valueRupees' in order;
   const fmt = useCallback(
     (n) => {
@@ -511,7 +518,19 @@ export default function OrderDetailScreen() {
       meta: {},
     };
 
-    if (statusKey === "processing") {
+    if (statusKey === "order_accepted") {
+      navigation.navigate("Order-action", {
+        action: "processing",
+        data: {
+          ...base,
+          event_type: "processing",
+          stage: "order_processing",
+        },
+      });
+      return;
+    }
+
+    if (statusKey === "order_processing") {
       navigation.navigate("Order-action", {
         action: "shipping",
         data: {
@@ -523,7 +542,7 @@ export default function OrderDetailScreen() {
       return;
     }
 
-    if (statusKey === "shipped") {
+    if (statusKey === "order_shipping") {
       navigation.navigate("Order-action", {
         action: "out_for_delivery",
         data: {
@@ -535,13 +554,13 @@ export default function OrderDetailScreen() {
       return;
     }
 
-    if (statusKey === "out_for_delivery") {
+    if (statusKey === "order_out_for_delivery") {
       navigation.navigate("Order-action", {
-        action: "delivery",
+        action: "delivered",
         data: {
           ...base,
-          event_type: "delivery",
-          stage: "order_delivery",
+          event_type: "delivered",
+          stage: "order_delivered",
         },
       });
     }
@@ -633,12 +652,12 @@ export default function OrderDetailScreen() {
           <SummaryRow
             icon="cube-outline"
             label="Shipping Method"
-            value={String(orderInfo?.order?.shipping_method || "Not Availble")}
+            value={String(orderInfo?.order?.shipping_method?.split("_").join(" ") || "Awaiting shipment")}
           />
           <SummaryRow
             icon="calendar-outline"
             label="Estimated Delivery Date"
-            value={String(orderInfo?.order?.estimated_delivery_date || "Not Available")}
+            value={String(orderInfo?.order?.estimated_delivery_date?.split("_").join(" ") || "Not Available")}
           />
           <SummaryRow
             icon="pricetag-outline"
@@ -855,19 +874,6 @@ export default function OrderDetailScreen() {
           )} bold />
         </View>
 
-        {/* <SectionLabel>Timelane</SectionLabel>
-        <View style={styles.card}>
-          {timeline.map((s, i) => (
-            <TimelineStep
-              key={`${s.title}-${i}`}
-              title={String(s.title)}
-              dateLabel={String(s.dateLabel ?? '')}
-              subtitle={s.subtitle ? String(s.subtitle) : null}
-              done={Boolean(s.done)}
-              isLast={i === timeline.length - 1}
-            />
-          ))}
-        </View> */}
       </ScrollView>
 
       <View
@@ -937,13 +943,15 @@ export default function OrderDetailScreen() {
         >
           <Text style={styles.btnPrimaryText}>
             {
-              statusKey === "processing"
-                ? "Mark as shipped"
-                : statusKey === "shipped"
-                ? "Out for delivery"
-                : statusKey === "out_for_delivery"
-                ? "Mark as delivered"
-                : "Update status"
+              statusKey === "order_accepted"
+                ? "Start Processing Order"
+                : statusKey === "order_processing"
+                ? "Start Shipping Order"
+                : statusKey === "order_shipping"
+                ? "Notify Buyer For Pickup"
+                : statusKey === "order_out_for_delivery"
+                ? "Confirm Buyer Has Recieved The Order"
+                : "Withdraw Funds to Bank"
             }
           </Text>
         </Pressable>}
@@ -992,38 +1000,6 @@ export default function OrderDetailScreen() {
         </View>
       </Modal>
 
-      <Modal
-        visible={statusOpen}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setStatusOpen(false)}
-      >
-        <View style={styles.sheetRoot}>
-          <Pressable style={styles.sheetDismiss} onPress={() => setStatusOpen(false)} />
-          <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Update order status</Text>
-            {STATUS_OPTIONS.map((opt) => {
-              const selected = opt.key === statusKey;
-              const t = STATUS_THEME[opt.key];
-              return (
-                <Pressable
-                  key={opt.key}
-                  onPress={() => {
-                    setStatusKey(opt.key);
-                    setStatusOpen(false);
-                  }}
-                  style={({ pressed }) => [styles.sheetRow, pressed && styles.sheetRowPressed]}
-                >
-                  <View style={[styles.sheetDot, { backgroundColor: t.dot }]} />
-                  <Text style={styles.sheetRowText}>{opt.label}</Text>
-                  {selected ? <Icon name="checkmark" size={18} color={ACCENT} /> : null}
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -1081,7 +1057,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
   },
   sectionLabel: {
     fontSize: 14,
@@ -1161,7 +1137,7 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     flex: 1,
-    fontSize: 13,
+    fontSize: 11,
     color: TEXT,
   },
   summaryValue: {
@@ -1169,9 +1145,10 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   summaryValueText: {
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: '700',
     color: BLACK,
+    textTransform: "capitalize"
   },
   escrowStatusRow: {
     flexDirection: 'row',

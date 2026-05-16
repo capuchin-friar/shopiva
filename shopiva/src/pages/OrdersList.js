@@ -63,7 +63,7 @@ const STATUS_THEME = {
  */
 function OrderCard({ item, onPress }) {
   const t = STATUS_THEME[item.status] ?? STATUS_THEME.pending;
-
+  // console.log("item: ", item)
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
@@ -94,7 +94,7 @@ function OrderCard({ item, onPress }) {
         <View style={[styles.gridCol, styles.gridColLast]}>
           <Text style={styles.gridLabel}>Status</Text>
           <View style={[styles.statusPill, { backgroundColor: t.pillBg }]}>
-            <Text style={[styles.statusPillText, { color: t.pillText }]}>{item.status}</Text>
+            <Text style={[styles.statusPillText, { color: t.pillText }]}>{item.statusRaw.split("_").join(" ")}</Text>
           </View>
         </View>
       </View>
@@ -156,7 +156,6 @@ export default function OrderListScreen() {
         }
         const data = auth.activeRole === "customer" ? await fetchBuyerOrders() : await fetchShopOrders(shopId, userId);
         if (cancelled) return;
-        console.log("data:", data)
 
         const mapped = (Array.isArray(data) ? data : data.orders).map((r) =>
           mapOrderRowToListItem(/** @type {Record<string, unknown>} */ (r)),
@@ -388,7 +387,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   gridColLast: {
-    alignItems: 'flex-start',
+    alignItems: 'flex-start'
   },
   gridLabel: {
     fontSize: 11,
@@ -404,14 +403,19 @@ const styles = StyleSheet.create({
     color: BLACK,
   },
   statusPill: {
-    paddingHorizontal: 10,
+    paddingHorizontal: 5,
     paddingVertical: 4,
     borderRadius: 10,
     alignSelf: 'flex-start',
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexWrap: "nowrap"
   },
   statusPillText: {
     fontSize: 12,
     fontWeight: '700',
+    flexShrink: 0,
     textTransform: 'lowercase',
   },
 });

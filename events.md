@@ -415,3 +415,8 @@ What happens while handling events in the order management:
 1. database is updated.
 2. fcm notification is emitted to the recipient
 3. socket.io is emitted to the recipient to update his/her order management.
+
+order flow:
+1. order_shipping
+2. order_out_for_delivery
+3. order_delivery
