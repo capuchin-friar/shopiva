@@ -243,6 +243,37 @@ export class shop{
         return rows;
     });
 
+    /** Vendor (shop owner) profile for a shop — joins `users` on `shops.ownerid`. */
+    static getShopOwnerByShopId = withErrorHandling(async (shopId: number) => {
+        const { rows } = await (await db()).query(
+            `
+                SELECT
+                    u.id,
+                    u.fname,
+                    u.lname,
+                    u.email,
+                    u.phone,
+                    u.gender,
+                    u.role,
+                    u.location,
+                    u.preferredlanguage,
+                    u.timezone,
+                    u.isemailverified,
+                    u.isphoneverified,
+                    u.lastlogin,
+                    s.id AS shop_id,
+                    s.name AS shop_name,
+                    s.slug AS shop_slug
+                FROM shops s
+                INNER JOIN users u ON u.id = s.ownerid
+                WHERE s.id = $1
+                LIMIT 1
+            `,
+            [shopId]
+        );
+        return rows[0] ?? null;
+    });
+
     static appendPolicyClause = withErrorHandling(
       async (params: {
         shopId: number;

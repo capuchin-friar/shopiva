@@ -137,6 +137,20 @@ export async function uploadShopVerificationDocument(shopId, file) {
   return readJson(res);
 }
 
+
+/**
+ * Vendor data via shopId.
+ * @param {number | string} shopId
+ * @param {number | string} userId
+ * @returns {Promise<unknown[]>}
+ */
+export async function fetchShopOwner(shopId) {
+  const res = await apiFetchAuth(`/shop/${shopId}/owner`, { method: 'GET' });
+  const data = await readJson(res);
+  return Array.isArray(data.result) ? data.result : [];
+}
+
+
 /**
  * Orders for a shop (vendor dashboard / order list).
  * @param {number | string} shopId

@@ -22,7 +22,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatNaira } from '../utils/formatNaira';
-import { fetchBuyerOrder, fetchOwnerShops, fetchShopOrderDetail } from '../api';
+import { fetchBuyerOrder, fetchOwnerShops, fetchShopOrderDetail, fetchShopOwner } from '../api';
 import { useDispatch, useSelector } from 'react-redux';
 import { getStoredUser } from '../auth/session';
 import {
@@ -642,23 +642,77 @@ export default function OrderDetailScreen() {
     ]);
   };
 
-  const onCancelDelivery = useCallback(() => {
-    Alert.alert(
-      'Cancel delivery',
-      'Cancel this delivery request? Escrow and fulfillment may be updated according to Shopiva policy.',
-      [
-        { text: 'Not now', style: 'cancel' },
-        { text: 'Cancel delivery', style: 'destructive', onPress: () => {} },
-      ],
+  const onCancelDelivery = useCallback(async () => {
+    if (auth.activeRole !== 'customer' || !orderInfo?.order) return;
+
+    const u = await getStoredUser();
+    const owners = await fetchShopOwner(orderInfo.order.shop_id);
+    const vendorId = owners[0]?.id;
+    if (vendorId == null) {
+      Alert.alert(
+        'Cannot cancel',
+        'Unable to load the vendor for this order. Try again later.',
+      );
+      return;
+    }
+
+    const totalPaid = Number(
+      orderInfo.order.total_paid ?? orderInfo.order.amount_paid ?? 0,
     );
-  }, []);
+    const postShipment = (orderInfo.order_events?.length ?? 0) > 3;
+    const restockingFee = postShipment
+      ? Math.round(totalPaid * 0.05)
+      : 0;
+
+    navigation.navigate('Order-action', {
+      action: 'cancellation',
+      data: {
+        order_id: orderInfo.order.id,
+        event_type: 'cancellation',
+        stage: 'order_cancellation',
+        actor_type: 'customer',
+        actor_id: u.id,
+        outcome: 'success',
+        notes: '',
+        recipient: vendorId,
+        post_shipment: postShipment,
+        order_total: totalPaid,
+        restocking_fee: restockingFee,
+      },
+    });
+  }, [auth.activeRole, navigation, orderInfo]);
 
   const onOpenDispute = useCallback(() => {
-    Alert.alert(
-      'Open dispute',
-      'To dispute this order, open the Disputes section from your Activities tab.',
-      [{ text: 'OK' }],
-    );
+    // Alert.alert(
+    //   'Open dispute',
+    //   'To dispute this order, open the Disputes section from your Activities tab.',
+    //   [{ text: 'OK' }],
+    // );
+    if(auth.activeRole === "customer"){
+      if(statusKey !== "order_delivered"){
+        Alert.alert(
+          'Cannot open dispute at this stage',
+          'To dispute this order, you must confirm you received the order from the vendor first',
+          [{ text: 'OK' }],
+        );
+      }else if(statusKey === "order_delivered"){
+        navigation.navigate("Open-dispute", {
+
+        });
+      }
+    }else{
+      if(statusKey !== "order_delivered"){
+        Alert.alert(
+          'Cannot open dispute at this stage',
+          'To dispute this order, the buyer must confirm he/she received the order from   you (vendor) first',
+          [{ text: 'OK' }],
+        );
+      }else if(statusKey === "order_delivered"){
+        navigation.navigate("Open-dispute", {
+
+        });
+      }
+    }
   }, []);
 
   const onUpdateStatus = async () => {

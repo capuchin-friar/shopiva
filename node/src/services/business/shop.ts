@@ -117,6 +117,59 @@ export async function GetShopsByOwnerIdService(ownerId: string | number) {
     return shop.getShopsByOwnerId(ownerId);
 }
 
+function parseUserLocation(raw: unknown): Record<string, unknown> | null {
+    if (raw == null) return null;
+    if (typeof raw === "object" && !Array.isArray(raw)) {
+        return raw as Record<string, unknown>;
+    }
+    if (typeof raw === "string") {
+        try {
+            const parsed = JSON.parse(raw) as unknown;
+            if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+                return parsed as Record<string, unknown>;
+            }
+        } catch {
+            return null;
+        }
+    }
+    return null;
+}
+
+/** Map joined shop+owner row to a safe vendor profile (no password / tokens). */
+function mapShopOwnerRow(row: Record<string, unknown>) {
+    return {
+        id: row.id,
+        fname: row.fname,
+        lname: row.lname,
+        email: row.email,
+        phone: row.phone ?? null,
+        gender: row.gender ?? null,
+        role: row.role != null ? String(row.role) : null,
+        location: parseUserLocation(row.location),
+        preferredLanguage: row.preferredlanguage ?? "en",
+        timezone: row.timezone ?? "UTC",
+        isEmailVerified: Boolean(row.isemailverified),
+        isPhoneVerified: Boolean(row.isphoneverified),
+        lastLogin: row.lastlogin != null ? String(row.lastlogin) : null,
+        shopId: row.shop_id,
+        shopName: row.shop_name,
+        shopSlug: row.shop_slug,
+    };
+}
+
+/**
+ * Resolve the vendor (owner) user record for a shop id.
+ * @returns owner profile object
+ * @throws if shop does not exist
+ */
+export async function GetShopOwnerByShopIdService(shopId: number) {
+    const row = await shop.getShopOwnerByShopId(shopId);
+    if (!row) {
+        throw new Error("Shop not found");
+    }
+    return mapShopOwnerRow(row as Record<string, unknown>);
+}
+
 /**
  * Check if the authenticated user has at least one shop (for post-auth redirect).
  */

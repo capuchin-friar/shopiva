@@ -34,6 +34,7 @@ import {
     PatchShopPolicyClauseService,
     GetShopTransactionsService,
     GetShopsForDiscoverByCategoryService,
+    GetShopOwnerByShopIdService,
 } from "../../services/business/shop.js";
 
 const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -714,6 +715,39 @@ export async function ListShopsForDiscoverByCategoryController(req: Request, res
         res.status(500).json({
             error: err instanceof Error ? err.message : String(err),
         });
+    }
+}
+
+/**
+ * Get vendor (owner) profile for a shop.
+ * GET /shop/:shopId/owner
+ * Auth: Bearer JWT (`verifyToken`). Returns `{ result: [owner] }` for mobile client.
+ */
+export async function GetShopOwnerByShopIdController(req: Request, res: Response) {
+    try {
+        const user = (req as AuthRequest).user;
+        if (!user?.id) {
+            res.status(401).json({ success: false, error: "Unauthorized" });
+            return;
+        }
+        const shopId = parseInt(String(req.params.shopId ?? ""), 10);
+        if (!Number.isFinite(shopId) || shopId < 1) {
+            res.status(400).json({ success: false, error: "Invalid shop ID" });
+            return;
+        }
+        const owner = await GetShopOwnerByShopIdService(shopId);
+        res.status(200).json({
+            success: true,
+            message: "Shop owner retrieved successfully",
+            result: [owner],
+        });
+    } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg === "Shop not found") {
+            res.status(404).json({ success: false, error: msg, result: [] });
+            return;
+        }
+        res.status(500).json({ success: false, error: msg, result: [] });
     }
 }
 

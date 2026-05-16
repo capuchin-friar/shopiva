@@ -26,6 +26,7 @@ import {
     PatchShopPolicyClauseController,
     GetShopTransactionsController,
     ListShopsForDiscoverByCategoryController,
+    GetShopOwnerByShopIdController,
 } from "../../controllers/business/shop.js";
 import { GetTagsByCategoryController } from "../../controllers/business/tag.js";
 import {
@@ -78,6 +79,9 @@ BusinessRouter.post("/shop/delete/:shopId/:id", authenticate, DeleteShopControll
 // Shop Policies
 BusinessRouter.post("/shop/policy/create/:shopId/:id", authenticate, CreateShopPolicyController);
 BusinessRouter.post("/shop/policy/update/:policyId/:id", authenticate, UpdateShopPolicyController);
+
+// Shop owner (vendor profile by shop id)
+BusinessRouter.get("/shop/:shopId/owner", verifyToken, GetShopOwnerByShopIdController);
 
 // Shop Payout Account
 BusinessRouter.get("/shop/payment/verify/:id", authenticate, VerifyShopPaymentAccountController);
