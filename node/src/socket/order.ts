@@ -40,20 +40,18 @@ export const handleOrderAcceptance = async(
         );
 
         if(rows.length > 0){
-            nsp.to(`user:${recipient}`).emit("order_acceptance", {
-                order_id,
-                status: outcome,
-                reason: reason,
-                timestamp: new Date()
-            })
+            
             await updateFulfillmentStatus(stage, order_id);
             const metaObj = (meta && typeof meta === 'object') ? (meta as Record<string, any>) : null;
             const fulfillment_duration = metaObj?.fulfillment_duration ?? null;
-            console.log("meta: ", meta);
             if (fulfillment_duration != null) {
                 await updateShipping(fulfillment_duration, order_id);
             }
+            nsp.to(`user:${recipient}`).emit("order_acceptance", {
+                result: await orderTransformer(order_id),
+            })
             if(typeof ack === 'function') {
+
                 ack({
                     success: true,
                     message: "Order event recorded successfully",
@@ -120,12 +118,7 @@ export const handleOrderProcessing = async(
         );
 
         if(rows.length > 0){
-            nsp.to(`user:${recipient}`).emit("order_processing", {
-                order_id,
-                status: outcome,
-                reason: reason,
-                timestamp: new Date()
-            })
+            
             await updateFulfillmentStatus(stage, order_id);
             const metaObj = (meta && typeof meta === 'object') ? (meta as Record<string, any>) : null;
             const fulfillment_duration = metaObj?.fulfillment_duration ?? null;
@@ -133,6 +126,9 @@ export const handleOrderProcessing = async(
             if (fulfillment_duration != null) {
                 await updateShipping(fulfillment_duration, order_id);
             }
+            nsp.to(`user:${recipient}`).emit("order_processing", {
+                result: await orderTransformer(order_id),
+            })
             if(typeof ack === 'function') {
                 ack({
                     success: true,
@@ -201,12 +197,7 @@ export const handleOrderShipping = async(
         );
 
         if(rows.length > 0){
-            nsp.to(`user:${recipient}`).emit("order_shipping", {
-                order_id,
-                status: outcome,
-                reason: reason,
-                timestamp: new Date()
-            })
+            
             await updateFulfillmentStatus(stage, order_id);
             const metaObj = (meta && typeof meta === 'object') ? (meta as Record<string, any>) : null;
             const estimated_delivery = metaObj?.estimated_delivery ?? null;
@@ -218,6 +209,9 @@ export const handleOrderShipping = async(
             if (shipping_method !== null) {
                 await updateShippingMethod(shipping_method, tracking_id, order_id);
             }
+            nsp.to(`user:${recipient}`).emit("order_shipping", {
+                result: await orderTransformer(order_id)
+            })
             if(typeof ack === 'function') {
                 ack({
                     success: true,
@@ -286,18 +280,16 @@ export const handleOrderOutForDelivery = async(
         );
 
         if(rows.length > 0){
-            nsp.to(`user:${recipient}`).emit("order_shipping", {
-                order_id,
-                status: outcome,
-                reason: reason,
-                timestamp: new Date()
-            })
+            
             await updateFulfillmentStatus(stage, order_id);
             const metaObj = (meta && typeof meta === 'object') ? (meta as Record<string, any>) : null;
             const expected_delivery = metaObj?.expected_delivery ?? null;
             if (expected_delivery !== null) {
                 await updateShipping(expected_delivery, order_id)
             }
+            nsp.to(`user:${recipient}`).emit("order_out_for_delivery", {
+                result: await orderTransformer(order_id),
+            })
             if(typeof ack === 'function') {
                 ack({
                     success: true,
@@ -329,7 +321,7 @@ export const handleOrderOutForDelivery = async(
     }
 
 }
-// order_delivered
+
 export const handleOrderDelivered = async(
        userId: number,
         nsp: Namespace,
@@ -367,13 +359,12 @@ export const handleOrderDelivered = async(
         );
 
         if(rows.length > 0){
-            nsp.to(`user:${recipient}`).emit("order_delivered", {
-                order_id,
-                status: outcome,
-                reason: reason,
-                timestamp: new Date()
-            })
+            
             await updateFulfillmentStatus(stage, order_id);
+
+            nsp.to(`user:${recipient}`).emit("order_delivered", {
+                result: await orderTransformer(order_id),
+            })
             if(typeof ack === 'function') {
                 ack({
                     success: true,
@@ -405,6 +396,9 @@ export const handleOrderDelivered = async(
     }
 
 }
+
+
+
 async function updateFulfillmentStatus(fulfillment_status: unknown, order_id: unknown){
     console.log(order_id)
     const pool = await db();

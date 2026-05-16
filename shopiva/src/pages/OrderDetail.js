@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -19,7 +25,11 @@ import { formatNaira } from '../utils/formatNaira';
 import { fetchBuyerOrder, fetchOwnerShops, fetchShopOrderDetail } from '../api';
 import { useDispatch, useSelector } from 'react-redux';
 import { getStoredUser } from '../auth/session';
-import { connectChatSocket, emitSocketAck } from '../socket/chatSocket';
+import {
+  connectChatSocket,
+  emitSocketAck,
+  getChatSocket,
+} from '../socket/chatSocket';
 import { set_orderInfo } from '../../redux/order';
 
 const PAGE_BG = '#FFF';
@@ -35,18 +45,63 @@ const ACCENT_PRESSED = '#6A48F5';
 const PAY_THEME = {
   paid: { bg: '#E0F2E9', dot: '#0D8A4A', text: '#0D5C2F', label: 'Paid' },
   unpaid: { bg: '#FFF4D6', dot: '#B58100', text: '#7A5800', label: 'Unpaid' },
-  refunded: { bg: '#EFEAFF', dot: '#7C5CFC', text: '#3F2BB8', label: 'Refunded' },
-  cancelled: { bg: '#FDE3E3', dot: '#C62828', text: '#9F1818', label: 'Cancelled' },
+  refunded: {
+    bg: '#EFEAFF',
+    dot: '#7C5CFC',
+    text: '#3F2BB8',
+    label: 'Refunded',
+  },
+  cancelled: {
+    bg: '#FDE3E3',
+    dot: '#C62828',
+    text: '#9F1818',
+    label: 'Cancelled',
+  },
 };
 
 const STATUS_THEME = {
-  payment_received: { bg: '#FFF4D6', dot: '#B58100', text: '#7A5800', label: 'Payment received' },
-  order_accepted: { bg: '#FFF4D6', dot: '#B58100', text: '#7A5800', label: 'Order accepted' },
-  order_processing: { bg: '#FFF0E0', dot: '#C45C00', text: '#7A3A00', label: 'Processing' },
-  order_shipping: { bg: '#E0EAFF', dot: '#2F5DDB', text: '#1B3FA1', label: 'Shipped' },
-  order_out_for_delivery: { bg: '#E0F2E9', dot: '#08ccfd', text: '#075646', label: 'Out For Delivery' },
-  order_delivered: { bg: '#E0F2E9', dot: '#0D8A4A', text: '#0D5C2F', label: 'Delivered' },
-  cancelled: { bg: '#FDE3E3', dot: '#C62828', text: '#9F1818', label: 'Cancelled' },
+  payment_received: {
+    bg: '#FFF4D6',
+    dot: '#B58100',
+    text: '#7A5800',
+    label: 'Payment received',
+  },
+  order_accepted: {
+    bg: '#FFF4D6',
+    dot: '#B58100',
+    text: '#7A5800',
+    label: 'Order accepted',
+  },
+  order_processing: {
+    bg: '#FFF0E0',
+    dot: '#C45C00',
+    text: '#7A3A00',
+    label: 'Processing',
+  },
+  order_shipping: {
+    bg: '#E0EAFF',
+    dot: '#2F5DDB',
+    text: '#1B3FA1',
+    label: 'Shipping',
+  },
+  order_out_for_delivery: {
+    bg: '#E0F2E9',
+    dot: '#08ccfd',
+    text: '#075646',
+    label: 'Out For Delivery',
+  },
+  order_delivered: {
+    bg: '#E0F2E9',
+    dot: '#0D8A4A',
+    text: '#0D5C2F',
+    label: 'Delivered',
+  },
+  cancelled: {
+    bg: '#FDE3E3',
+    dot: '#C62828',
+    text: '#9F1818',
+    label: 'Cancelled',
+  },
 };
 
 const STATUS_OPTIONS = [
@@ -65,7 +120,8 @@ const ESCROW_STATUS_THEME = {
     dot: '#B58100',
     text: '#7A5800',
     label: 'Held',
-    caption: 'Funds are held in escrow until delivery is completed or the order is otherwise resolved.',
+    caption:
+      'Funds are held in escrow until delivery is completed or the order is otherwise resolved.',
   },
   released: {
     bg: '#E0F2E9',
@@ -85,7 +141,10 @@ const ESCROW_STATUS_THEME = {
 
 /** @param {string | null | undefined} name */
 function initialsOf(name) {
-  const parts = String(name ?? '').trim().split(/\s+/).filter(Boolean);
+  const parts = String(name ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
   if (parts.length === 0) return '—';
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
@@ -159,18 +218,47 @@ function parseShippingAddress(input) {
   const recipient = pickStr(obj, ['fullName', 'name', 'recipient', 'receiver']);
   const phone = pickStr(obj, ['phone', 'phoneNumber', 'mobile']);
   const email = pickStr(obj, ['email']);
-  const street = pickStr(obj, ['street', 'address1', 'addressLine1', 'line1', 'street1']);
-  const street2 = pickStr(obj, ['address2', 'addressLine2', 'line2', 'apartment', 'suite']);
+  const street = pickStr(obj, [
+    'street',
+    'address1',
+    'addressLine1',
+    'line1',
+    'street1',
+  ]);
+  const street2 = pickStr(obj, [
+    'address2',
+    'addressLine2',
+    'line2',
+    'apartment',
+    'suite',
+  ]);
   const city = pickStr(obj, ['city', 'town', 'locality']);
   const state = pickStr(obj, ['state', 'region', 'province', 'stateName']);
-  const zip = pickStr(obj, ['zip', 'postalCode', 'postcode', 'zipcode', 'postal_code']);
+  const zip = pickStr(obj, [
+    'zip',
+    'postalCode',
+    'postcode',
+    'zipcode',
+    'postal_code',
+  ]);
   const country = pickStr(obj, ['country', 'countryName']);
 
   const cityStateZip = [city, state, zip].filter(Boolean).join(', ');
   const lines = [street, street2, cityStateZip, country].filter(Boolean);
   const text = lines.length > 0 ? lines.join('\n') : flat || '—';
 
-  return { recipient, phone, email, street, street2, city, state, zip, country, text };
+  return {
+    recipient,
+    phone,
+    email,
+    street,
+    street2,
+    city,
+    state,
+    zip,
+    country,
+    text,
+  };
 }
 
 function emptyAddress() {
@@ -192,7 +280,9 @@ function StatusPill({ theme, label }) {
   return (
     <View style={[styles.pill, { backgroundColor: theme.bg }]}>
       <View style={[styles.pillDot, { backgroundColor: theme.dot }]} />
-      <Text style={[styles.pillText, { color: theme.text }]}>{label ?? theme.label}</Text>
+      <Text style={[styles.pillText, { color: theme.text }]}>
+        {label ?? theme.label}
+      </Text>
     </View>
   );
 }
@@ -224,8 +314,12 @@ function SummaryRow({ icon, label, value, last }) {
 function MoneyRow({ label, value, bold, muted }) {
   return (
     <View style={styles.moneyRow}>
-      <Text style={[styles.moneyLabel, muted && styles.moneyLabelMuted]}>{label}</Text>
-      <Text style={[styles.moneyValue, bold && styles.moneyValueBold]}>{value}</Text>
+      <Text style={[styles.moneyLabel, muted && styles.moneyLabelMuted]}>
+        {label}
+      </Text>
+      <Text style={[styles.moneyValue, bold && styles.moneyValueBold]}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -234,17 +328,46 @@ export default function OrderDetailScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const route = useRoute();
-  const auth = useSelector(s => s.auth)
-  const order = /** @type {Record<string, unknown> | undefined} */ (route.params?.order);
+  const auth = useSelector(s => s.auth);
+  const order = /** @type {Record<string, unknown> | undefined} */ (
+    route.params?.order
+  );
   const [statusKey, setStatusKey] = useState(null);
   const [statusOpen, setStatusOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   // const [orderInfo, setOrderInfo] = useState(null);
-  const {
-    orderInfo
-  } = useSelector(s => s.orderInfo);
+  const { orderInfo } = useSelector(s => s.orderInfo);
+  const dispatch = useDispatch();
 
-
+  useEffect(() => {
+    const client = getChatSocket();
+    if(!client)return;
+    client.on('order_acceptance', res => {
+      if (auth.activeRole === 'customer') {
+        dispatch(set_orderInfo(res.result))
+      }
+    });
+    client.on('order_processing', res => {
+      if (auth.activeRole === 'customer') {
+        dispatch(set_orderInfo(res.result))
+      }
+    });
+    client.on('order_shipping', res => {
+      if (auth.activeRole === 'customer') {
+        dispatch(set_orderInfo(res.result))
+      }
+    });
+    client.on('order_out_for_delivery', res => {
+      if (auth.activeRole === 'customer') {
+        dispatch(set_orderInfo(res.result))
+      }
+    });
+    client.on('order_delivered', res => {
+      if (auth.activeRole === 'customer') {
+        dispatch(set_orderInfo(res.result))
+      }
+    });
+  }, []);
 
   const openActions = useCallback(() => setActionsOpen(true), []);
   const closeActions = useCallback(() => setActionsOpen(false), []);
@@ -254,44 +377,44 @@ export default function OrderDetailScreen() {
     return String(n).replace(/^ORD-/i, '');
   }, [order]);
 
-  const dispatch = useDispatch();
 
   useEffect(() => {
-    if(!orderInfo)return;
-    setStatusKey(orderInfo.order.fulfillment_status)
-  },[orderInfo]);
+    if (!orderInfo) return;
+    setStatusKey(orderInfo.order.fulfillment_status);
+  }, [orderInfo]);
 
   useEffect(() => {
-    
-    if(auth.activeRole === "customer"){
+    if (auth.activeRole === 'customer') {
       (async () => {
         await connectChatSocket();
         fetchBuyerOrder(route.params.order.orderId)
-        .then(({order}) => {
-          dispatch(set_orderInfo(order))
-        })
-        .catch((err) => console.log(err));
+          .then(({ order }) => {
+            dispatch(set_orderInfo(order));
+          })
+          .catch(err => console.log(err));
       })();
-    }else{
+    } else {
       (async () => {
         await connectChatSocket();
         let { id: userId } = await getStoredUser();
         let shop = await fetchOwnerShops(userId);
         let sid = shop[0].id;
-        fetchShopOrderDetail(sid,route.params.order.orderId,userId)
-        .then(({order}) => {
-          dispatch(set_orderInfo(order))
-        })
-        .catch((err) => console.log(err));
+        fetchShopOrderDetail(sid, route.params.order.orderId, userId)
+          .then(({ order }) => {
+            dispatch(set_orderInfo(order));
+          })
+          .catch(err => console.log(err));
       })();
     }
-  }, [route])
-  
+  }, [route]);
+
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerTitle: () => ( 
-        <View >
-          <Text style={{fontWeight: 700, fontSize: 18}}>Order #{orderNumber}</Text>
+      headerTitle: () => (
+        <View>
+          <Text style={{ fontWeight: 700, fontSize: 18 }}>
+            Order #{orderNumber}
+          </Text>
           <StatusPill theme={payTheme} />
         </View>
       ),
@@ -299,7 +422,10 @@ export default function OrderDetailScreen() {
         <Pressable
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           onPress={openActions}
-          style={({ pressed }) => [styles.headerEllipsis, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.headerEllipsis,
+            pressed && styles.pressed,
+          ]}
           accessibilityRole="button"
           accessibilityLabel="More order actions"
         >
@@ -311,10 +437,11 @@ export default function OrderDetailScreen() {
 
   const payKey = String(order?.paymentStatus ?? 'paid').toLowerCase();
   const payTheme = PAY_THEME[payKey] ?? PAY_THEME.paid;
-  const statusTheme = STATUS_THEME[orderInfo?.order?.fulfillment_status] ?? "Not Available";
+  const statusTheme =
+    STATUS_THEME[orderInfo?.order?.fulfillment_status] ?? 'Not Available';
   const isNaira = order && 'valueRupees' in order;
   const fmt = useCallback(
-    (n) => {
+    n => {
       if (typeof n === 'string') return n;
       if (!Number.isFinite(Number(n))) return '—';
       if (isNaira) return formatNaira(Number(n));
@@ -328,14 +455,19 @@ export default function OrderDetailScreen() {
 
   const escrowInfo = useMemo(() => {
     const raw = orderInfo?.order?.escrow_status;
-    const key = String(raw ?? 'held').trim().toLowerCase();
+    const key = String(raw ?? 'held')
+      .trim()
+      .toLowerCase();
     let theme;
     if (key === 'held' || key === 'released' || key === 'refunded') {
       theme = ESCROW_STATUS_THEME[key];
     } else {
       theme = {
         ...ESCROW_STATUS_THEME.held,
-        label: raw != null && String(raw).trim() ? String(raw).trim().replace(/_/g, ' ') : '—',
+        label:
+          raw != null && String(raw).trim()
+            ? String(raw).trim().replace(/_/g, ' ')
+            : '—',
         caption: 'Escrow status for this order.',
       };
     }
@@ -343,15 +475,17 @@ export default function OrderDetailScreen() {
       key === 'released'
         ? 'Amount released'
         : key === 'refunded'
-          ? 'Amount refunded'
-          : key === 'held'
-            ? 'Amount held'
-            : 'Escrow amount';
-    const rawTotal = orderInfo?.order?.total_paid ?? orderInfo?.order?.amount_paid;
+        ? 'Amount refunded'
+        : key === 'held'
+        ? 'Amount held'
+        : 'Escrow amount';
+    const rawTotal =
+      orderInfo?.order?.total_paid ?? orderInfo?.order?.amount_paid;
     const num = Number(rawTotal);
     const valueText = Number.isFinite(num) ? fmt(num) : '—';
     const cur = orderInfo?.order?.currency;
-    const suffix = cur != null && String(cur).trim() ? ` ${String(cur).trim()}` : '';
+    const suffix =
+      cur != null && String(cur).trim() ? ` ${String(cur).trim()}` : '';
     return { theme, amountLabel, amountValue: `${valueText}${suffix}` };
   }, [
     fmt,
@@ -375,11 +509,18 @@ export default function OrderDetailScreen() {
           ...parsed,
           city: parsed.city || pickStr(loc, ['city']),
           state: parsed.state || pickStr(loc, ['state']),
-          zip: parsed.zip || pickStr(loc, ['zipcode', 'zip', 'postalCode', 'postcode']),
+          zip:
+            parsed.zip ||
+            pickStr(loc, ['zipcode', 'zip', 'postalCode', 'postcode']),
           country: parsed.country || pickStr(loc, ['country', 'countryName']),
         };
       }
-      if (!parsed.street && !parsed.street2 && parsed.text && parsed.text !== '—') {
+      if (
+        !parsed.street &&
+        !parsed.street2 &&
+        parsed.text &&
+        parsed.text !== '—'
+      ) {
         return { ...parsed, street: parsed.text };
       }
       return parsed;
@@ -407,12 +548,20 @@ export default function OrderDetailScreen() {
       }
     }
 
-    const loc = locRaw && typeof locRaw === 'object' ? /** @type {Record<string, unknown>} */ (locRaw) : null;
+    const loc =
+      locRaw && typeof locRaw === 'object'
+        ? /** @type {Record<string, unknown>} */ (locRaw)
+        : null;
     if (!loc) {
       return emptyAddress();
     }
     const street = pickStr(loc, ['address', 'street', 'line1', 'addressLine1']);
-    const street2 = pickStr(loc, ['address2', 'street2', 'line2', 'addressLine2']);
+    const street2 = pickStr(loc, [
+      'address2',
+      'street2',
+      'line2',
+      'addressLine2',
+    ]);
     const city = pickStr(loc, ['city', 'town', 'locality']);
     const state = pickStr(loc, ['state', 'region', 'province', 'stateName']);
     const zip = pickStr(loc, ['zipcode', 'zip', 'postalCode', 'postcode']);
@@ -436,7 +585,9 @@ export default function OrderDetailScreen() {
     if (auth.activeRole === 'vendor') {
       const u = orderInfo?.user;
       if (u && typeof u === 'object') {
-        const e = pickStr(/** @type {Record<string, unknown>} */ (u), ['email']);
+        const e = pickStr(/** @type {Record<string, unknown>} */ (u), [
+          'email',
+        ]);
         if (e) return e;
       }
       const pe = orderInfo?.payment_info?.customer_email;
@@ -451,7 +602,9 @@ export default function OrderDetailScreen() {
         if (e1) return e1;
         const owner = so.owner;
         if (owner && typeof owner === 'object') {
-          const e2 = pickStr(/** @type {Record<string, unknown>} */ (owner), ['email']);
+          const e2 = pickStr(/** @type {Record<string, unknown>} */ (owner), [
+            'email',
+          ]);
           if (e2) return e2;
         }
       }
@@ -476,7 +629,10 @@ export default function OrderDetailScreen() {
   };
 
   const onDownloadInvoice = () => {
-    Alert.alert('Download invoice', 'Invoice will be generated and downloaded.');
+    Alert.alert(
+      'Download invoice',
+      'Invoice will be generated and downloaded.',
+    );
   };
 
   const onRefund = () => {
@@ -510,80 +666,81 @@ export default function OrderDetailScreen() {
     const u = await getStoredUser();
     const base = {
       order_id: orderInfo.order.id,
-      actor_type: "vendor",
+      actor_type: 'vendor',
       actor_id: u.id,
-      outcome: "pending",
-      notes: "",
+      outcome: 'pending',
+      notes: '',
       recipient: orderInfo.order.customer_id,
       meta: {},
     };
 
-    if (auth.activeRole === "vendor") {
-      if (statusKey === "order_accepted") {
-        navigation.navigate("Order-action", {
-          action: "processing",
+    if (auth.activeRole === 'vendor') {
+      if (statusKey === 'order_accepted') {
+        navigation.navigate('Order-action', {
+          action: 'processing',
           data: {
             ...base,
-            event_type: "processing",
-            stage: "order_processing",
+            event_type: 'processing',
+            stage: 'order_processing',
           },
         });
         return;
       }
-  
-      if (statusKey === "order_processing") {
-        navigation.navigate("Order-action", {
-          action: "shipping",
+
+      if (statusKey === 'order_processing') {
+        navigation.navigate('Order-action', {
+          action: 'shipping',
           data: {
             ...base,
-            event_type: "shipping",
-            stage: "order_shipping",
+            event_type: 'shipping',
+            stage: 'order_shipping',
           },
         });
         return;
       }
-  
-      if (statusKey === "order_shipping") {
-        navigation.navigate("Order-action", {
-          action: "out_for_delivery",
+
+      if (statusKey === 'order_shipping') {
+        navigation.navigate('Order-action', {
+          action: 'out_for_delivery',
           data: {
             ...base,
-            event_type: "delivery",
-            stage: "order_out_for_delivery",
+            event_type: 'delivery',
+            stage: 'order_out_for_delivery',
           },
         });
         return;
       }
-  
-      if (statusKey === "order_out_for_delivery") {
-        navigation.navigate("Order-action", {
-          action: "delivered",
+
+      if (statusKey === 'order_out_for_delivery') {
+        navigation.navigate('Order-action', {
+          action: 'delivered',
           data: {
             ...base,
-            event_type: "delivered",
-            stage: "order_delivered",
+            event_type: 'delivered',
+            stage: 'order_delivered',
           },
         });
       }
-    }else{
-      if (statusKey === "order_delivered") {
-        navigation.navigate("Order-action", {
-          action: "confirmation",
+    } else {
+      if (statusKey === 'order_delivered') {
+        navigation.navigate('Order-action', {
+          action: 'confirmation',
           data: {
             ...base,
-            event_type: "confirmation",
-            stage: "order_confirmation",
+            event_type: 'confirmation',
+            stage: 'order_confirmation',
           },
         });
         return;
       }
-    } 
+    }
   };
 
   const ORDER_ACTIONS = [
     {
       key: 'Message',
-      label: auth.activeRole === "vendor" ? 'Message customer' : "Message vendor",
+      label:
+        auth.activeRole === 'vendor' ? 'Message customer' : 'Message vendor',
       icon: 'mail-outline',
       onPress: () => {
         closeActions();
@@ -620,18 +777,20 @@ export default function OrderDetailScreen() {
     },
   ];
 
-  if(!orderInfo){
-    return(
+  if (!orderInfo) {
+    return (
       <>
-        <View style={{
-          flex: 1,
-          alignItems: "center",
-          justifyContent: "center"
-        }}>
-          <ActivityIndicator color={"#0D8A4A"} size={"large"} />
+        <View
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <ActivityIndicator color={'#0D8A4A'} size={'large'} />
         </View>
       </>
-    )
+    );
   }
 
   return (
@@ -644,9 +803,8 @@ export default function OrderDetailScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-      
         <View style={styles.card}>
-         <SectionLabel>Order Summary</SectionLabel>
+          <SectionLabel>Order Summary</SectionLabel>
           <SummaryRow
             icon="time-outline"
             label="Order Date"
@@ -662,75 +820,108 @@ export default function OrderDetailScreen() {
             label="Shipping Address"
             value={String(orderInfo?.order?.shipping_address)}
           />
-         
+
           <SummaryRow
             icon="cube-outline"
             label="Shipping Method"
-            value={String(orderInfo?.order?.shipping_method?.split("_").join(" ") || "Awaiting shipment")}
+            value={String(
+              orderInfo?.order?.shipping_method?.split('_').join(' ') ||
+                'Awaiting shipment',
+            )}
           />
           <SummaryRow
             icon="calendar-outline"
             label="Estimated Delivery Date"
-            value={String(orderInfo?.order?.estimated_delivery_date?.split("_").join(" ") || "Not Available")}
+            value={String(
+              orderInfo?.order?.estimated_delivery_date?.split('_').join(' ') ||
+                'Not Available',
+            )}
           />
           <SummaryRow
             icon="pricetag-outline"
             label="Tracking Number"
-            value={String(orderInfo?.order?.tracking_number || "Awaiting shipment")}
+            value={String(
+              orderInfo?.order?.tracking_number || 'Awaiting shipment',
+            )}
             last
           />
-          
         </View>
 
-        {orderInfo?.order_events?.length > 1 && <View style={styles.card}>
-          <SectionLabel>Escrow summary</SectionLabel>
-          <View style={styles.escrowStatusRow}>
-            <Text style={styles.escrowStatusLabel}>Escrow status</Text>
-            <StatusPill theme={escrowInfo.theme} />
+        {orderInfo?.order_events?.length > 1 && (
+          <View style={styles.card}>
+            <SectionLabel>Escrow summary</SectionLabel>
+            <View style={styles.escrowStatusRow}>
+              <Text style={styles.escrowStatusLabel}>Escrow status</Text>
+              <StatusPill theme={escrowInfo.theme} />
+            </View>
+            <View style={styles.escrowAmountRow}>
+              <Text style={styles.escrowAmountLabel}>
+                {escrowInfo.amountLabel}
+              </Text>
+              <Text style={styles.escrowAmountValue}>
+                {escrowInfo.amountValue}
+              </Text>
+            </View>
+            <Text style={styles.escrowCaption}>{escrowInfo.theme.caption}</Text>
+            <View style={styles.escrowActions}>
+              <Pressable
+                onPress={onCancelDelivery}
+                style={({ pressed }) => [
+                  styles.escrowBtn,
+                  styles.escrowBtnCancel,
+                  pressed && styles.pressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel delivery"
+              >
+                <Text style={styles.escrowBtnCancelText}>Cancel delivery</Text>
+              </Pressable>
+              <Pressable
+                onPress={onOpenDispute}
+                style={({ pressed }) => [
+                  styles.escrowBtn,
+                  styles.escrowBtnSecondary,
+                  pressed && styles.pressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Open dispute"
+              >
+                <Text style={styles.escrowBtnSecondaryText}>Open dispute</Text>
+              </Pressable>
+            </View>
           </View>
-          <View style={styles.escrowAmountRow}>
-            <Text style={styles.escrowAmountLabel}>{escrowInfo.amountLabel}</Text>
-            <Text style={styles.escrowAmountValue}>{escrowInfo.amountValue}</Text>
-          </View>
-          <Text style={styles.escrowCaption}>{escrowInfo.theme.caption}</Text>
-          <View style={styles.escrowActions}>
-            <Pressable
-              onPress={onCancelDelivery}
-              style={({ pressed }) => [styles.escrowBtn, styles.escrowBtnCancel, pressed && styles.pressed]}
-              accessibilityRole="button"
-              accessibilityLabel="Cancel delivery"
-            >
-              <Text style={styles.escrowBtnCancelText}>Cancel delivery</Text>
-            </Pressable>
-            <Pressable
-              onPress={onOpenDispute}
-              style={({ pressed }) => [styles.escrowBtn, styles.escrowBtnSecondary, pressed && styles.pressed]}
-              accessibilityRole="button"
-              accessibilityLabel="Open dispute"
-            >
-              <Text style={styles.escrowBtnSecondaryText}>Open dispute</Text>
-            </Pressable>
-          </View>
-        </View>}
+        )}
 
         <View style={styles.card}>
-          <SectionLabel>{auth.activeRole === "vendor" ? "Customer Info" : "Shop detail"}</SectionLabel>
-          {
-            auth.activeRole === "vendor" && (
+          <SectionLabel>
+            {auth.activeRole === 'vendor' ? 'Customer Info' : 'Shop detail'}
+          </SectionLabel>
+          {auth.activeRole === 'vendor' && (
             <View style={styles.customerHead}>
               <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{initialsOf(`${orderInfo?.user?.fname || orderInfo?.customer?.fname} ${orderInfo?.user?.lname || orderInfo?.customer?.lname}`)}</Text>
+                <Text style={styles.avatarText}>
+                  {initialsOf(
+                    `${orderInfo?.user?.fname || orderInfo?.customer?.fname} ${
+                      orderInfo?.user?.lname || orderInfo?.customer?.lname
+                    }`,
+                  )}
+                </Text>
               </View>
               <View style={styles.customerTitleRow}>
                 <View style={styles.customerNameCol}>
                   <Text style={styles.customerName} numberOfLines={1}>
-                    {`${orderInfo?.user?.fname || orderInfo?.customer?.fname} ${orderInfo?.user?.lname || orderInfo?.customer?.lname}`}
+                    {`${orderInfo?.user?.fname || orderInfo?.customer?.fname} ${
+                      orderInfo?.user?.lname || orderInfo?.customer?.lname
+                    }`}
                   </Text>
                 </View>
                 <Pressable
                   onPress={onMail}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  style={({ pressed }) => [styles.headMessageBtn, pressed && styles.pressed]}
+                  style={({ pressed }) => [
+                    styles.headMessageBtn,
+                    pressed && styles.pressed,
+                  ]}
                   accessibilityRole="button"
                   accessibilityLabel="Message customer"
                 >
@@ -738,13 +929,13 @@ export default function OrderDetailScreen() {
                 </Pressable>
               </View>
             </View>
-            )
-          }
-          {
-            auth.activeRole !== "vendor" && (
+          )}
+          {auth.activeRole !== 'vendor' && (
             <View style={styles.customerHead}>
               <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{initialsOf(`${orderInfo?.shop?.name}`)}</Text>
+                <Text style={styles.avatarText}>
+                  {initialsOf(`${orderInfo?.shop?.name}`)}
+                </Text>
               </View>
               <View style={styles.customerTitleRow}>
                 <View style={styles.customerNameCol}>
@@ -755,7 +946,10 @@ export default function OrderDetailScreen() {
                 <Pressable
                   onPress={onMail}
                   hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                  style={({ pressed }) => [styles.headMessageBtn, pressed && styles.pressed]}
+                  style={({ pressed }) => [
+                    styles.headMessageBtn,
+                    pressed && styles.pressed,
+                  ]}
                   accessibilityRole="button"
                   accessibilityLabel="Message vendor"
                 >
@@ -763,19 +957,24 @@ export default function OrderDetailScreen() {
                 </Pressable>
               </View>
             </View>
-            )
-          }
+          )}
 
           <View style={styles.shippingBlock}>
             <Text style={styles.shippingHeader}>
-              {auth.activeRole === 'vendor' ? 'Shipping address' : 'Shop location'}
+              {auth.activeRole === 'vendor'
+                ? 'Shipping address'
+                : 'Shop location'}
             </Text>
 
-            {[displayShipping.street, displayShipping.street2].filter(Boolean).join('\n') ? (
+            {[displayShipping.street, displayShipping.street2]
+              .filter(Boolean)
+              .join('\n') ? (
               <View style={[styles.kvRow, styles.kvRowAlignTop]}>
                 <Text style={styles.kvLabel}>Street</Text>
                 <Text style={[styles.kvValue, styles.kvAddress]}>
-                  {[displayShipping.street, displayShipping.street2].filter(Boolean).join('\n')}
+                  {[displayShipping.street, displayShipping.street2]
+                    .filter(Boolean)
+                    .join('\n')}
                 </Text>
               </View>
             ) : null}
@@ -820,7 +1019,9 @@ export default function OrderDetailScreen() {
             !displayShipping.zip ? (
               <View style={[styles.kvRow, styles.kvRowAlignTop]}>
                 <Text style={styles.kvLabel}>Address</Text>
-                <Text style={[styles.kvValue, styles.kvAddress]}>{displayShipping.text}</Text>
+                <Text style={[styles.kvValue, styles.kvAddress]}>
+                  {displayShipping.text}
+                </Text>
               </View>
             ) : null}
           </View>
@@ -828,66 +1029,91 @@ export default function OrderDetailScreen() {
 
         {/* <SectionLabel>Items</SectionLabel> */}
         <View style={styles.card}>
-          {Array.isArray(orderInfo.order_items) && orderInfo.order_items.map((it, i) => (
-            <View
-              key={String(it.id ?? i)}
-              style={[styles.itemRow, i === orderInfo.order_items.length - 1 && styles.itemRowLast]}
-            >
-              <View style={styles.itemThumb}>
-                {it.image ? (
-                  <Image source={{ uri: String(it.image) }} style={styles.itemImg} />
-                ) : (
-                  <Icon name="phone-portrait-outline" size={26} color="#5C5C66" />
-                )}
-              </View>
-              <View style={styles.itemBody}>
-                <Text style={styles.itemName} numberOfLines={2}>
-                  {String(it.product.name ?? '—')}
-                </Text>
-                {/* {it.variant ? (
+          {Array.isArray(orderInfo.order_items) &&
+            orderInfo.order_items.map((it, i) => (
+              <View
+                key={String(it.id ?? i)}
+                style={[
+                  styles.itemRow,
+                  i === orderInfo.order_items.length - 1 && styles.itemRowLast,
+                ]}
+              >
+                <View style={styles.itemThumb}>
+                  {it.image ? (
+                    <Image
+                      source={{ uri: String(it.image) }}
+                      style={styles.itemImg}
+                    />
+                  ) : (
+                    <Icon
+                      name="phone-portrait-outline"
+                      size={26}
+                      color="#5C5C66"
+                    />
+                  )}
+                </View>
+                <View style={styles.itemBody}>
+                  <Text style={styles.itemName} numberOfLines={2}>
+                    {String(it.product.name ?? '—')}
+                  </Text>
+                  {/* {it.variant ? (
                   <Text style={styles.itemVariant} numberOfLines={1}>
                     {String(it.product.specifications.variants.map(item => item))}
                   </Text>
                 ) : null} */}
-              </View>
-              <View style={styles.itemRight}>
-                <View style={styles.qtyChip}>
-                  <Text style={styles.qtyChipLabel}>Quantity</Text>
-                  <Text style={styles.qtyChipValue}>{Number(it.units ?? 1)}</Text>
                 </View>
-                <Text style={styles.itemPrice}>{fmt(Number(it.unit_price ?? 0) * Number(it.qty ?? 1))}</Text>
+                <View style={styles.itemRight}>
+                  <View style={styles.qtyChip}>
+                    <Text style={styles.qtyChipLabel}>Quantity</Text>
+                    <Text style={styles.qtyChipValue}>
+                      {Number(it.units ?? 1)}
+                    </Text>
+                  </View>
+                  <Text style={styles.itemPrice}>
+                    {fmt(Number(it.unit_price ?? 0) * Number(it.qty ?? 1))}
+                  </Text>
+                </View>
               </View>
-            </View>
-          ))}
+            ))}
         </View>
 
         <View style={styles.card}>
           <SectionLabel>Payment</SectionLabel>
-          
+
           <MoneyRow
             label="Subtotal"
             value={
               Array.isArray(orderInfo.order_items) &&
               orderInfo.order_items.reduce(
                 (acc, curr) => acc + parseInt(curr.total_price),
-                0
+                0,
               )
             }
             muted
           />
           <MoneyRow label="Discount" value={fmt(0)} muted />
-          <MoneyRow label="Shipping Cost" value={orderInfo?.order?.shipping_fee && fmt(orderInfo.order.shipping_fee)} muted />
+          <MoneyRow
+            label="Shipping Cost"
+            value={
+              orderInfo?.order?.shipping_fee &&
+              fmt(orderInfo.order.shipping_fee)
+            }
+            muted
+          />
           <MoneyRow label="Tax" value={fmt(0)} muted />
           <View style={styles.moneyDivider} />
-          <MoneyRow label="Total" value={fmt(
-            orderInfo?.order?.shipping_fee &&
-            orderInfo.order_items.reduce(
-              (acc, curr) => acc + parseInt(curr.total_price),
-              0
-            ) + Number(orderInfo?.order?.shipping_fee || 0)
-          )} bold />
+          <MoneyRow
+            label="Total"
+            value={fmt(
+              orderInfo?.order?.shipping_fee &&
+                orderInfo.order_items.reduce(
+                  (acc, curr) => acc + parseInt(curr.total_price),
+                  0,
+                ) + Number(orderInfo?.order?.shipping_fee || 0),
+            )}
+            bold
+          />
         </View>
-
       </ScrollView>
 
       <View
@@ -896,30 +1122,31 @@ export default function OrderDetailScreen() {
           { paddingBottom: Math.max(insets.bottom, 12) },
         ]}
       >
-        {
-          orderInfo.order_events.length === 1 && 
+        {orderInfo.order_events.length === 1 && auth.activeRole === "vendor" && (
           <>
             <Pressable
               // onPress={onRefund}
               onPress={e => {
                 const u = getStoredUser();
-                navigation.navigate("Order-action", {
-                  action: "acceptance",
+                navigation.navigate('Order-action', {
+                  action: 'acceptance',
                   data: {
-                      order_id: orderInfo.order.id,
-                      event_type: "acceptance",
-                      stage: "order_accepted",
-                      actor_type: "vendor",
-                      actor_id: u.id,
-                      outcome: "success",
-                      notes: "",
-                      recipient: orderInfo.order.customer_id,
-                      meta: {}
-                  }
-                })
-            
+                    order_id: orderInfo.order.id,
+                    event_type: 'acceptance',
+                    stage: 'order_accepted',
+                    actor_type: 'vendor',
+                    actor_id: u.id,
+                    outcome: 'success',
+                    notes: '',
+                    recipient: orderInfo.order.customer_id,
+                    meta: {},
+                  },
+                });
               }}
-              style={({ pressed }) => [styles.btnAccept, pressed && styles.btnAcceptPressed]}
+              style={({ pressed }) => [
+                styles.btnAccept,
+                pressed && styles.btnAcceptPressed,
+              ]}
             >
               <Text style={styles.btnAcceptText}>Accept</Text>
             </Pressable>
@@ -928,58 +1155,78 @@ export default function OrderDetailScreen() {
               // onPress={onResendInvoice}
               onPress={e => {
                 const u = getStoredUser();
-                navigation.navigate("Order-action", {
-                  action: "acceptance",
+                navigation.navigate('Order-action', {
+                  action: 'acceptance',
                   data: {
                     order_id: orderInfo.order.id,
-                    event_type: "acceptance",
-                    stage: "order_rejected",
-                    actor_type: "vendor",
+                    event_type: 'acceptance',
+                    stage: 'order_rejected',
+                    actor_type: 'vendor',
                     actor_id: u.id,
-                    outcome: "failure",
-                    notes: "",
+                    outcome: 'failure',
+                    notes: '',
                     recipient: orderInfo.order.customer_id,
-                    meta: {}
-                  }
-                })
-                
+                    meta: {},
+                  },
+                });
               }}
-              style={({ pressed }) => [styles.btnReject, pressed && styles.btnRejectPressed]}
+              style={({ pressed }) => [
+                styles.btnReject,
+                pressed && styles.btnRejectPressed,
+              ]}
             >
               <Text style={styles.btnRejectText}>Reject</Text>
             </Pressable>
           </>
-        }
-        {orderInfo.order_events.length > 1 &&
-        <Pressable
-          onPress={onUpdateStatus}
-          disabled={
-            statusKey === "delivered" && auth.activeRole === "customer"
-            ? true : false
-          }
-          style={({ pressed }) => [styles.btnPrimary, pressed && styles.btnPrimaryPressed]}
-        >
-          <Text style={styles.btnPrimaryText}>
-            { 
-              auth.activeRole === "vendor" ?
-                statusKey === "order_accepted"
-                  ? "Start Processing Order"
-                  : statusKey === "order_processing"
-                  ? "Start Shipping Order"
-                  : statusKey === "order_shipping"
-                  ? "Notify Buyer For Pickup"
-                  : statusKey === "order_out_for_delivery"
-                  ? "Confirm Buyer Has Recieved The Order"
+        )}
+        {orderInfo.order_events.length > 1 &&  (
+          statusKey !== "delivered" && auth.activeRole === 'customer' ? '' : 
+          <Pressable
+            onPress={onUpdateStatus}
+            disabled={
+              statusKey === 'delivered' && auth.activeRole === 'customer'
+                ? true
+                : false
+            }
+            style={({ pressed }) => [
+              styles.btnPrimary,
+              pressed && styles.btnPrimaryPressed,
+            ]}
+          >
+            <Text style={styles.btnPrimaryText}>
+              {auth.activeRole === 'vendor'
+                ? statusKey === 'order_accepted'
+                  ? 'Start Processing Order'
+                  : statusKey === 'order_processing'
+                  ? 'Start Shipping Order'
+                  : statusKey === 'order_shipping'
+                  ? 'Notify Buyer For Pickup'
+                  : statusKey === 'order_out_for_delivery'
+                  ? 'Confirm Buyer Has Recieved The Order'
                   : "Awaiting Buyer's Confirmation"
-              : ""
-            }
-            {
-               auth.activeRole !== "vendor" ? 
-                "Confirm delivery"
-                : ""
-            }
-          </Text>
-        </Pressable>}
+                : ''}
+              {auth.activeRole === 'customer' ? 'Confirm delivery' : ''}
+            </Text>
+          </Pressable>
+        )}
+
+        {auth.activeRole === 'customer' && statusKey !== "delivered" ? 
+          <Pressable 
+          disabled
+          style={({ pressed }) => [
+            styles.btnPrimary,
+            pressed && styles.btnPrimaryPressed,
+            {backgroundColor: "#000"}
+          ]}
+          >
+             <Text style={[styles.btnPrimaryText, {textTransform: "capitalize"}]}>
+              {
+                statusKey === "payment_received"?
+                "Awaiting Vendor's Approval" : statusKey?.split("_")?.join(" ")
+              }
+            </Text>
+          </Pressable>
+         : ''}
       </View>
 
       <Modal
@@ -990,14 +1237,22 @@ export default function OrderDetailScreen() {
       >
         <View style={styles.sheetRoot}>
           <Pressable style={styles.sheetDismiss} onPress={closeActions} />
-          <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
+          <View
+            style={[
+              styles.sheet,
+              { paddingBottom: Math.max(insets.bottom, 16) + 8 },
+            ]}
+          >
             <View style={styles.sheetHandle} />
             <Text style={styles.sheetTitle}>Order actions</Text>
-            {ORDER_ACTIONS.map((action) => (
+            {ORDER_ACTIONS.map(action => (
               <Pressable
                 key={action.key}
                 onPress={action.onPress}
-                style={({ pressed }) => [styles.sheetRow, pressed && styles.sheetRowPressed]}
+                style={({ pressed }) => [
+                  styles.sheetRow,
+                  pressed && styles.sheetRowPressed,
+                ]}
               >
                 <Icon
                   name={action.icon}
@@ -1017,14 +1272,16 @@ export default function OrderDetailScreen() {
             ))}
             <Pressable
               onPress={closeActions}
-              style={({ pressed }) => [styles.sheetCloseRow, pressed && styles.sheetRowPressed]}
+              style={({ pressed }) => [
+                styles.sheetCloseRow,
+                pressed && styles.sheetRowPressed,
+              ]}
             >
               <Text style={styles.sheetCloseText}>Close</Text>
             </Pressable>
           </View>
         </View>
       </Modal>
-
     </View>
   );
 }
@@ -1131,7 +1388,7 @@ const styles = StyleSheet.create({
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: "center",
+    justifyContent: 'center',
     gap: 6,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -1173,7 +1430,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: BLACK,
-    textTransform: "capitalize"
+    textTransform: 'capitalize',
   },
   escrowStatusRow: {
     flexDirection: 'row',
