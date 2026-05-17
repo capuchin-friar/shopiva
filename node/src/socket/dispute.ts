@@ -1,8 +1,79 @@
 import type { Namespace } from "socket.io";
+import { db } from "../config/database.js";
+import { dispute as disputeModel } from "../models/buyer/dispute.js";
+import { notifyUser } from "../services/socketBroadcast.js";
 import {
   CreateBuyerDisputeService,
   parseRaiseDisputePayload,
 } from "../services/buyer/disputes.js";
+
+type DisputeSocketPayload = {
+  result: unknown;
+  list: unknown[];
+};
+
+async function resolveOrderParties(orderId: number | null): Promise<{
+  shopId: number | null;
+  shopOwnerId: number | null;
+}> {
+  if (orderId == null || !Number.isFinite(orderId)) {
+    return { shopId: null, shopOwnerId: null };
+  }
+  const pool = await db();
+  const { rows } = await pool.query<{ shop_id: string | null; owner: number | null }>(
+    `SELECT o.shop_id, s.owner
+     FROM orders o
+     LEFT JOIN shops s ON s.id::text = trim(o.shop_id::text)
+     WHERE o.id = $1
+     LIMIT 1`,
+    [orderId]
+  );
+  const row = rows[0];
+  if (!row) return { shopId: null, shopOwnerId: null };
+  const shopIdRaw = row.shop_id != null ? Number(row.shop_id) : NaN;
+  const shopId = Number.isFinite(shopIdRaw) && shopIdRaw > 0 ? shopIdRaw : null;
+  const ownerRaw = row.owner != null ? Number(row.owner) : NaN;
+  const shopOwnerId =
+    Number.isFinite(ownerRaw) && ownerRaw > 0 ? ownerRaw : null;
+  return { shopId, shopOwnerId };
+}
+
+/**
+ * Push dispute detail + role-appropriate list to buyer and shop owner (socket rooms).
+ */
+async function broadcastDisputeUpdate(
+  event: string,
+  disputeRef: string,
+  customerId: number,
+  shopId: number | null,
+  shopOwnerId: number | null,
+  actorId: number
+): Promise<DisputeSocketPayload> {
+  const result = await disputeModel.getByCustomerAndDisputeId(
+    customerId,
+    disputeRef
+  );
+
+  const [customerList, vendorList] = await Promise.all([
+    disputeModel.getByCustomerId(customerId, { includeClosed: true }),
+    shopId != null
+      ? disputeModel.getByShopId(shopId, { includeClosed: true })
+      : Promise.resolve([]),
+  ]);
+
+  const actorIsCustomer = actorId === customerId;
+  const actorList = actorIsCustomer ? customerList : vendorList;
+  const recipientId = actorIsCustomer ? shopOwnerId : customerId;
+  const recipientList = actorIsCustomer ? vendorList : customerList;
+
+  const payload = { result, list: actorList };
+  notifyUser(actorId, event, payload);
+  if (recipientId != null && recipientId !== actorId) {
+    notifyUser(recipientId, event, { result, list: recipientList });
+  }
+
+  return { result, list: actorList };
+}
 
 function ackError(ack: unknown, message: string) {
   if (typeof ack === "function") {
@@ -16,14 +87,14 @@ function ackError(ack: unknown, message: string) {
   }
 }
 
-function ackSuccess(ack: unknown, dispute: unknown) {
+function ackSuccess(ack: unknown, payload: DisputeSocketPayload) {
   if (typeof ack === "function") {
     ack({
       success: true,
       message: "Dispute created successfully",
       error: null,
-      result: dispute,
-      list: null,
+      result: payload.result,
+      list: payload.list,
     });
   }
 }
@@ -43,8 +114,24 @@ export const handleNewDispute = async (
     const parsed = parseRaiseDisputePayload(payload, {
       requireCustomerMatch: userId,
     });
-    const dispute = await CreateBuyerDisputeService(parsed);
-    ackSuccess(ack, dispute);
+    const created = await CreateBuyerDisputeService(parsed);
+    const disputeRef = String(created.dispute_id ?? "").trim();
+    const customerId = Number(created.customer_id);
+    const orderId =
+      created.order_id != null ? Number(created.order_id) : null;
+
+    const { shopId, shopOwnerId } = await resolveOrderParties(orderId);
+
+    const socketPayload = await broadcastDisputeUpdate(
+      "raise_dispute",
+      disputeRef,
+      customerId,
+      shopId,
+      shopOwnerId,
+      userId
+    );
+
+    ackSuccess(ack, socketPayload);
   } catch (error) {
     console.error("[raise_dispute] error:", error);
     ackError(

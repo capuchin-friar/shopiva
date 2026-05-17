@@ -12,6 +12,7 @@ import {
   GetShopDisputeByIdService,
   GetShopDisputesService,
 } from "../../services/business/disputes.js";
+import { disputesTransformer } from "../../transformers/business/disputes.js";
 
 /**
  * GET /shop/:shopId/disputes/:id
@@ -31,8 +32,10 @@ export async function GetShopDisputesController(req: Request, res: Response): Pr
       return;
     }
 
-    const includeClosed = String(req.query.includeClosed ?? "").toLowerCase() === "true";
-    const disputes = await GetShopDisputesService(shopId, ownerId, { includeClosed });
+    // const includeClosed = String(req.query.includeClosed ?? "").toLowerCase() === "true";
+    // const disputes = await GetShopDisputesService(shopId, ownerId, { includeClosed });
+    const disputes = await disputesTransformer(shopId, ownerId);
+
     res.status(200).json({ disputes });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

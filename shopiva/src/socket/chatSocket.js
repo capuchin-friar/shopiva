@@ -4,7 +4,9 @@ import { getApiBaseUrl } from '../api/config';
 import store from '../../redux/store';
 import { set_orderInfo } from '../../redux/order';
 import { set_orderList } from '../../redux/orders';
-import { mapOrderRowToListItem } from '../utils/buyerUi';
+import { set_disputeInfo } from '../../redux/dispute';
+import { set_disputeList } from '../../redux/disputes';
+import { mapBuyerDisputeRow, mapOrderRowToListItem } from '../utils/buyerUi';
 
 /** @type {import('socket.io-client').Socket | null} */
 let socketSingleton = null;
@@ -19,6 +21,8 @@ const ORDER_SOCKET_EVENTS = [
   'order_delivered',
   'order_cancelled',
 ];
+
+const DISPUTE_SOCKET_EVENTS = ['raise_dispute'];
 
 /** @param {unknown} res */
 export function applyOrderSocketPayload(res) {
@@ -35,6 +39,30 @@ export function applyOrderSocketPayload(res) {
   }
 }
 
+/** @param {unknown} res */
+export function applyDisputeSocketPayload(res) {
+  if (!res || typeof res !== 'object') return;
+  const payload = /** @type {Record<string, unknown>} */ (res);
+  if (payload.result && typeof payload.result === 'object') {
+    const mapped = mapBuyerDisputeRow(
+      /** @type {Record<string, unknown>} */ (payload.result),
+    );
+    store.dispatch(set_disputeInfo(mapped));
+  }
+  if (Array.isArray(payload.list)) {
+    const mapped = payload.list.map((row) =>
+      mapBuyerDisputeRow(/** @type {Record<string, unknown>} */ (row)),
+    );
+    store.dispatch(set_disputeList(mapped));
+  }
+}
+
+/** @param {unknown} ack */
+export function applySocketAckPayload(ack) {
+  applyOrderSocketPayload(ack);
+  applyDisputeSocketPayload(ack);
+}
+
 /** @param {import('socket.io-client').Socket} socket */
 function bindOrderSocketListeners(socket) {
   if (socket.__orderListenersBound) return;
@@ -45,6 +73,18 @@ function bindOrderSocketListeners(socket) {
   };
 
   ORDER_SOCKET_EVENTS.forEach((event) => socket.on(event, onOrderUpdate));
+}
+
+/** @param {import('socket.io-client').Socket} socket */
+function bindDisputeSocketListeners(socket) {
+  if (socket.__disputeListenersBound) return;
+  socket.__disputeListenersBound = true;
+
+  const onDisputeUpdate = (res) => {
+    applyDisputeSocketPayload(res);
+  };
+
+  DISPUTE_SOCKET_EVENTS.forEach((event) => socket.on(event, onDisputeUpdate));
 }
 
 /**
@@ -102,6 +142,7 @@ export async function connectChatSocket() {
     }
 
     bindOrderSocketListeners(socketSingleton);
+    bindDisputeSocketListeners(socketSingleton);
     return socketSingleton;
   })();
 
@@ -133,7 +174,7 @@ export async function emitSocketAck(event, payload = {}) {
     socket.emit(event, base, (ack) => {
       const out = parseAck(ack);
       if (out.success) {
-        applyOrderSocketPayload(ack);
+        applySocketAckPayload(ack);
       }
       resolve({
         success: out.success,

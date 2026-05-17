@@ -88,11 +88,72 @@ function buildOrderTimeline(status) {
 }
 
 /**
+ * @param {unknown} raw
+ * @returns {Record<string, unknown>}
+ */
+export function parseDisputeMetadata(raw) {
+  if (raw == null) return {};
+  if (typeof raw === 'object' && !Array.isArray(raw)) {
+    return /** @type {Record<string, unknown>} */ (raw);
+  }
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return /** @type {Record<string, unknown>} */ (parsed);
+      }
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+const EVIDENCE_KIND_LABELS = {
+  item_photo: 'Item photo',
+  packaging_photo: 'Packaging photo',
+  shipping_label: 'Shipping label',
+  seal_tamper: 'Seal / tamper evidence',
+  package_damage: 'Package damage',
+  video: 'Video',
+};
+
+/**
+ * @param {Record<string, unknown>} meta
+ * @returns {{ uri: string; kind: string; caption: string }[]}
+ */
+export function parseDisputeEvidence(meta) {
+  const arr = meta.evidence;
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map((entry, index) => {
+      const item =
+        entry && typeof entry === 'object' && !Array.isArray(entry)
+          ? /** @type {Record<string, unknown>} */ (entry)
+          : {};
+      const uri = typeof item.uri === 'string' ? item.uri.trim() : '';
+      if (!uri) return null;
+      const mime = String(item.mime_type ?? '');
+      const kindRaw = String(item.kind ?? '').trim();
+      const kind =
+        mime.startsWith('video') || kindRaw === 'video' ? 'video' : kindRaw || 'image';
+      const fileName = String(item.file_name ?? '').trim();
+      const caption =
+        fileName ||
+        EVIDENCE_KIND_LABELS[kindRaw] ||
+        (kind === 'video' ? `Video ${index + 1}` : `Photo ${index + 1}`);
+      return { uri, kind, caption };
+    })
+    .filter((x) => x != null);
+}
+
+/**
  * Maps API dispute row to Dispute list / detail screen shape.
  * @param {Record<string, unknown>} row
  */
 export function mapBuyerDisputeRow(row) {
-  const disputeId = String(row.dispute_id ?? row.id ?? '').trim() || 'DSP-—';
+  const disputeId = String(row.dispute_ref ?? row.id ?? '').trim() || 'DSP-—';
+  // const disputeId = String(row.dispute_id ?? row.id ?? '').trim() || 'DSP-—';
   const orderIdNum = row.order_id != null ? Number(row.order_id) : null;
   const st = String(row.status ?? 'open').toLowerCase();
   let uiStatus = 'open';
@@ -161,6 +222,12 @@ export function mapBuyerDisputeRow(row) {
     ? formatShortDate(row.order_created_at)
     : openedLabel;
 
+  const meta = parseDisputeMetadata(row.metadata);
+  const evidence = parseDisputeEvidence(meta);
+  const preferredResolution =
+    String(meta.preferred_resolution_label ?? meta.preferred_resolution ?? '').trim() || '—';
+  const itemCondition = String(meta.item_condition ?? '').trim() || '—';
+
   return {
     id: disputeId,
     orderId: orderIdNum != null && Number.isFinite(orderIdNum) ? `ORD-${orderIdNum}` : '—',
@@ -192,12 +259,13 @@ export function mapBuyerDisputeRow(row) {
     productData,
     vendorNote: description || reason,
     disputeReason: reason,
-    itemCondition: '—',
+    itemCondition,
     paymentEscrowRupees: lineItemTotal ?? 0,
-    preferredResolution: '—',
+    preferredResolution,
     expectationExpected: '',
     expectationGotInstead: description || reason,
-    evidence: [],
+    evidence,
+    metadata: meta,
     timeline: [
       { title: 'Dispute opened', dateLabel: openedLabel, done: true },
       { title: 'Last updated', dateLabel: updatedLabel, done: true },

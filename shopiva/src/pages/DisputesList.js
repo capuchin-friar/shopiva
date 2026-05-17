@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Platform,
   Pressable,
@@ -13,10 +14,16 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchBuyerDisputes } from '../api/buyer';
-import { mapBuyerDisputeRow } from '../utils/buyerUi';
-import { useSelector } from 'react-redux';
+// import { mapBuyerDisputeRow } from '../utils/buyerUi';
+import { useDispatch, useSelector } from 'react-redux';
 import { fetchOwnerShops, fetchShopDisputes } from '../api';
 import { getStoredUser } from '../auth/session';
+import { connectChatSocket } from '../socket/chatSocket';
+import { set_disputeInfo } from '../../redux/dispute';
+import { set_disputeList } from '../../redux/disputes';
+import dayjs from 'dayjs';
+import relativeTime from 'dayjs/plugin/relativeTime';
+dayjs.extend(relativeTime);
 
 const PAGE_BG = '#F2F2F4';
 const BLACK = '#111111';
@@ -60,12 +67,8 @@ function statusLabel(key) {
   return key;
 }
 
-/**
- * @param {{ item: Record<string, unknown>; onPress: () => void }} p
- */
 function DisputeCard({ item, onPress }) {
   const t = STATUS_THEME[item.status] ?? STATUS_THEME.open;
-
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
@@ -76,26 +79,26 @@ function DisputeCard({ item, onPress }) {
           <Icon name={t.icon} size={22} color={t.iconColor} />
         </View>
         <View style={styles.cardTitleCol}>
-          <Text style={styles.disputeId}>{item.id}</Text>
+          <Text style={styles.disputeId}>{item.dispute_ref}</Text>
           <Text style={styles.orderRef} numberOfLines={1}>
-            {item.orderId} · {item.title}
+            ORD-{item.order.id} · {item.reason}
           </Text>
         </View>
         <Icon name="chevron-forward" size={20} color={MUTED} />
       </View>
 
       <Text style={styles.summary} numberOfLines={2}>
-        {item.summary}
+        {item.description}
       </Text>
 
       <View style={styles.metaRow}>
         <View style={styles.metaCol}>
           <Text style={styles.metaLabel}>Opened</Text>
-          <Text style={styles.metaValue}>{item.openedLabel}</Text>
+          <Text style={styles.metaValue}>{dayjs().to(dayjs(item.created_at))}</Text>
         </View>
         <View style={styles.metaCol}>
           <Text style={styles.metaLabel}>Updated</Text>
-          <Text style={styles.metaValue}>{item.updatedLabel}</Text>
+          <Text style={styles.metaValue}>{dayjs().to(dayjs(item.updated_at))}</Text>
         </View>
         <View style={[styles.metaCol, styles.metaColLast]}>
           <Text style={styles.metaLabel}>Status</Text>
@@ -111,39 +114,19 @@ function DisputeCard({ item, onPress }) {
 }
 
 export default function DisputesListScreen() {
+  const dispatch = useDispatch();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const [filter, setFilter] = useState('all');
-  const [disputes, setDisputes] = useState(/** @type {Record<string, unknown>[]} */ ([]));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const auth = useSelector(s => s.auth)
+  const auth = useSelector((s) => s.auth);
+  const { disputeList } = useSelector((s) => s.disputeList);
 
 
-  /** @param {Record<string, unknown>} row */
-  function shopIdOf(row) {
-    const v = row.id ?? row.shopid ?? row.shop_id;
-    const n = Number(v);
-    return Number.isFinite(n) && n > 0 ? n : 0;
-  }
-
-  /**
-   * MVP: choose only the first-created shop for dashboard metrics.
-   * @param {Record<string, unknown>[]} shops
-   * @returns {Record<string, unknown> | null}
-   */
-  function pickFirstCreatedShop(shops) {
-    if (!Array.isArray(shops) || shops.length === 0) return null;
-    return shops
-    .slice()
-    .sort((a, b) => {
-      const aa = shopCreatedAtMsOf(/** @type {Record<string, unknown>} */ (a));
-      const bb = shopCreatedAtMsOf(/** @type {Record<string, unknown>} */ (b));
-      if (aa !== bb) return aa - bb;
-      return shopIdOf(/** @type {Record<string, unknown>} */ (a)) - shopIdOf(/** @type {Record<string, unknown>} */ (b));
-    })[0] || null;
-  }
-
+  useEffect(() => {
+    connectChatSocket();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -154,30 +137,31 @@ export default function DisputesListScreen() {
         let { id: userId } = await getStoredUser();
 
         let shopId;
-        if (auth.activeRole !== "customer") {
+        if (auth.activeRole === 'vendor') {
           let shops = await fetchOwnerShops(userId);
-          const firstShop = pickFirstCreatedShop(
-            shops.map((s) => /** @type {Record<string, unknown>} */ (s)),
-          );
-          if (!shopId) {
-            Alert.alert("no shops")
-            return;
-          }
-          shopId = firstShop ? shopIdOf(firstShop) : 0;
+          shopId = shops[0].id;
         }
-        const data = auth.activeRole === "customer" ?  await fetchBuyerDisputes({
-          includeClosed: true,
-          backfill: false,
-        }) : await fetchShopDisputes(shopId, userId, {})
+        const data =
+          auth.activeRole === 'customer'
+            ? await fetchBuyerDisputes({
+                includeClosed: true,
+                backfill: false,
+              })
+            : await fetchShopDisputes(shopId, userId, {});
 
         if (cancelled) return;
-        const mapped = (Array.isArray(data) ? data : []).map((r) =>
-          mapBuyerDisputeRow(/** @type {Record<string, unknown>} */ (r)),
-        );
-        setDisputes(mapped);
+        const rows =
+          auth.activeRole === 'customer'
+            ? Array.isArray(data?.disputes)
+              ? data.disputes
+              : []
+            : Array.isArray(data)
+              ? data
+              : [];
+        dispatch(set_disputeList(rows));
       } catch (e) {
         if (!cancelled) {
-          setDisputes([]);
+          dispatch(set_disputeList([]));
           setError(e instanceof Error ? e.message : String(e));
         }
       } finally {
@@ -187,26 +171,27 @@ export default function DisputesListScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [auth.activeRole, dispatch]);
 
   const data = useMemo(() => {
-    if (filter === 'all') return disputes;
-    return disputes.filter((d) => d.status === filter);
-  }, [filter, disputes]);
+    if (filter === 'all') return disputeList;
+    return disputeList.filter((d) => d.status === filter);
+  }, [filter, disputeList]);
 
   const renderItem = useCallback(
     ({ item }) => (
       <DisputeCard
         item={item}
-        onPress={() =>
+        onPress={() => {
+          dispatch(set_disputeInfo(item));
           navigation.navigate('Dispute-detail', {
             dispute: item,
             disputeId: item.id,
-          })
-        }
+          });
+        }}
       />
     ),
-    [navigation],
+    [dispatch, navigation],
   );
 
   const listHeader = useMemo(
@@ -325,7 +310,7 @@ const styles = StyleSheet.create({
   chip: {
     paddingHorizontal: 18,
     paddingVertical: 10,
-    borderRadius: 10,
+    borderRadius: 5,
   },
   chipIdle: {
     backgroundColor: '#E8E8EA',
@@ -348,7 +333,7 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: WHITE,
-    borderRadius: 10,
+    borderRadius: 5,
     padding: 16,
     ...Platform.select({
       ios: {
@@ -371,7 +356,7 @@ const styles = StyleSheet.create({
   iconCircle: {
     width: 44,
     height: 44,
-    borderRadius: 10,
+    borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
@@ -424,7 +409,7 @@ const styles = StyleSheet.create({
   statusPill: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 10,
+    borderRadius: 5,
     alignSelf: 'flex-start',
   },
   statusPillText: {

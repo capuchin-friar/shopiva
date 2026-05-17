@@ -13,7 +13,7 @@ import { Dropdown } from 'react-native-element-dropdown';
 import { TextInput } from 'react-native-gesture-handler';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   errorCodes,
   isErrorWithCode,
@@ -25,6 +25,7 @@ import { fetchBuyerOrder } from '../api';
 import { getStoredUser } from '../auth/session';
 import { connectChatSocket, emitSocketAck } from '../socket/chatSocket';
 import { mapBuyerDisputeRow } from '../utils/buyerUi';
+import { set_disputeInfo } from '../../redux/dispute';
 
 const DISPUTE_REASONS = [
   { label: 'Item not as described', value: 'not_as_described' },
@@ -104,6 +105,7 @@ function ConfirmCheckbox({ checked, onToggle, label }) {
 }
 
 export default function OpenDispute() {
+  const dispatch = useDispatch();
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
@@ -302,9 +304,15 @@ export default function OpenDispute() {
 
       const row =
         response.result && typeof response.result === 'object'
-          ? response.result
+          ? /** @type {Record<string, unknown>} */ ({
+              ...response.result,
+              metadata,
+              reason: reasonLabel,
+              description: description.trim(),
+            })
           : { dispute_ref, ...payload };
-      const mapped = mapBuyerDisputeRow(/** @type {Record<string, unknown>} */ (row));
+      const mapped = mapBuyerDisputeRow(row);
+      dispatch(set_disputeInfo(mapped));
 
       Alert.alert(
         'Dispute submitted',
@@ -313,7 +321,7 @@ export default function OpenDispute() {
           {
             text: 'View dispute',
             onPress: () =>
-              navigation.replace('Dispute-list', {
+              navigation.replace('Dispute-detail', {
                 dispute: mapped,
                 disputeId: mapped.id,
               }),

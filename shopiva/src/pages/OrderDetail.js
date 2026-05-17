@@ -777,7 +777,7 @@ export default function OrderDetailScreen() {
         },
       });
     }
-  }, [auth.activeRole, blockIfCancelled, navigation, orderInfo]);
+  }, [auth.activeRole, blockIfCancelled, navigation, orderInfo, statusKey]);
 
   const onOpenDispute = useCallback(() => {
     if(orderInfo?.dispute){

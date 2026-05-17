@@ -16,6 +16,7 @@ export type BuyerDisputeRow = {
   status: string;
   reason: string;
   description: string | null;
+  metadata?: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
   /** Optional enrichment fields populated by the *single* dispute getters only. */
@@ -113,6 +114,7 @@ export class dispute {
         status,
         reason,
         description,
+        metadata,
         created_at,
         updated_at`,
       [ref, customer_id, order_id, status, reason, description, source, JSON.stringify(metadata)]
@@ -133,6 +135,7 @@ export class dispute {
           status,
           reason,
           description,
+          metadata,
           created_at,
           updated_at
         FROM disputes
@@ -159,6 +162,7 @@ export class dispute {
           d.status,
           d.reason,
           d.description,
+          d.metadata,
           d.created_at,
           d.updated_at,
           ${CUSTOMER_NAME_SQL} AS customer_name,
@@ -198,6 +202,7 @@ export class dispute {
           d.status,
           d.reason,
           d.description,
+          d.metadata,
           d.created_at,
           d.updated_at
         FROM disputes d
@@ -225,6 +230,7 @@ export class dispute {
           d.status,
           d.reason,
           d.description,
+          d.metadata,
           d.created_at,
           d.updated_at,
           ${CUSTOMER_NAME_SQL} AS customer_name,
