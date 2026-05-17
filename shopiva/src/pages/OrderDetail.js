@@ -766,9 +766,12 @@ export default function OrderDetailScreen() {
           [{ text: 'OK' }],
         );
       }else if(statusKey === "order_delivered"){
-        navigation.navigate("Open-dispute", {
-
-        });
+        const oid =
+          orderInfo?.order?.id ??
+          orderInfo?.order?.order_id ??
+          order?.orderId ??
+          order?.order_id;
+        navigation.navigate('Open-dispute', { orderId: oid });
       }
     }else{
       if(statusKey !== "order_delivered"){
@@ -778,12 +781,14 @@ export default function OrderDetailScreen() {
           [{ text: 'OK' }],
         );
       }else if(statusKey === "order_delivered"){
-        navigation.navigate("Open-dispute", {
-
-        });
+        Alert.alert(
+          'Buyer dispute',
+          'Disputes are opened by the buyer from their account after delivery is confirmed.',
+          [{ text: 'OK' }],
+        );
       }
     }
-  }, [auth.activeRole, blockIfCancelled, navigation, statusKey]);
+  }, [auth.activeRole, blockIfCancelled, navigation, order, orderInfo, statusKey]);
 
   const onUpdateStatus = async () => {
     if (blockIfCancelled()) return;
@@ -1274,7 +1279,7 @@ export default function OrderDetailScreen() {
           { paddingBottom: Math.max(insets.bottom, 12) },
         ]}
       >
-        {!isOrderCancelled && orderInfo.order_events.length === 1 && auth.activeRole === "vendor" && (
+        {!isOrderCancelled && orderInfo?.order_events?.length === 1 && auth.activeRole === "vendor" && (
           <>
             <Pressable
               // onPress={onRefund}

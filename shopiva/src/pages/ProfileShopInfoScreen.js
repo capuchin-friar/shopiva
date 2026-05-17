@@ -17,7 +17,13 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import DocumentPicker from '@react-native-documents/picker';
+import {
+  errorCodes,
+  isErrorWithCode,
+  keepLocalCopy,
+  pick,
+  types,
+} from '@react-native-documents/picker';
 import {
   fetchOwnerShops,
   fetchShopDetails,
@@ -573,18 +579,34 @@ export default function ProfileShopInfoScreen() {
 
   const pickVerificationFile = useCallback(async () => {
     try {
-      const res = await DocumentPicker.pick({
-        type: [DocumentPicker.types.images, DocumentPicker.types.pdf],
-        copyTo: 'cachesDirectory',
+      const [f] = await pick({
+        type: [types.images, types.pdf],
       });
-      const f = Array.isArray(res) ? res[0] : res;
-      const uri = f.fileCopyUri || f.uri;
+      const [copy] = await keepLocalCopy({
+        files: [
+          {
+            uri: f.uri,
+            fileName: f.name || 'document',
+            ...(f.isVirtual && f.convertibleToMimeTypes?.[0]?.mimeType
+              ? {
+                  convertVirtualFileToType:
+                    f.convertibleToMimeTypes[0].mimeType,
+                }
+              : {}),
+          },
+        ],
+        destination: 'cachesDirectory',
+      });
+      const uri =
+        copy.status === 'success' ? copy.localUri : f.uri;
       const name = f.name || 'document';
       const type = f.type || 'application/octet-stream';
       setVerPickedFile({ uri, name, type });
       setVerPickedName(name);
     } catch (e) {
-      if (DocumentPicker.isCancel(e)) return;
+      if (isErrorWithCode(e) && e.code === errorCodes.OPERATION_CANCELED) {
+        return;
+      }
       Alert.alert('File', e instanceof Error ? e.message : String(e));
     }
   }, []);

@@ -11,7 +11,13 @@ import {
 } from "react-native";
 import { Dropdown } from "react-native-element-dropdown";
 import { TextInput } from "react-native-gesture-handler";
-import DocumentPicker from "@react-native-documents/picker";
+import {
+    errorCodes,
+    isErrorWithCode,
+    keepLocalCopy,
+    pick,
+    types,
+} from "@react-native-documents/picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getStoredUser } from "../auth/session";
 import { connectChatSocket, emitSocketAck } from "../socket/chatSocket";
@@ -1148,23 +1154,45 @@ function MarkAsDelivered({ data }) {
             return;
         }
         try {
-            const res = await DocumentPicker.pick({
-                type: [DocumentPicker.types.images],
+            const picked = await pick({
+                type: [types.images],
                 allowMultiSelection: true,
-                copyTo: "cachesDirectory",
             });
-            const picked = Array.isArray(res) ? res : [res];
             const remaining = MAX_DELIVERY_EVIDENCE - evidence.length;
             const slice = picked.slice(0, remaining);
+            const copies = await keepLocalCopy({
+                files: slice.map((f) => ({
+                    uri: f.uri,
+                    fileName: f.name || "photo.jpg",
+                    ...(f.isVirtual && f.convertibleToMimeTypes?.[0]?.mimeType
+                        ? {
+                              convertVirtualFileToType:
+                                  f.convertibleToMimeTypes[0].mimeType,
+                          }
+                        : {}),
+                })),
+                destination: "cachesDirectory",
+            });
+            const uriBySource = Object.fromEntries(
+                copies.map((c) => [
+                    c.sourceUri,
+                    c.status === "success" ? c.localUri : c.sourceUri,
+                ])
+            );
             const next = slice.map((f, i) => ({
                 id: `ev_${Date.now()}_${i}`,
-                uri: f.fileCopyUri || f.uri,
+                uri: uriBySource[f.uri] || f.uri,
                 name: f.name || "photo.jpg",
                 type: f.type || "image/jpeg",
             }));
             setEvidence((prev) => [...prev, ...next]);
         } catch (e) {
-            if (DocumentPicker.isCancel(e)) return;
+            if (
+                isErrorWithCode(e) &&
+                e.code === errorCodes.OPERATION_CANCELED
+            ) {
+                return;
+            }
             Alert.alert(
                 "Photos",
                 e instanceof Error ? e.message : String(e)

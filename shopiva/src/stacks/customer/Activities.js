@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StyleSheet, View } from 'react-native';
 import Activities from '../../pages/Activities';
 import OrderListScreen from '../../pages/OrdersList';
+import OpenDispute from '../../pages/OpenDispute';
 import DisputesListScreen from '../../pages/DisputesList';
 import OrderDetailScreen from '../../pages/OrderDetail';
 import OrderActionScreen from '../../pages/OrderAction';
@@ -53,6 +54,11 @@ export function ActivitiesStackScreen() {
       <ActivitiesStack.Screen name="Order-list" component={OrderDetailScreen} options={orderOpt} />
       <ActivitiesStack.Screen name="Order-action" component={OrderActionScreen} options={orderStatusUpdateOpt} />
       <ActivitiesStack.Screen name="Disputes" component={DisputesListScreen} options={disputeOpt} />
+      <ActivitiesStack.Screen
+        name="Open-dispute"
+        component={OpenDispute}
+        options={{ ...disputeOpt, title: 'Open dispute' }}
+      />
       <ActivitiesStack.Screen name="Dispute-list" component={DisputeDetailScreen} options={orderOpt} />
     </ActivitiesStack.Navigator>
   );

@@ -8,6 +8,7 @@ import {
   handleMarkMessageRead,
   handleTyping,
 } from "../socket/chat.js";
+import { handleNewDispute } from "../socket/dispute.js";
 import { handleOrderAcceptance, handleOrderCancellation, handleOrderDelivered, handleOrderOutForDelivery, handleOrderProcessing, handleOrderShipping } from "../socket/order.js";
 
 type SocketWithAuth = Socket & {
@@ -71,6 +72,11 @@ export default function handleSocketConnection(client: SocketWithAuth) {
   ));
   client.on("order_cancelled", wrapSocketHandler((p, a) =>
     handleOrderCancellation(userId, nsp, asPayload(p), a)
+  ));
+
+  // disputes
+  client.on("raise_dispute", wrapSocketHandler((p, a) =>
+    handleNewDispute(userId, nsp, asPayload(p), a)
   ));
 
 

@@ -72,40 +72,90 @@ export async function BackfillBuyerDisputesFromOrdersService(customerId: number)
   return { created, scanned };
 }
 
-export async function CreateBuyerDisputeService(
-  customerId: number,
-  payload: {
-    order_id?: number | null;
-    reason?: string;
-    description?: string | null;
-    status?: string;
-    source?: string;
-    metadata?: Record<string, unknown>;
+/** Socket / API body for opening a dispute. */
+export type RaiseDisputePayload = {
+  dispute_ref?: string;
+  customer_id: number;
+  order_id?: number | null;
+  status?: string;
+  reason: string;
+  description?: string | null;
+  source?: string;
+  metadata?: Record<string, unknown>;
+};
+
+/**
+ * Normalizes and validates a raise-dispute payload.
+ * @param raw - Incoming socket or HTTP body
+ * @param options.requireCustomerMatch - When set, `customer_id` must equal this user id
+ */
+export function parseRaiseDisputePayload(
+  raw: Record<string, unknown>,
+  options?: { requireCustomerMatch?: number }
+): RaiseDisputePayload {
+  const customerId = Number(raw.customer_id);
+  if (!Number.isFinite(customerId) || customerId <= 0) {
+    throw new Error("customer_id is required");
   }
-) {
-  const reason = String(payload.reason ?? "").trim();
+  if (
+    options?.requireCustomerMatch != null &&
+    customerId !== options.requireCustomerMatch
+  ) {
+    throw new Error("Unauthorized dispute submission");
+  }
+
+  const reason = String(raw.reason ?? "").trim();
   if (!reason) throw new Error("Reason is required");
 
-  let orderId: number | null = null;
-  if (payload.order_id != null) {
-    const parsed = Number(payload.order_id);
+  let order_id: number | null = null;
+  if (raw.order_id != null && raw.order_id !== "") {
+    const parsed = Number(raw.order_id);
     if (!Number.isFinite(parsed) || parsed <= 0) {
       throw new Error("Invalid order_id");
     }
+    order_id = Math.trunc(parsed);
+  }
+
+  const dispute_ref = String(raw.dispute_ref ?? "").trim() || undefined;
+  const descriptionRaw =
+    raw.description != null ? String(raw.description).trim() : "";
+
+  return {
+    ...(dispute_ref ? { dispute_ref } : {}),
+    customer_id: customerId,
+    order_id,
+    status: String(raw.status ?? "open").trim() || "open",
+    reason,
+    description: descriptionRaw || null,
+    source: String(raw.source ?? "customer").trim() || "customer",
+    metadata:
+      raw.metadata &&
+      typeof raw.metadata === "object" &&
+      !Array.isArray(raw.metadata)
+        ? (raw.metadata as Record<string, unknown>)
+        : {},
+  };
+}
+
+export async function CreateBuyerDisputeService(payload: RaiseDisputePayload) {
+  const { customer_id: customerId, order_id: orderIdIn } = payload;
+
+  let orderId: number | null = orderIdIn ?? null;
+  if (orderId != null) {
     const buyerOrders = await orderModel.getByCustomerId(customerId);
     const ownsOrder = buyerOrders.some(
-      (row: OrderListRow) => String(row.order_id) === String(parsed)
+      (row: OrderListRow) => String(row.order_id) === String(orderId)
     );
     if (!ownsOrder) {
       throw new Error("Order not found for this customer");
     }
-    orderId = parsed;
   }
 
   const createPayload: CreateBuyerDisputePayload = {
+    ...(payload.dispute_ref ? { dispute_ref: payload.dispute_ref } : {}),
     customer_id: customerId,
     order_id: orderId,
-    reason,
+    reason: payload.reason,
     description: payload.description ?? null,
     status: payload.status ?? "open",
     source: payload.source ?? "customer",

@@ -5,6 +5,7 @@ import {
   CreateBuyerDisputeService,
   GetBuyerDisputeByIdService,
   GetBuyerDisputesService,
+  parseRaiseDisputePayload,
 } from "../../services/buyer/disputes.js";
 
 export async function GetBuyerDisputesController(req: AuthRequest, res: Response): Promise<void> {
@@ -57,7 +58,15 @@ export async function CreateBuyerDisputeController(req: AuthRequest, res: Respon
       res.status(401).json({ error: "Unauthorized" });
       return;
     }
-    const dispute = await CreateBuyerDisputeService(userId, req.body ?? {});
+    const body =
+      req.body != null && typeof req.body === "object"
+        ? (req.body as Record<string, unknown>)
+        : {};
+    const parsed = parseRaiseDisputePayload({
+      ...body,
+      customer_id: body.customer_id ?? userId,
+    });
+    const dispute = await CreateBuyerDisputeService(parsed);
     res.status(201).json({ message: "Dispute created successfully", dispute });
   } catch (err) {
     res.status(400).json({ error: err instanceof Error ? err.message : String(err) });

@@ -51,6 +51,24 @@ export async function fetchBuyerDispute(disputeId) {
   return readJson(res);
 }
 
+/**
+ * Open a dispute on an order (buyer).
+ * @param {{
+ *   order_id: number;
+ *   reason: string;
+ *   description?: string | null;
+ *   metadata?: Record<string, unknown>;
+ * }} body
+ * @returns {Promise<{ message: string; dispute: Record<string, unknown> }>}
+ */
+export async function createBuyerDispute(body) {
+  const res = await apiFetchAuth('/buyer/disputes', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+  return readJson(res);
+}
+
 /** @returns {Promise<{ lines: unknown[] }>} */
 export async function fetchBuyerCart() {
   const res = await apiFetchAuth('/buyer/cart');

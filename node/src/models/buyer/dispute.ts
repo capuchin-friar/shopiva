@@ -56,6 +56,7 @@ export type DisputeProductData = {
 };
 
 export type CreateBuyerDisputePayload = {
+  dispute_ref?: string;
   customer_id: number;
   order_id?: number | null;
   reason: string;
@@ -88,6 +89,7 @@ const DISPUTE_ORDER_JOIN_SQL = `
 export class dispute {
   static create = withErrorHandling(async (payload: CreateBuyerDisputePayload): Promise<BuyerDisputeRow> => {
     const {
+      dispute_ref: disputeRefIn,
       customer_id,
       order_id = null,
       reason,
@@ -97,7 +99,8 @@ export class dispute {
       metadata = {},
     } = payload;
 
-    const ref = buildDisputeRef(customer_id);
+    const ref =
+      String(disputeRefIn ?? "").trim() || buildDisputeRef(customer_id);
     const { rows } = await (await db()).query<BuyerDisputeRow>(
       `INSERT INTO disputes (
         dispute_ref, customer_id, order_id, status, reason, description, source, metadata
