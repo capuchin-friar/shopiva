@@ -78,6 +78,10 @@ export const orderTransformer = async (
         `SELECT * FROM paystack_transactions WHERE reference = $1`,
         [orderRef]
     );
+    const { rows:[dispute] } = await pool.query(
+        `SELECT * FROM disputes WHERE order_id = $1`,
+        [orderId]
+    );
 
     return {
         customer,
@@ -85,6 +89,7 @@ export const orderTransformer = async (
             ...shop,
             owner: shopOwner
         },
+        dispute,
         order,
         order_items: formattedOrderItems,
         order_events,

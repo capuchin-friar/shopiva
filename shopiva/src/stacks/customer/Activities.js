@@ -59,7 +59,7 @@ export function ActivitiesStackScreen() {
         component={OpenDispute}
         options={{ ...disputeOpt, title: 'Open dispute' }}
       />
-      <ActivitiesStack.Screen name="Dispute-list" component={DisputeDetailScreen} options={orderOpt} />
+      <ActivitiesStack.Screen name="Dispute-detail" component={DisputeDetailScreen} options={orderOpt} />
     </ActivitiesStack.Navigator>
   );
 }

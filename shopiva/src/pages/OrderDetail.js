@@ -434,7 +434,7 @@ export default function OrderDetailScreen() {
 
   useEffect(() => {
     if (!orderInfo) return;
-    setStatusKey(orderInfo.order.fulfillment_status);
+    setStatusKey(orderInfo?.order?.fulfillment_status);
   }, [orderInfo]);
 
   useEffect(() => {
@@ -700,6 +700,29 @@ export default function OrderDetailScreen() {
   };
 
   const onCancelDelivery = useCallback(async () => {
+    if(!statusKey)return;
+    if (statusKey === "order_delivered") {
+      Alert.alert(
+        "Cannot cancel order after delivery",
+        "This order has already been delivered. If there is an issue with the item, please raise a dispute instead.",
+        [
+          {
+            text: "Close",
+            style: "cancel",
+          },
+          (!orderInfo?.dispute &&
+          {
+            text: "Raise Dispute",
+            onPress: () => {
+              navigation.navigate("Open-dispute", {
+                orderId: order.id,
+              });
+            },
+          })
+        ]
+      );
+      return;
+    }
     if (blockIfCancelled()) return;
     if (!orderInfo?.order) return;
 
@@ -757,6 +780,12 @@ export default function OrderDetailScreen() {
   }, [auth.activeRole, blockIfCancelled, navigation, orderInfo]);
 
   const onOpenDispute = useCallback(() => {
+    if(orderInfo?.dispute){
+      navigation.navigate("Dispute-detail", {
+
+      })
+      return;
+    }
     if (blockIfCancelled()) return;
     if(auth.activeRole === "customer"){
       if(statusKey !== "order_delivered"){
@@ -1042,7 +1071,11 @@ export default function OrderDetailScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Open dispute"
               >
-                <Text style={styles.escrowBtnSecondaryText}>Open dispute</Text>
+                <Text style={styles.escrowBtnSecondaryText}>
+                  {
+                    orderInfo?.dispute ? "View dispute" : "Open dispute"
+                  }
+                </Text>
               </Pressable>
             </View>
             ) : null}
@@ -1338,7 +1371,7 @@ export default function OrderDetailScreen() {
             </Pressable>
           </>
         )}
-        {!isOrderCancelled && orderInfo.order_events.length > 1 &&  (
+        {!isOrderCancelled && orderInfo?.order_events?.length > 1 &&  (
           statusKey !== "delivered" && auth.activeRole === 'customer' ? '' : 
           <Pressable
             onPress={onUpdateStatus}

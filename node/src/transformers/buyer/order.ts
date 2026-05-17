@@ -79,12 +79,18 @@ export const orderTransformer = async (
         [orderRef]
     );
 
+    const { rows:[dispute] } = await pool.query(
+        `SELECT * FROM disputes WHERE order_id = $1`,
+        [orderId]
+    );
+
     return {
         user,
         shop: {
             ...shop,
             owner: shopOwner
         },
+        dispute,
         order,
         order_items: formattedOrderItems,
         order_events,
