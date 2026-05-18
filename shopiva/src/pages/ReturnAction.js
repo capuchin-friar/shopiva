@@ -33,7 +33,7 @@ const VendorRejectReason = [
     { label: 'store unavailable', value: 'store_unavailable' },
     { label: 'suspected fraud', value: 'suspected_fraud' },
     { label: 'shipping delay', value: 'shipping_delay' },
-    { label: 'duplicate order', value: 'duplicate_order' },
+    { label: 'duplicate return', value: 'duplicate_return' },
     { label: 'product discontinued', value: 'product_discontinued' },
     { label: 'other', value: 'other' }
 ];
@@ -66,14 +66,14 @@ const FINAL_DELIVERY_HANDLER_OPTIONS = [
     { label: "Dispatch rider", value: "dispatch_rider" },
     { label: "Courier service", value: "courier_service" },
     { label: "In-house / vendor team", value: "vendor_team" },
-    { label: "Customer pickup (at hub)", value: "customer_pickup_hub" },
+    { label: "Vendor pickup (at hub)", value: "vendor_pickup_hub" },
 ];
 
 const MAX_DELIVERY_EVIDENCE = 8;
 const MIN_DELIVERY_EVIDENCE = 2;
 
 const CANCEL_ORDER_REASONS = [
-    { label: "Changed my mind / Ordered by mistake", value: "changed_mind" },
+    { label: "Changed my mind / Returned by mistake", value: "changed_mind" },
     { label: "Shipping is taking too long", value: "delayed_shipping" },
     { label: "Vendor asked me to cancel", value: "vendor_requested_cancel" },
     { label: "Found a better price elsewhere", value: "better_price" },
@@ -122,11 +122,11 @@ export default function ReturnActionScreen() {
             }
             {action === "cancellation" &&
                 data?.actor_type === "vendor" && (
-                    <VendorCancelOrder data={data} />
+                    <VendorCancelReturn data={data} />
                 )}
             {action === "cancellation" &&
-                data?.actor_type === "customer" && (
-                    <CancelOrder data={data} />
+                data?.actor_type === "vendor" && (
+                    <CancelReturn data={data} />
                 )}
         </>
     );
@@ -187,11 +187,11 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                     >
                         <View style={styles.processingCard}>
                             <Text style={styles.processingSectionTitle}>
-                                Cannot fulfill this order
+                                Cannot fulfill this return
                             </Text>
                             <Text style={styles.processingSectionSubtitle}>
                                 Choose the reason that best matches the situation.
-                                This is shared with the customer.
+                                This is shared with the vendor.
                             </Text>
                             <Dropdown
                                 style={styles.processingDropdown}
@@ -221,7 +221,7 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                                     Other reason
                                 </Text>
                                 <Text style={styles.processingFieldHint}>
-                                    Briefly explain so the customer understands.
+                                    Briefly explain so the vendor understands.
                                 </Text>
                                 <TextInput
                                     style={[styles.textInput, styles.acceptanceFormInput]}
@@ -270,8 +270,8 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                             // onPress={onResendInvoice}
                             onPress={e => {
                                 Alert.alert(
-                                    "Reject Order Warning",
-                                    "You will not be able to reinstate this order after you reject it.",
+                                    "Reject Return Warning",
+                                    "You will not be able to reinstate this return after you reject it.",
                                     [
                                         {
                                             text: 'Cancel',
@@ -321,10 +321,10 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                     >
                         <View style={styles.processingCard}>
                             <Text style={styles.processingSectionTitle}>
-                                Accept order
+                                Accept return
                             </Text>
                             <Text style={styles.processingSectionSubtitle}>
-                                Confirm each statement. The customer is notified
+                                Confirm each statement. The vendor is notified
                                 as soon as you accept.
                             </Text>
                             <View style={styles.processingChecklist}>
@@ -338,7 +338,7 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                                 <ConfirmCheckbox
                                     checked={confirmFulfillOnTime}
                                     onToggle={setConfirmFulfillOnTime}
-                                    label="I can fulfill this order on time"
+                                    label="I can fulfill this return on time"
                                     rowStyle={styles.processingCheckboxRow}
                                 />
                                 <View style={styles.processingChecklistDivider} />
@@ -356,8 +356,8 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                                 Estimated ship time
                             </Text>
                             <Text style={styles.processingFieldHint}>
-                                When do you plan to hand this order to the
-                                carrier? This helps set customer expectations.
+                                When do you plan to return this order to the
+                                carrier? This helps set vendor expectations.
                             </Text>
                             <Dropdown
                                 style={styles.processingDropdown}
@@ -383,7 +383,7 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                                 Notes (optional)
                             </Text>
                             <Text style={styles.processingFieldHint}>
-                                Optional message stored on the order.
+                                Optional message stored on the return.
                             </Text>
                             <TextInput
                                 style={[
@@ -404,7 +404,7 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                             ]}
                         >
                             <Text style={styles.acceptIntroText}>
-                                By accepting this order, you confirm that the
+                                By accepting this return, you confirm that the
                                 products are available and will be shipped within
                                 the required timeframe.
                             </Text>
@@ -436,7 +436,7 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                                 ) {
                                     Alert.alert(
                                         "Confirmation required",
-                                        "Please confirm all statements before accepting this order."
+                                        "Please confirm all statements before accepting this return."
                                     );
                                     return;
                                 }
@@ -446,7 +446,7 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                                 ) {
                                     Alert.alert(
                                         "Ship time required",
-                                        "Select when you will ship this order so the customer sees an accurate commitment."
+                                        "Select when you will ship this return so the vendor sees an accurate commitment."
                                     );
                                     return;
                                 }
@@ -524,14 +524,14 @@ function Processing({ data }) {
         if (!startedProcessing || !shipWithinCommitment) {
             Alert.alert(
                 "Confirmations required",
-                "Check both boxes to confirm you are processing this order on schedule."
+                "Check both boxes to confirm you are processing this return on schedule."
             );
             return false;
         }
         if (fulfillmentDuration == null || fulfillmentDuration === "") {
             Alert.alert(
                 "Ship time required",
-                "Select when you expect to ship so the customer sees an accurate window."
+                "Select when you expect to ship so the vendor sees an accurate window."
             );
             return false;
         }
@@ -564,23 +564,23 @@ function Processing({ data }) {
                 ]}
             >
                 <View style={styles.processingCard}>
-                    <Text style={styles.processingSectionTitle}>Process order</Text>
+                    <Text style={styles.processingSectionTitle}>Process return</Text>
                     <Text style={styles.processingSectionSubtitle}>
-                        Confirm you are actively preparing this order and will ship
+                        Confirm you are actively preparing this return and will ship
                         on time.
                     </Text>
                     <View style={styles.processingChecklist}>
                         <ConfirmCheckbox
                             checked={startedProcessing}
                             onToggle={setStartedProcessing}
-                            label="I've started processing this order"
+                            label="I've started processing this return"
                             rowStyle={styles.processingCheckboxRow}
                         />
                         <View style={styles.processingChecklistDivider} />
                         <ConfirmCheckbox
                             checked={shipWithinCommitment}
                             onToggle={setShipWithinCommitment}
-                            label="Order will ship within the required timeframe"
+                            label="Return will ship within the required timeframe"
                             rowStyle={styles.processingCheckboxRow}
                         />
                     </View>
@@ -592,7 +592,7 @@ function Processing({ data }) {
                     </Text>
                     <Text style={styles.processingFieldHint}>
                         When do you plan to hand this order to the carrier? This
-                        helps set customer expectations.
+                        helps set vendor expectations.
                     </Text>
                     <Dropdown
                         style={styles.processingDropdown}
@@ -617,7 +617,7 @@ function Processing({ data }) {
                     ]}
                 >
                     <Text style={styles.acceptIntroText}>
-                        By confirming, you state that the order is being prepared
+                        By confirming, you state that the return is being prepared
                         for shipment according to your commitments.
                     </Text>
                 </View>
@@ -642,7 +642,7 @@ function Processing({ data }) {
                     onPress={() => {
                         Alert.alert(
                             "Confirm processing",
-                            "Confirm you have started preparing this order for shipment.",
+                            "Confirm you have started preparing this return for shipment.",
                             [
                                 { text: "Cancel", style: "cancel" },
                                 {
@@ -704,14 +704,14 @@ function Shipping({ data }) {
         if (!handedOffForShipping || !withinCommittedTimeframe) {
             Alert.alert(
                 "Confirmations required",
-                "Confirm both statements before you mark this order as shipping."
+                "Confirm both statements before you mark this return as shipping."
             );
             return false;
         }
         if (shippingMethod == null || shippingMethod === "") {
             Alert.alert(
                 "Shipping method",
-                "Select how this order is being sent to the customer."
+                "Select how this order is being returned to the vendor."
             );
             return false;
         }
@@ -728,7 +728,7 @@ function Shipping({ data }) {
         if (estimatedDelivery == null || estimatedDelivery === "") {
             Alert.alert(
                 "Delivery window",
-                "Select when the customer should expect delivery (or pickup)."
+                "Select when the vendor should expect the return (or pickup)."
             );
             return false;
         }
@@ -762,16 +762,16 @@ function Shipping({ data }) {
             >
                 {/* 1 — Commitments */}
                 <View style={styles.processingCard}>
-                    <Text style={styles.processingSectionTitle}>Ship order</Text>
+                    <Text style={styles.processingSectionTitle}>Ship return</Text>
                     <Text style={styles.processingSectionSubtitle}>
-                        Confirm the order is on its way (or ready for pickup) and
+                        Confirm the return is on its way (or ready for pickup) and
                         still matches what you promised.
                     </Text>
                     <View style={styles.processingChecklist}>
                         <ConfirmCheckbox
                             checked={handedOffForShipping}
                             onToggle={setHandedOffForShipping}
-                            label="I've shipped this order or released it for delivery / pickup"
+                            label="I've shipped this return or released it for delivery / pickup"
                             rowStyle={styles.processingCheckboxRow}
                         />
                         <View style={styles.processingChecklistDivider} />
@@ -790,7 +790,7 @@ function Shipping({ data }) {
                         Shipping method
                     </Text>
                     <Text style={styles.processingFieldHint}>
-                        How is this order reaching the customer?
+                        How is this return reaching the vendor?
                     </Text>
                     <Dropdown
                         style={styles.processingDropdown}
@@ -824,8 +824,8 @@ function Shipping({ data }) {
                             </Text>
                             <Text style={styles.processingFieldHint}>
                                 Waybill, AWB, rider/courier reference, bus waybill,
-                                or pickup code — anything the customer can use to
-                                trace the handoff. Not required for self delivery.
+                                or pickup code — anything the vendor can use to
+                                trace the handoff. Not required for self return.
                             </Text>
                             <TextInput
                                 style={[
@@ -848,7 +848,7 @@ function Shipping({ data }) {
                         Expected delivery window
                     </Text>
                     <Text style={styles.processingFieldHint}>
-                        When should the customer expect the order? Align this with
+                        When should the vendor expect the return? Align this with
                         the method you chose.
                     </Text>
                     <Dropdown
@@ -877,7 +877,7 @@ function Shipping({ data }) {
                 >
                     <Text style={styles.acceptIntroText}>
                         By confirming, you state that shipment or pickup details
-                        above are accurate. Keep the customer updated if anything
+                        above are accurate. Keep the vendor updated if anything
                         changes.
                     </Text>
                 </View>
@@ -902,7 +902,7 @@ function Shipping({ data }) {
                     onPress={() => {
                         Alert.alert(
                             "Confirm shipping",
-                            "Submit this shipping update for the customer?",
+                            "Submit this shipping update for the vendor?",
                             [
                                 { text: "Cancel", style: "cancel" },
                                 {
@@ -962,7 +962,7 @@ function OutForDelivery({ data }) {
         if (!confirmOutForDelivery) {
             Alert.alert(
                 "Confirmation required",
-                "Confirm that this order is out for final delivery before continuing."
+                "Confirm that this return is out for final delivery before continuing."
             );
             return false;
         }
@@ -976,7 +976,7 @@ function OutForDelivery({ data }) {
         if (expectedDelivery == null || expectedDelivery === "") {
             Alert.alert(
                 "Expected delivery",
-                "Select when you expect this order to be delivered."
+                "Select when you expect this return to be delivered."
             );
             return false;
         }
@@ -1013,13 +1013,13 @@ function OutForDelivery({ data }) {
                         Out for delivery
                     </Text>
                     <Text style={styles.processingSectionSubtitle}>
-                        Tell the customer the order is on the final leg to them.
+                        Tell the vendor the return is on the final leg to them.
                     </Text>
                     <View style={styles.processingChecklist}>
                         <ConfirmCheckbox
                             checked={confirmOutForDelivery}
                             onToggle={setConfirmOutForDelivery}
-                            label="I confirm this order is currently out for final delivery."
+                            label="I confirm this return is currently out for final delivery."
                             rowStyle={styles.processingCheckboxRow}
                         />
                     </View>
@@ -1030,7 +1030,7 @@ function OutForDelivery({ data }) {
                         Who is handling the final delivery?
                     </Text>
                     <Text style={styles.processingFieldHint}>
-                        Choose the party completing the last mile to the customer.
+                        Choose the party completing the last mile to the vendor.
                     </Text>
                     <Dropdown
                         style={styles.processingDropdown}
@@ -1068,10 +1068,10 @@ function OutForDelivery({ data }) {
 
                 <View style={styles.processingCard}>
                     <Text style={styles.processingFieldLabel}>
-                        When do you expect this order to be delivered?
+                        When do you expect this return to be delivered?
                     </Text>
                     <Text style={styles.processingFieldHint}>
-                        Sets customer expectations for arrival or pickup completion.
+                        Sets vendor expectations for arrival or pickup completion.
                     </Text>
                     <Dropdown
                         style={styles.processingDropdown}
@@ -1110,7 +1110,7 @@ function OutForDelivery({ data }) {
                     onPress={() => {
                         Alert.alert(
                             "Confirm out for delivery",
-                            "Submit this update for the customer?",
+                            "Submit this update for the vendor?",
                             [
                                 { text: "Cancel", style: "cancel" },
                                 {
@@ -1208,14 +1208,14 @@ function MarkAsDelivered({ data }) {
         if (!confirmed) {
             Alert.alert(
                 "Confirmation required",
-                "Confirm that the order was delivered to the customer."
+                "Confirm that the order was returned to the vendor."
             );
             return;
         }
         if (evidence.length < MIN_DELIVERY_EVIDENCE) {
             Alert.alert(
                 "Photos required",
-                `Add at least ${MIN_DELIVERY_EVIDENCE} photos: the buyer's signature and proof the order was delivered.`
+                `Add at least ${MIN_DELIVERY_EVIDENCE} photos: the buyer's signature and proof the return was delivered.`
             );
             return;
         }
@@ -1255,13 +1255,13 @@ function MarkAsDelivered({ data }) {
                         Mark as delivered
                     </Text>
                     <Text style={styles.processingSectionSubtitle}>
-                        Confirm the customer has received this order.
+                        Confirm the vendor has received this return order.
                     </Text>
                     <View style={styles.processingChecklist}>
                         <ConfirmCheckbox
                             checked={confirmed}
                             onToggle={setConfirmed}
-                            label="I confirm this order was delivered to the customer."
+                            label="I confirm this return was delivered to the vendor."
                             rowStyle={styles.processingCheckboxRow}
                         />
                     </View>
@@ -1344,7 +1344,7 @@ function MarkAsDelivered({ data }) {
                     onPress={() => {
                         Alert.alert(
                             "Confirm delivery",
-                            "Mark this order as delivered for the customer?",
+                            "Mark this order as returned for the vendor?",
                             [
                                 { text: "Cancel", style: "cancel" },
                                 {
@@ -1406,14 +1406,14 @@ function ConfirmDelivery({data}) {
         if (!handedOffForShipping || !withinCommittedTimeframe) {
             Alert.alert(
                 "Confirmations required",
-                "Confirm both statements before you mark this order as shipping."
+                "Confirm both statements before you mark this return as shipping."
             );
             return false;
         }
         if (shippingMethod == null || shippingMethod === "") {
             Alert.alert(
                 "Shipping method",
-                "Select how this order is being sent to the customer."
+                "Select how this order is being returned to the vendor."
             );
             return false;
         }
@@ -1430,7 +1430,7 @@ function ConfirmDelivery({data}) {
         if (estimatedDelivery == null || estimatedDelivery === "") {
             Alert.alert(
                 "Delivery window",
-                "Select when the customer should expect delivery (or pickup)."
+                "Select when the vendor should expect the returned order (or pickup)."
             );
             return false;
         }
@@ -1494,7 +1494,7 @@ function ConfirmDelivery({data}) {
                     ]}
                 >
                     <Text style={styles.acceptIntroText}>
-                        Warning: Once you confirm, funds will be released to the vendor and this order cannot be disputed.
+                        Warning: Once you confirm, funds will be released to the vendor and this return cannot be disputed.
                     </Text>
                 </View>
             </ScrollView>
@@ -1520,7 +1520,7 @@ function ConfirmDelivery({data}) {
                     onPress={() => {
                         Alert.alert(
                             "Confirm shipping",
-                            "Submit this shipping update for the customer?",
+                            "Submit this shipping update for the vendor?",
                             [
                                 { text: "Cancel", style: "cancel" },
                                 {
@@ -1543,8 +1543,8 @@ function ConfirmDelivery({data}) {
     );
 }
 
-/** Vendor cancels an accepted / in-progress order (not the same as declining at acceptance). */
-function VendorCancelOrder({ data }) {
+/** Vendor cancels an accepted / in-progress return (not the same as declining at acceptance). */
+function VendorCancelReturn({ data }) {
     const insets = useSafeAreaInsets();
     const dispatch = useDispatch();
     const navigation = useNavigation();
@@ -1563,7 +1563,7 @@ function VendorCancelOrder({ data }) {
         if (!cancelReason) {
             Alert.alert(
                 "Reason required",
-                "Select why you are cancelling this order."
+                "Select why you are cancelling this return."
             );
             return false;
         }
@@ -1577,7 +1577,7 @@ function VendorCancelOrder({ data }) {
         if (!confirmCancel) {
             Alert.alert(
                 "Confirmation required",
-                "Confirm that you want to cancel this order for the customer."
+                "Confirm that you want to cancel this return for the vendor."
             );
             return false;
         }
@@ -1617,7 +1617,7 @@ function VendorCancelOrder({ data }) {
                     "Cancellation failed",
                     response?.message ||
                         response?.error ||
-                        "Could not cancel this order. Try again."
+                        "Could not cancel this return. Try again."
                 );
             }
         } catch (e) {
@@ -1634,9 +1634,9 @@ function VendorCancelOrder({ data }) {
         if (!validate()) return;
         Alert.alert(
             "Cancel return",
-            "This order will be cancelled for your shop and the customer will be notified. You cannot undo this from the app.",
+            "This return will be cancelled and the vendor will be notified. You cannot undo this from the app.",
             [
-                { text: "Keep order", style: "cancel" },
+                { text: "Keep return", style: "cancel" },
                 {
                     text: "Cancel return",
                     style: "destructive",
@@ -1661,7 +1661,7 @@ function VendorCancelOrder({ data }) {
                         Cancel return
                     </Text>
                     <Text style={styles.processingSectionSubtitle}>
-                        Tell the customer why you cannot complete this order.
+                        Tell the vendor why you cannot complete this return.
                         They may receive a refund according to Shopiva policy.
                     </Text>
                 </View>
@@ -1708,10 +1708,10 @@ function VendorCancelOrder({ data }) {
 
                 <View style={styles.processingCard}>
                     <Text style={styles.processingFieldLabel}>
-                        Message to customer (optional)
+                        Message to vendor (optional)
                     </Text>
                     <Text style={styles.processingFieldHint}>
-                        Extra context shown in order history or support.
+                        Extra context shown in return history or support.
                     </Text>
                     <TextInput
                         style={[
@@ -1731,7 +1731,7 @@ function VendorCancelOrder({ data }) {
                         <ConfirmCheckbox
                             checked={confirmCancel}
                             onToggle={setConfirmCancel}
-                            label="I understand this order will be cancelled and the customer will be notified."
+                            label="I understand this return will be cancelled and the vendor will be notified."
                             rowStyle={styles.processingCheckboxRow}
                         />
                     </View>
@@ -1752,7 +1752,7 @@ function VendorCancelOrder({ data }) {
                         pressed && styles.btnSecondaryPressed,
                     ]}
                 >
-                    <Text style={styles.btnSecondaryText}>Keep order</Text>
+                    <Text style={styles.btnSecondaryText}>Keep return</Text>
                 </Pressable>
                 <Pressable
                     onPress={onPressConfirm}
@@ -1772,7 +1772,7 @@ function VendorCancelOrder({ data }) {
 }
 
 /** Customer cancels before / during fulfillment (escrow cancel delivery). */
-function CancelOrder({ data }) {
+function CancelReturn({ data }) {
     const insets = useSafeAreaInsets();
     const dispatch = useDispatch();
     const navigation = useNavigation();
@@ -1783,9 +1783,9 @@ function CancelOrder({ data }) {
     const [submitting, setSubmitting] = useState(false);
 
     const postShipment = Boolean(data?.post_shipment);
-    const orderTotal = Number(data?.order_total ?? 0);
+    const returnTotal = Number(data?.return_total ?? 0);
     const restockingFee = Number(data?.restocking_fee ?? 0);
-    const refundAmount = Math.max(0, orderTotal - restockingFee);
+    const refundAmount = Math.max(0, returnTotal - restockingFee);
 
     useEffect(() => {
         connectChatSocket();
@@ -1795,7 +1795,7 @@ function CancelOrder({ data }) {
         if (!cancelReason) {
             Alert.alert(
                 "Reason required",
-                "Select why you are cancelling this order."
+                "Select why you are cancelling this return."
             );
             return false;
         }
@@ -1809,7 +1809,7 @@ function CancelOrder({ data }) {
         if (!confirmCancel) {
             Alert.alert(
                 "Confirmation required",
-                "Confirm that you want to cancel this order."
+                "Confirm that you want to cancel this return."
             );
             return false;
         }
@@ -1834,7 +1834,7 @@ function CancelOrder({ data }) {
                     reason,
                     cancel_reason_code: cancelReason,
                     post_shipment: postShipment,
-                    order_total: orderTotal,
+                    return_total: returnTotal,
                     restocking_fee: restockingFee,
                     refund_amount: refundAmount,
                 },
@@ -1853,7 +1853,7 @@ function CancelOrder({ data }) {
                     "Cancellation failed",
                     response?.message ||
                         response?.error ||
-                        "Could not cancel this order. Try again."
+                        "Could not cancel this return. Try again."
                 );
             }
         } catch (e) {
@@ -1872,9 +1872,9 @@ function CancelOrder({ data }) {
         if (postShipment) {
             Alert.alert(
                 "Cancel return",
-                `The vendor has already packed and shipped your order.\n\nA restocking fee of ₦${restockingFee.toLocaleString()} may be deducted from your refund.\n\nEstimated refund: ₦${refundAmount.toLocaleString()}`,
+                `The vendor has already packed and shipped your return.\n\nA restocking fee of ₦${restockingFee.toLocaleString()} may be deducted from your refund.\n\nEstimated refund: ₦${refundAmount.toLocaleString()}`,
                 [
-                    { text: "Keep order", style: "cancel" },
+                    { text: "Keep return", style: "cancel" },
                     {
                         text: "Confirm cancellation",
                         style: "destructive",
@@ -1884,7 +1884,7 @@ function CancelOrder({ data }) {
                         text: "Raise dispute instead",
                         onPress: () =>
                             navigation.navigate("Open-dispute", {
-                                orderId: data?.return_id,
+                                returnId: data?.return_id,
                             }),
                     },
                 ]
@@ -1894,9 +1894,9 @@ function CancelOrder({ data }) {
 
         Alert.alert(
             "Cancel return",
-            "Are you sure you want to cancel this order?",
+            "Are you sure you want to cancel this return?",
             [
-                { text: "Keep order", style: "cancel" },
+                { text: "Keep return", style: "cancel" },
                 {
                     text: "Confirm cancellation",
                     style: "destructive",
@@ -1918,11 +1918,11 @@ function CancelOrder({ data }) {
             >
                 <View style={styles.processingCard}>
                     <Text style={styles.processingSectionTitle}>
-                        Order cancellation
+                        Return cancellation
                     </Text>
                     <Text style={styles.processingSectionSubtitle}>
                         {postShipment
-                            ? "This order is already in transit. Cancelling may reduce your refund."
+                            ? "This return is already in transit. Cancelling may reduce your refund."
                             : "Tell us why you want to cancel. The vendor will be notified."}
                     </Text>
                 </View>
@@ -1993,7 +1993,7 @@ function CancelOrder({ data }) {
                         <ConfirmCheckbox
                             checked={confirmCancel}
                             onToggle={setConfirmCancel}
-                            label="I understand this order will be cancelled and I may receive a partial refund depending on order status."
+                            label="I understand this return will be cancelled and I may receive a partial refund depending on return status."
                             rowStyle={styles.processingCheckboxRow}
                         />
                     </View>
@@ -2014,7 +2014,7 @@ function CancelOrder({ data }) {
                         pressed && styles.btnSecondaryPressed,
                     ]}
                 >
-                    <Text style={styles.btnSecondaryText}>Keep order</Text>
+                    <Text style={styles.btnSecondaryText}>Keep return</Text>
                 </Pressable>
                 <Pressable
                     onPress={onPressConfirm}
@@ -2050,20 +2050,20 @@ const styles = StyleSheet.create({
         paddingBottom: 100,
     },
     acceptanceFormInput: {
-        borderRadius: 5,
-        borderColor: '#DCDCE0',
+        breturnRadius: 5,
+        breturnColor: '#DCDCE0',
     },
     acceptDisclaimerCard: {
         backgroundColor: '#F8F9FA',
-        borderColor: '#ECECEF',
+        breturnColor: '#ECECEF',
     },
     processingCard: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 5,
+        breturnRadius: 5,
         padding: 16,
         marginBottom: 14,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: '#E6E7EB',
+        breturnWidth: StyleSheet.hairlineWidth,
+        breturnColor: '#E6E7EB',
     },
     processingSectionTitle: {
         fontSize: 17,
@@ -2081,9 +2081,9 @@ const styles = StyleSheet.create({
     },
     processingChecklist: {
         backgroundColor: '#F8F9FA',
-        borderRadius: 5,
-        borderWidth: 1,
-        borderColor: '#ECECEF',
+        breturnRadius: 5,
+        breturnWidth: 1,
+        breturnColor: '#ECECEF',
         overflow: 'hidden',
     },
     processingChecklistDivider: {
@@ -2110,9 +2110,9 @@ const styles = StyleSheet.create({
     },
     processingDropdown: {
         minHeight: 50,
-        borderColor: '#DCDCE0',
-        borderWidth: 1,
-        borderRadius: 5,
+        breturnColor: '#DCDCE0',
+        breturnWidth: 1,
+        breturnRadius: 5,
         paddingHorizontal: 14,
         backgroundColor: '#FAFAFA',
     },
@@ -2133,11 +2133,11 @@ const styles = StyleSheet.create({
     evidenceTile: {
         width: 104,
         height: 104,
-        borderRadius: 8,
+        breturnRadius: 8,
         overflow: "hidden",
         backgroundColor: "#ECECEF",
-        borderWidth: 1,
-        borderColor: "#DCDCE0",
+        breturnWidth: 1,
+        breturnColor: "#DCDCE0",
     },
     evidenceImage: {
         width: "100%",
@@ -2149,7 +2149,7 @@ const styles = StyleSheet.create({
         right: 4,
         width: 26,
         height: 26,
-        borderRadius: 13,
+        breturnRadius: 13,
         backgroundColor: "rgba(0,0,0,0.55)",
         alignItems: "center",
         justifyContent: "center",
@@ -2167,10 +2167,10 @@ const styles = StyleSheet.create({
     evidenceAddTile: {
         width: 104,
         height: 104,
-        borderRadius: 8,
-        borderWidth: 1.5,
-        borderStyle: "dashed",
-        borderColor: "#0D8A4A",
+        breturnRadius: 8,
+        breturnWidth: 1.5,
+        breturnStyle: "dashed",
+        breturnColor: "#0D8A4A",
         backgroundColor: "#F0FAF4",
         alignItems: "center",
         justifyContent: "center",
@@ -2209,13 +2209,13 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingTop: 12,
         backgroundColor: "#fff",
-        borderTopWidth: StyleSheet.hairlineWidth,
-        borderTopColor: '#E2E2E6',
+        breturnTopWidth: StyleSheet.hairlineWidth,
+        breturnTopColor: '#E2E2E6',
     },
     btnAccept: {
         flex: 1,
         height: 44,
-        borderRadius: 5,
+        breturnRadius: 5,
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#0D8A4A',
@@ -2231,12 +2231,12 @@ const styles = StyleSheet.create({
     btnSecondary: {
         flex: 1,
         height: 44,
-        borderRadius: 5,
+        breturnRadius: 5,
         alignItems: "center",
         justifyContent: "center",
         backgroundColor: "#F5F5F5",
-        borderWidth: 1,
-        borderColor: "#E0E0E0",
+        breturnWidth: 1,
+        breturnColor: "#E0E0E0",
     },
     btnSecondaryPressed: {
         backgroundColor: "#EBEBEB",
@@ -2249,7 +2249,7 @@ const styles = StyleSheet.create({
     btnReject: {
         flex: 1,
         height: 44,
-        borderRadius: 5,
+        breturnRadius: 5,
         alignItems: 'center',
         justifyContent: 'center',
         backgroundColor: '#C62828',
@@ -2268,17 +2268,17 @@ const styles = StyleSheet.create({
     },
     dropdown: {
         minHeight: 52,
-        borderColor: '#E0E0E0',
-        borderWidth: 1,
-        borderRadius: 8,
+        breturnColor: '#E0E0E0',
+        breturnWidth: 1,
+        breturnRadius: 8,
         paddingHorizontal: 14,
         backgroundColor: '#FAFAFA',
         marginTop: 8,
     },
     dropdownContainer: {
-        borderRadius: 8,
-        borderColor: '#E0E0E0',
-        borderWidth: 1,
+        breturnRadius: 8,
+        breturnColor: '#E0E0E0',
+        breturnWidth: 1,
     },
     placeholderStyle: {
         fontSize: 14,
@@ -2297,9 +2297,9 @@ const styles = StyleSheet.create({
     inputSearchStyle: {
         height: 44,
         fontSize: 14,
-        borderRadius: 8,
-        borderColor: '#E0E0E0',
-        borderWidth: 1,
+        breturnRadius: 8,
+        breturnColor: '#E0E0E0',
+        breturnWidth: 1,
         paddingHorizontal: 12,
     },
     iconStyle: {
@@ -2331,9 +2331,9 @@ const styles = StyleSheet.create({
         lineHeight: 22,
     },
     textInput: {
-        borderColor: '#E0E0E0',
-        borderWidth: 1,
-        borderRadius: 8,
+        breturnColor: '#E0E0E0',
+        breturnWidth: 1,
+        breturnRadius: 8,
         paddingHorizontal: 14,
         paddingVertical: 12,
         fontSize: 14,
@@ -2356,16 +2356,16 @@ const styles = StyleSheet.create({
     checkboxBox: {
         width: 22,
         height: 22,
-        borderRadius: 4,
-        borderWidth: 1,
-        borderColor: "#E0E0E0",
+        breturnRadius: 4,
+        breturnWidth: 1,
+        breturnColor: "#E0E0E0",
         backgroundColor: "#FAFAFA",
         alignItems: "center",
         justifyContent: "center",
     },
     checkboxBoxChecked: {
         backgroundColor: "#0D8A4A",
-        borderColor: "#0D8A4A",
+        breturnColor: "#0D8A4A",
     },
     checkboxMark: {
         color: "#fff",
