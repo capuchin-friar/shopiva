@@ -172,6 +172,36 @@ export const handleDisputeResponse = async(
       [userId]
     );
 
+    if(
+      response && ((response as any).will_return_item )
+    ){
+      const { rows: [id] } = await pool.query(
+        `INSERT INTO returns
+          (
+            order_id, customer_id, shop_id, status, shipping_address, created_at, updated_at
+          ) VALUES(
+              $1, $2, $3, $4, $5, NOW(), NOW()
+          ) RETURNING id`,
+        [
+          dispute.order_id, dispute.customer_id, shop.id, "initiated", JSON.stringify((response as any).return_address)
+        ]
+      );
+
+      await pool.query(
+        `
+          INSERT INTO return_events
+          (
+              return_id, event_type, stage, actor_type, actor_id, outcome, notes, meta, created_at
+          )
+          VALUES(
+              $1, $2, $3, $4, $5, $6, $7, $8::jsonb, NOW()
+          )`, 
+          [
+            id.id, "initiation", "return_initiated", "vendor", userId, "success", "", "{}"
+          ]
+      );
+    }
+
     const socketPayload = await broadcastDisputeUpdate(
       "dispute_acceptance",
       dispute.dispute_ref,
