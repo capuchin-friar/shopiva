@@ -20,6 +20,10 @@ export default function ActivitiesScreen({ navigation }) {
     navigation.navigate('Disputes');
   }, [navigation]);
 
+  const goReturns = useCallback(() => {
+    navigation.navigate('Returns');
+  }, [navigation]);
+
   return (
     <View style={[styles.root, { paddingTop: 15 }]}>
       
@@ -35,8 +39,8 @@ export default function ActivitiesScreen({ navigation }) {
             <Text style={styles.optionTitle}>Orders</Text>
             <Text style={styles.optionDesc}>{
               auth.activeRole === "vendors" ?
-              "View and manage customer orders":
-              "View and manage your orders"
+              "View & manage customer orders":
+              "View & manage your orders"
             }</Text>
           </View>
           <Icon name="chevron-forward" size={22} color="#9CA3AF" />
@@ -49,9 +53,24 @@ export default function ActivitiesScreen({ navigation }) {
           <View style={styles.optionBody}>
             <Text style={styles.optionTitle}>Disputes</Text>
             <Text style={styles.optionDesc}>{
-              auth.activeRole === "vendors" ?
+              auth.activeRole === "vendor" ?
               "Resolve issues with customers":
               "Resolve issues with vendors"
+            }</Text>
+          </View>
+          <Icon name="chevron-forward" size={22} color="#9CA3AF" />
+        </TouchableOpacity>
+
+         <TouchableOpacity style={styles.optionRow} onPress={goReturns} activeOpacity={0.85}>
+          <View style={[styles.optionIcon, styles.optionIconAmber]}>
+            <Icon name="return-up-back-outline" size={22} color="#B45309" />
+          </View>
+          <View style={styles.optionBody}>
+            <Text style={styles.optionTitle}>Returns</Text>
+            <Text style={styles.optionDesc}>{
+              auth.activeRole === "vendor" ?
+              "Keep track of returns from your customers":
+              "View & manage returns to vendors"
             }</Text>
           </View>
           <Icon name="chevron-forward" size={22} color="#9CA3AF" />

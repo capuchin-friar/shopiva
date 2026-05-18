@@ -8,6 +8,9 @@ import DisputeDetailScreen from '../../pages/DisputeDetail';
 import OrderActionScreen from '../../pages/OrderAction';
 import OpenDispute from '../../pages/OpenDispute';
 import DisputeActionScreen from '../../pages/DisputeAction'
+import ReturnListScreen from '../../pages/ReturnList';
+import ReturnDetailScreen from '../../pages/ReturnDetail';
+import ReturnActionScreen from '../../pages/ReturnAction';
 const VendorActivitiesStack = createNativeStackNavigator();
 
 const shellStyles = StyleSheet.create({
@@ -49,6 +52,24 @@ const disputeOpt = {
   title: 'Open dispute',
   headerBackVisible: true,
   headerShadowVisible: false,
+}
+const returnOpt = {
+  headerShown: true,
+  title: 'Returns',
+  headerBackVisible: true,
+  headerShadowVisible: false,
+}
+const returnDetailOpt = {
+  headerShown: true,
+  title: 'Return detail',
+  headerBackVisible: true,
+  headerShadowVisible: false,
+}
+const returnStatusUpdateOpt = {
+  headerShown: true,
+  title: 'Return-action',
+  headerBackVisible: true,
+  headerShadowVisible: false,
 };
 /**
  * Activities tab: hub + nested orders and disputes stacks (vendor).
@@ -61,6 +82,9 @@ export function VendorActivitiesStackScreen() {
       <VendorActivitiesStack.Screen name="Orders" options={orderOpt} component={VendorOrderScreen} />
       <VendorActivitiesStack.Screen name="Order-detail"  options={orderDetailOpt} component={VendorOrderDetailScreen} />
       <VendorActivitiesStack.Screen name="Order-action" component={OrderActionScreen} options={orderStatusUpdateOpt} />
+      <VendorActivitiesStack.Screen name="Returns" options={returnOpt} component={ReturnListScreen} />
+      <VendorActivitiesStack.Screen name="Return-detail" options={returnDetailOpt} component={ReturnDetailScreen} />
+      <VendorActivitiesStack.Screen name="Return-action" component={ReturnActionScreen} options={returnStatusUpdateOpt} />
       <VendorActivitiesStack.Screen
         name="Open-dispute"
         component={OpenDispute}

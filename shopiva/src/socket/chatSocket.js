@@ -4,6 +4,8 @@ import { getApiBaseUrl } from '../api/config';
 import store from '../../redux/store';
 import { set_orderInfo } from '../../redux/order';
 import { set_orderList } from '../../redux/orders';
+import { set_returnInfo } from '../../redux/return';
+import { set_returnList } from '../../redux/returns';
 import { set_disputeInfo } from '../../redux/dispute';
 import { set_disputeList } from '../../redux/disputes';
 import { mapBuyerDisputeRow, mapOrderRowToListItem } from '../utils/buyerUi';
@@ -22,6 +24,15 @@ const ORDER_SOCKET_EVENTS = [
   'order_cancelled',
 ];
 
+const RETURN_SOCKET_EVENTS = [
+  'return_acceptance',
+  'return_processing',
+  'return_shipping',
+  'return_out_for_delivery',
+  'return_delivered',
+  'return_cancelled',
+];
+
 const DISPUTE_SOCKET_EVENTS = ['raise_dispute'];
 
 /** @param {unknown} res */
@@ -36,6 +47,21 @@ export function applyOrderSocketPayload(res) {
       mapOrderRowToListItem(/** @type {Record<string, unknown>} */ (row)),
     );
     store.dispatch(set_orderList(mapped));
+  }
+}
+
+/** @param {unknown} res */
+export function applyReturnSocketPayload(res) {
+  if (!res || typeof res !== 'object') return;
+  const payload = /** @type {Record<string, unknown>} */ (res);
+  if (payload.result) {
+    store.dispatch(set_returnInfo(payload.result));
+  }
+  if (Array.isArray(payload.list)) {
+    const mapped = payload.list.map((row) =>
+      mapOrderRowToListItem(/** @type {Record<string, unknown>} */ (row)),
+    );
+    store.dispatch(set_returnList(mapped));
   }
 }
 
@@ -60,6 +86,7 @@ export function applyDisputeSocketPayload(res) {
 /** @param {unknown} ack */
 export function applySocketAckPayload(ack) {
   applyOrderSocketPayload(ack);
+  applyReturnSocketPayload(ack);
   applyDisputeSocketPayload(ack);
 }
 
@@ -73,6 +100,18 @@ function bindOrderSocketListeners(socket) {
   };
 
   ORDER_SOCKET_EVENTS.forEach((event) => socket.on(event, onOrderUpdate));
+}
+
+/** @param {import('socket.io-client').Socket} socket */
+function bindReturnSocketListeners(socket) {
+  if (socket.__returnListenersBound) return;
+  socket.__returnListenersBound = true;
+
+  const onReturnUpdate = (res) => {
+    applyReturnSocketPayload(res);
+  };
+
+  RETURN_SOCKET_EVENTS.forEach((event) => socket.on(event, onReturnUpdate));
 }
 
 /** @param {import('socket.io-client').Socket} socket */
@@ -142,6 +181,7 @@ export async function connectChatSocket() {
     }
 
     bindOrderSocketListeners(socketSingleton);
+    bindReturnSocketListeners(socketSingleton);
     bindDisputeSocketListeners(socketSingleton);
     return socketSingleton;
   })();

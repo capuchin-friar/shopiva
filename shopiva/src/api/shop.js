@@ -176,6 +176,31 @@ export async function fetchShopOrderDetail(shopId, orderId, userId) {
 }
 
 /**
+ * Returns for a shop (vendor dashboard / return list).
+ * @param {number | string} shopId
+ * @param {number | string} userId
+ * @returns {Promise<unknown[]>}
+ */
+export async function fetchShopReturns(shopId, userId) {
+  const res = await apiFetchAuth(`/shop/${shopId}/returns/${userId}`, { method: 'GET' });
+  const data = await readJson(res);
+  return Array.isArray(data.returns) ? data.returns : [];
+}
+
+/**
+ * Return detail for a shop (vendor dashboard / return list).
+ * @param {number | string} shopId
+ * @param {number | string} returnId
+ * @param {number | string} userId
+ * @returns {Promise<Record<string, unknown>>}
+ */
+export async function fetchShopReturnDetail(shopId, returnId, userId) {
+  const res = await apiFetchAuth(`/shop/${shopId}/returns/${returnId}/${userId}`, { method: 'GET' });
+  const data = await readJson(res);
+  return (data.return) ? data : {};
+}
+
+/**
  * Inventory rows for a vendor's shop.
  * Backend route: GET /shop/:shopId/inventory/:userId
  * Each row mirrors `getByShopId` in `node/src/models/business/product.ts`:

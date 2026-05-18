@@ -7,6 +7,9 @@ import DisputesListScreen from '../../pages/DisputesList';
 import OrderDetailScreen from '../../pages/OrderDetail';
 import OrderActionScreen from '../../pages/OrderAction';
 import DisputeDetailScreen from '../../pages/DisputeDetail';
+import ReturnListScreen from '../../pages/ReturnList';
+import ReturnDetailScreen from '../../pages/ReturnDetail';
+import ReturnActionScreen from '../../pages/ReturnAction';
 
 const ActivitiesStack = createNativeStackNavigator();
 const activityOptions = {
@@ -60,6 +63,9 @@ export function ActivitiesStackScreen() {
         options={{ ...disputeOpt, title: 'Open dispute' }}
       />
       <ActivitiesStack.Screen name="Dispute-detail" component={DisputeDetailScreen} options={orderOpt} />
+      <ActivitiesStack.Screen name="Returns" component={ReturnListScreen} options={orderOpt} />
+      <ActivitiesStack.Screen name="Return-detail" options={orderDetailOpt} component={ReturnDetailScreen} />
+      <ActivitiesStack.Screen name="Return-action" component={ReturnActionScreen} options={orderStatusUpdateOpt} />
     </ActivitiesStack.Navigator>
   );
 }

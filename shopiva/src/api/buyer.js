@@ -31,6 +31,20 @@ export async function fetchBuyerOrder(orderId) {
   return readJson(res);
 }
 
+/** @returns {Promise<{ returns: unknown[] }>} */
+export async function fetchBuyerReturns() {
+  const res = await apiFetchAuth('/buyer/returns');
+  return readJson(res);
+}
+
+/** @returns {Promise<{ return: Record<string, unknown> }>} */
+export async function fetchBuyerReturn(returnId) {
+  const id = encodeURIComponent(String(returnId ?? '').trim());
+  if (!id) throw new Error('returnId is required');
+  const res = await apiFetchAuth(`/buyer/returns/${id}`);
+  return readJson(res);
+}
+
 /**
  * @param {{ includeClosed?: boolean; backfill?: boolean }} [opts]
  * @returns {Promise<{ disputes: unknown[] }>}

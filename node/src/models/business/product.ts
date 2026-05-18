@@ -79,6 +79,8 @@ export type InventoryListRow = {
 };
 
 export type OrderListRow = {
+  /** Present on return list rows; omitted for order list rows. */
+  return_id?: number | string;
   order_id: number | string;
   product_id: number | null;
   customer_id: number | string | null;
@@ -87,7 +89,7 @@ export type OrderListRow = {
   customer_email: string;
   customer_phone: string;
   qty: number;
-  amount: number;
+  amount: number | any;
   payment: string;
   status: string;
   delivery: string;

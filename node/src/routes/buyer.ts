@@ -1,6 +1,7 @@
 import express from "express";
 import { verifyToken } from "../middleware/auth.js";
 import { GetBuyerOrdersController, GetBuyerOrderByIdController } from "../controllers/buyer/orders.js";
+import { GetBuyerReturnsController, GetBuyerReturnByIdController } from "../controllers/buyer/returns.js";
 import {
   BackfillBuyerDisputesFromOrdersController,
   GetBuyerDisputesController,
@@ -26,6 +27,8 @@ BuyerRouter.post("/buyer/checkout/confirm-payment", verifyToken, PostBuyerChecko
 
 BuyerRouter.get("/buyer/orders", verifyToken, GetBuyerOrdersController);
 BuyerRouter.get("/buyer/orders/:orderId", verifyToken, GetBuyerOrderByIdController);
+BuyerRouter.get("/buyer/returns", verifyToken, GetBuyerReturnsController);
+BuyerRouter.get("/buyer/returns/:returnId", verifyToken, GetBuyerReturnByIdController);
 BuyerRouter.get("/buyer/disputes", verifyToken, GetBuyerDisputesController);
 BuyerRouter.get("/buyer/disputes/:disputeId", verifyToken, GetBuyerDisputeByIdController);
 BuyerRouter.post("/buyer/disputes", verifyToken, CreateBuyerDisputeController);

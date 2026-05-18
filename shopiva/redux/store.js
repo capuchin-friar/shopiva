@@ -5,6 +5,8 @@ import orderInfo from './order';
 import orderList from './orders';
 import disputeInfo from './dispute';
 import disputeList from './disputes';
+import returnInfo from './return';
+import returnList from './returns';
 
 const store = configureStore({
   reducer: {
@@ -14,6 +16,8 @@ const store = configureStore({
     orderList: orderList,
     disputeInfo: disputeInfo,
     disputeList: disputeList,
+    returnInfo: returnInfo,
+    returnList: returnList,
   },
 });
 

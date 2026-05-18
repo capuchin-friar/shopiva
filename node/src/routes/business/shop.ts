@@ -44,6 +44,10 @@ import {
     GetOrderDetailByIdController,
 } from "../../controllers/business/product.js";
 import {
+    GetReturnsByShopController,
+    GetReturnDetailByIdController,
+} from "../../controllers/business/return.js";
+import {
     GetShopDisputesController,
     GetShopDisputeByIdController,
 } from "../../controllers/business/disputes.js";
@@ -100,6 +104,8 @@ BusinessRouter.get("/shop/:shopId/transactions/:id", authenticate, GetShopTransa
 BusinessRouter.get("/shop/:shopId/inventory/:id", authenticate, GetInventoryByShopController);
 BusinessRouter.get("/shop/:shopId/orders/:id", authenticate, GetOrdersByShopController);
 BusinessRouter.get("/shop/:shopId/orders/:orderId/:id", authenticate, GetOrderDetailByIdController);
+BusinessRouter.get("/shop/:shopId/returns/:id", authenticate, GetReturnsByShopController);
+BusinessRouter.get("/shop/:shopId/returns/:returnId/:id", authenticate, GetReturnDetailByIdController);
 BusinessRouter.patch(
   "/shop/:shopId/orders/:orderId/status/:id",
   authenticate,

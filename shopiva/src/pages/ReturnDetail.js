@@ -1,0 +1,2130 @@
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useState,
+} from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  Linking,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import Icon from 'react-native-vector-icons/Ionicons';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { formatNaira } from '../utils/formatNaira';
+import { fetchBuyerReturn, fetchOwnerShops, fetchShopReturnDetail, fetchShopOwner } from '../api';
+import { useDispatch, useSelector } from 'react-redux';
+import { getStoredUser } from '../auth/session';
+import { connectChatSocket } from '../socket/chatSocket';
+import { set_returnInfo } from '../../redux/return';
+
+const PAGE_BG = '#FFF';
+const WHITE = '#FFFFFF';
+const BLACK = '#111111';
+const TEXT = '#1A1A1A';
+const MUTED = '#8E8E93';
+const HAIR = '#ECECEE';
+const ACCENT = '#7C5CFC';
+const ACCENT_PRESSED = '#6A48F5';
+
+/** Pill themes */
+const PAY_THEME = {
+  paid: { bg: '#E0F2E9', dot: '#0D8A4A', text: '#0D5C2F', label: 'Paid' },
+  unpaid: { bg: '#FFF4D6', dot: '#B58100', text: '#7A5800', label: 'Unpaid' },
+  refunded: {
+    bg: '#EFEAFF',
+    dot: '#7C5CFC',
+    text: '#3F2BB8',
+    label: 'Refunded',
+  },
+  cancelled: {
+    bg: '#FDE3E3',
+    dot: '#C62828',
+    text: '#9F1818',
+    label: 'Cancelled',
+  },
+};
+
+const STATUS_THEME = {
+  initiated: {
+    bg: '#FFF4D6',
+    dot: '#B58100',
+    text: '#7A5800',
+    label: 'Return Initiated',
+  },
+  accepted: {
+    bg: '#FFF4D6',
+    dot: '#B58100',
+    text: '#7A5800',
+    label: 'Return accepted',
+  },
+  processing: {
+    bg: '#FFF0E0',
+    dot: '#C45C00',
+    text: '#7A3A00',
+    label: 'Processing',
+  },
+  shipping: {
+    bg: '#E0EAFF',
+    dot: '#2F5DDB',
+    text: '#1B3FA1',
+    label: 'Shipping',
+  },
+  out_for_delivery: {
+    bg: '#E0F2E9',
+    dot: '#08ccfd',
+    text: '#075646',
+    label: 'Out For Delivery',
+  },
+  delivered: {
+    bg: '#E0F2E9',
+    dot: '#0D8A4A',
+    text: '#0D5C2F',
+    label: 'Delivered',
+  },
+  cancellation: {
+    bg: '#FDE3E3',
+    dot: '#C62828',
+    text: '#9F1818',
+    label: 'Cancelled',
+  },
+};
+
+
+/** @param {unknown} meta */
+function parseEventMeta(meta) {
+  if (meta == null) return {};
+  if (typeof meta === 'object') return /** @type {Record<string, unknown>} */ (meta);
+  if (typeof meta === 'string') {
+    try {
+      const parsed = JSON.parse(meta);
+      return parsed && typeof parsed === 'object'
+        ? /** @type {Record<string, unknown>} */ (parsed)
+        : {};
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+/** @param {string | null | undefined} name */
+function initialsOf(name) {
+  const parts = String(name ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length === 0) return '—';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+/**
+ * Pull a non-empty string from an object trying multiple key aliases.
+ * @param {Record<string, unknown> | null | undefined} obj
+ * @param {string[]} keys
+ */
+function pickStr(obj, keys) {
+  if (!obj || typeof obj !== 'object') return '';
+  for (const k of keys) {
+    const v = /** @type {Record<string, unknown>} */ (obj)[k];
+    if (v == null) continue;
+    const s = String(v).trim();
+    if (s) return s;
+  }
+  return '';
+}
+
+/**
+ * Normalize a shipping address that may arrive as:
+ *  - a plain string
+ *  - a JSON-stringified object (jsonb cast to text from the API)
+ *  - a parsed object with various key aliases
+ * @param {unknown} input
+ * @returns {{
+ *   recipient: string;
+ *   phone: string;
+ *   email: string;
+ *   street: string;
+ *   street2: string;
+ *   city: string;
+ *   state: string;
+ *   zip: string;
+ *   country: string;
+ *   text: string;
+ * }}
+ */
+function parseShippingAddress(input) {
+  /** @type {Record<string, unknown> | null} */
+  let obj = null;
+
+  if (input && typeof input === 'object') {
+    obj = /** @type {Record<string, unknown>} */ (input);
+  } else if (typeof input === 'string') {
+    const s = input.trim();
+    if (!s || s === '—') {
+      return emptyAddress();
+    }
+    if (s.startsWith('{') || s.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(s);
+        if (parsed && typeof parsed === 'object') {
+          obj = /** @type {Record<string, unknown>} */ (parsed);
+        }
+      } catch {
+        /* fall through to plain string */
+      }
+    }
+    if (!obj) {
+      return { ...emptyAddress(), text: s };
+    }
+  } else {
+    return emptyAddress();
+  }
+
+  // Some payloads wrap a flat string: { address: "..." }
+  const flat = pickStr(obj, ['address', 'summary']);
+  const recipient = pickStr(obj, ['fullName', 'name', 'recipient', 'receiver']);
+  const phone = pickStr(obj, ['phone', 'phoneNumber', 'mobile']);
+  const email = pickStr(obj, ['email']);
+  const street = pickStr(obj, [
+    'street',
+    'address1',
+    'addressLine1',
+    'line1',
+    'street1',
+  ]);
+  const street2 = pickStr(obj, [
+    'address2',
+    'addressLine2',
+    'line2',
+    'apartment',
+    'suite',
+  ]);
+  const city = pickStr(obj, ['city', 'town', 'locality', 'address3']);
+  const state = pickStr(obj, ['state', 'region', 'province', 'stateName']);
+  const zip = pickStr(obj, [
+    'zip',
+    'postalCode',
+    'postcode',
+    'zipcode',
+    'postal_code',
+  ]);
+  const country = pickStr(obj, ['country', 'countryName']);
+
+  const cityStateZip = [city, state, zip].filter(Boolean).join(', ');
+  const lines = [street, street2, cityStateZip, country].filter(Boolean);
+  const text = lines.length > 0 ? lines.join('\n') : flat || '—';
+
+  return {
+    recipient,
+    phone,
+    email,
+    street,
+    street2,
+    city,
+    state,
+    zip,
+    country,
+    text,
+  };
+}
+
+function emptyAddress() {
+  return {
+    recipient: '',
+    phone: '',
+    email: '',
+    street: '',
+    street2: '',
+    city: '',
+    state: '',
+    zip: '',
+    country: '',
+    text: '—',
+  };
+}
+
+function StatusPill({ theme, label }) {
+  return (
+    <View style={[styles.pill, { backgroundColor: theme.bg }]}>
+      <View style={[styles.pillDot, { backgroundColor: theme.dot }]} />
+      <Text style={[styles.pillText, { color: theme.text }]}>
+        {label ?? theme.label}
+      </Text>
+    </View>
+  );
+}
+
+function SectionLabel({ children }) {
+  return <Text style={styles.sectionLabel}>{children}</Text>;
+}
+
+/** @param {{ icon: string; label: string; value?: React.ReactNode; last?: boolean }} p */
+function SummaryRow({ icon, label, value, last }) {
+  return (
+    <View style={[styles.summaryRow, last && styles.summaryRowLast]}>
+      <Icon name={icon} size={18} color={MUTED} style={styles.summaryIcon} />
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <View style={styles.summaryValue}>
+        {typeof value === 'string' || typeof value === 'number' ? (
+          <Text style={styles.summaryValueText} numberOfLines={1}>
+            {String(value)}
+          </Text>
+        ) : (
+          value
+        )}
+      </View>
+    </View>
+  );
+}
+
+/** @param {{ label: string; value: string; bold?: boolean; muted?: boolean }} p */
+function MoneyRow({ label, value, bold, muted }) {
+  return (
+    <View style={styles.moneyRow}>
+      <Text style={[styles.moneyLabel, muted && styles.moneyLabelMuted]}>
+        {label}
+      </Text>
+      <Text style={[styles.moneyValue, bold && styles.moneyValueBold]}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
+export default function ReturnDetailScreen() {
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+  const route = useRoute();
+  const auth = useSelector(s => s.auth);
+  const order = /** @type {Record<string, unknown> | undefined} */ (
+    route.params?.returnItem
+  );
+  const [statusKey, setStatusKey] = useState(null);
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const [cancelledModalOpen, setCancelledModalOpen] = useState(false);
+  const { returnInfo } = useSelector(s => s.returnInfo);
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    connectChatSocket();
+  }, []);
+
+  const isReturnCancelled = statusKey === 'return_cancellation';
+
+  const cancellationDetails = useMemo(() => {
+    if (!isReturnCancelled) return null;
+
+    const events = Array.isArray(returnInfo?.return_events)
+      ? returnInfo.return_events
+      : [];
+    const cancelEvent = [...events].reverse().find(e => {
+      const stage = String(e?.stage ?? '').toLowerCase();
+      const type = String(e?.event_type ?? '').toLowerCase();
+      return (
+        stage === 'return_cancellation' ||
+        type === 'cancellation' ||
+        stage.includes('cancel')
+      );
+    });
+
+    const meta = parseEventMeta(cancelEvent?.meta);
+    const actor = String(cancelEvent?.actor_type ?? '').toLowerCase();
+    const cancelledBy =
+      meta.cancelled_by === 'vendor' || meta.cancelled_by === 'customer'
+        ? String(meta.cancelled_by)
+        : actor === 'vendor' || actor === 'customer'
+          ? actor
+          : null;
+
+    const reason =
+      meta.reason != null && String(meta.reason).trim()
+        ? String(meta.reason).trim()
+        : cancelEvent?.notes != null && String(cancelEvent.notes).trim()
+          ? String(cancelEvent.notes).trim()
+          : null;
+
+    let message;
+    if (cancelledBy === 'customer') {
+      message =
+        auth.activeRole === 'customer'
+          ? 'You cancelled this return. No further actions are available.'
+          : 'The buyer cancelled this return. No further actions are available.';
+    } else if (cancelledBy === 'vendor') {
+      message =
+        auth.activeRole === 'vendor'
+          ? 'You cancelled this return. No further actions are available.'
+          : 'The vendor cancelled this return. No further actions are available.';
+    } else {
+      message =
+        'This return has been cancelled. No further actions are available.';
+    }
+
+    return { cancelledBy, message, reason };
+  }, [auth.activeRole, isReturnCancelled, returnInfo?.return_events]);
+
+  const showCancelledModal = useCallback(() => {
+    setCancelledModalOpen(true);
+  }, []);
+
+  const blockIfCancelled = useCallback(() => {
+    if (!isReturnCancelled) return false;
+    showCancelledModal();
+    return true;
+  }, [isReturnCancelled, showCancelledModal]);
+
+  const openActions = useCallback(() => {
+    if (blockIfCancelled()) return;
+    setActionsOpen(true);
+  }, [blockIfCancelled]);
+  const closeActions = useCallback(() => setActionsOpen(false), []);
+
+  const returnNumber = useMemo(() => {
+    const n = order?.orderId ?? order?.return_id ?? '1928';
+    return String(n).replace(/^ORD-/i, '');
+  }, [order]);
+
+
+  useEffect(() => {
+    if (!returnInfo) return;
+    setStatusKey(returnInfo?.return?.status);
+  }, [returnInfo]);
+
+  useEffect(() => {
+    if (auth.activeRole === 'customer') {
+      (async () => {
+        await connectChatSocket();
+        fetchBuyerReturn(route.params.returnItem.orderId)
+          .then(({ return: ret }) => {
+            dispatch(set_returnInfo(ret));
+          })
+          .catch(err => console.log(err));
+      })();
+    } else {
+      (async () => {
+        await connectChatSocket();
+        let { id: userId } = await getStoredUser();
+        let shop = await fetchOwnerShops(userId);
+        let sid = shop[0].id;
+        fetchShopReturnDetail(sid, route.params.returnItem.return_id, userId)
+          .then(({ return: ret }) => {
+            dispatch(set_returnInfo(ret));
+          })
+          .catch(err => console.log(err));
+      })();
+    }
+  }, [route]);
+
+  const payKey = String(order?.paymentStatus ?? 'paid').toLowerCase();
+  const payTheme = PAY_THEME[payKey] ?? PAY_THEME.paid;
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerTitle: () => (
+        <View>
+          <Text style={{ fontWeight: 700, fontSize: 18 }}>
+            Return #{returnNumber}
+          </Text>
+          <StatusPill theme={payTheme} />
+        </View>
+      ),
+      headerRight: () => (
+        <Pressable
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          onPress={openActions}
+          style={({ pressed }) => [
+            styles.headerEllipsis,
+            pressed && styles.pressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="More order actions"
+        >
+          <Icon name="ellipsis-horizontal" size={22} color={TEXT} />
+        </Pressable>
+      ),
+    });
+  }, [navigation, returnNumber, openActions, payTheme]);
+  const statusTheme =
+    STATUS_THEME[returnInfo?.return?.status] ?? 'Not Available';
+  const fmt = useCallback(n => {
+    if (typeof n === 'string') return n;
+    if (!Number.isFinite(Number(n))) return '—';
+    return formatNaira(Number(n));
+  }, []);
+
+  /** Vendor: delivery address from order + user. Customer: shop premises from {@link returnInfo.shop.location}. */
+  const displayShipping = useMemo(() => {
+    if (auth.activeRole === 'vendor') {
+      const raw =
+        returnInfo?.return?.shipping_address ??
+        returnInfo?.payment_info?.metadata?.shipping_address ??
+        '';
+      let parsed = parseShippingAddress(raw);
+      const loc = returnInfo?.user?.location || returnInfo?.customer?.location;
+      if (loc && typeof loc === 'object') {
+        parsed = {
+          ...parsed,
+          city: parsed.city || pickStr(loc, ['city']),
+          state: parsed.state || pickStr(loc, ['state']),
+          zip:
+            parsed.zip ||
+            pickStr(loc, ['zipcode', 'zip', 'postalCode', 'postcode']),
+          country: parsed.country || pickStr(loc, ['country', 'countryName']),
+        };
+      }
+      if (
+        !parsed.street &&
+        !parsed.street2 &&
+        parsed.text &&
+        parsed.text !== '—'
+      ) {
+        return { ...parsed, street: parsed.text };
+      }
+      return parsed;
+    }
+
+    if (auth.activeRole !== 'customer') {
+      return emptyAddress();
+    }
+
+    /** @type {unknown} */
+    let locRaw = returnInfo?.shop?.location;
+    if (typeof locRaw === 'string') {
+      const s = locRaw.trim();
+      if (!s) {
+        locRaw = null;
+      } else if (s.startsWith('{')) {
+        try {
+          const parsed = JSON.parse(s);
+          locRaw = parsed && typeof parsed === 'object' ? parsed : null;
+        } catch {
+          locRaw = null;
+        }
+      } else {
+        locRaw = { address: s };
+      }
+    }
+
+    const loc =
+      locRaw && typeof locRaw === 'object'
+        ? /** @type {Record<string, unknown>} */ (locRaw)
+        : null;
+    if (!loc) {
+      return emptyAddress();
+    }
+    const street = pickStr(loc, ['address', 'street', 'line1', 'addressLine1']);
+    const street2 = pickStr(loc, [
+      'address2',
+      'street2',
+      'line2',
+      'addressLine2',
+    ]);
+    const city = pickStr(loc, ['city', 'town', 'locality']);
+    const state = pickStr(loc, ['state', 'region', 'province', 'stateName']);
+    const zip = pickStr(loc, ['zipcode', 'zip', 'postalCode', 'postcode']);
+    const country = pickStr(loc, ['country', 'countryName']);
+    const cityStateZip = [city, state, zip].filter(Boolean).join(', ');
+    const lines = [street, street2, cityStateZip, country].filter(Boolean);
+    const text = lines.length > 0 ? lines.join('\n') : '—';
+    return {
+      ...emptyAddress(),
+      street,
+      street2,
+      city,
+      state,
+      zip,
+      country,
+      text,
+    };
+  }, [returnInfo, auth.activeRole]);
+
+  const counterpartEmail = useMemo(() => {
+    if (auth.activeRole === 'vendor') {
+      const u = returnInfo?.user;
+      if (u && typeof u === 'object') {
+        const e = pickStr(/** @type {Record<string, unknown>} */ (u), [
+          'email',
+        ]);
+        if (e) return e;
+      }
+      const pe = returnInfo?.payment_info?.customer_email;
+      if (pe != null && String(pe).trim()) return String(pe).trim();
+      return '';
+    }
+    if (auth.activeRole === 'customer') {
+      const s = returnInfo?.shop;
+      if (s && typeof s === 'object') {
+        const so = /** @type {Record<string, unknown>} */ (s);
+        const e1 = pickStr(so, ['contactemail', 'contactEmail', 'email']);
+        if (e1) return e1;
+        const owner = so.owner;
+        if (owner && typeof owner === 'object') {
+          const e2 = pickStr(/** @type {Record<string, unknown>} */ (owner), [
+            'email',
+          ]);
+          if (e2) return e2;
+        }
+      }
+      return '';
+    }
+    return '';
+  }, [returnInfo, auth.activeRole]);
+
+  const onClose = () => {
+    if (navigation.canGoBack()) navigation.goBack();
+  };
+
+  const onMail = () => {
+    if (blockIfCancelled()) return;
+    if (!counterpartEmail) {
+      Alert.alert(
+        'Message',
+        'No email address is on file for this party yet. Use in-app chat when available.',
+      );
+      return;
+    }
+    Linking.openURL(`mailto:${counterpartEmail}`).catch(() => {});
+  };
+
+  const onDownloadInvoice = () => {
+    if (blockIfCancelled()) return;
+    Alert.alert(
+      'Download invoice',
+      'Invoice will be generated and downloaded.',
+    );
+  };
+
+  const onRefund = () => {
+    if (blockIfCancelled()) return;
+    Alert.alert('Refund order', `Refund order #${returnNumber}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Refund', style: 'destructive', onPress: () => {} },
+    ]);
+  };
+
+  const onCancelReturn = useCallback(async () => {
+    if(!statusKey)return;
+    if (statusKey === "return_delivered") {
+      Alert.alert(
+        "Cannot cancel order after delivery",
+        "This order has already been delivered. If there is an issue with the item, please raise a dispute instead.",
+        [
+          {
+            text: "Close",
+            style: "cancel",
+          },
+          (!returnInfo?.dispute &&
+          {
+            text: "Raise Dispute",
+            onPress: () => {
+              navigation.navigate("Open-dispute", {
+                orderId: order.id,
+              });
+            },
+          })
+        ]
+      );
+      return;
+    }
+    if (blockIfCancelled()) return;
+    if (!returnInfo?.return) return;
+
+    if (auth.activeRole === 'customer' ) {
+      const u = await getStoredUser();
+      const owners = await fetchShopOwner(returnInfo.return.shop_id);
+      const vendorId = owners[0]?.id;
+      if (vendorId == null) {
+        Alert.alert(
+          'Cannot cancel',
+          'Unable to load the vendor for this order. Try again later.',
+        );
+        return;
+      }
+  
+      const totalPaid = Number(
+        returnInfo.return.return_shipping_fee ?? 0,
+      );
+      const postShipment = (returnInfo.return_events?.length ?? 0) > 3;
+      const restockingFee = Number(returnInfo.return.return_shipping_fee ?? 0);
+  
+      navigation.navigate('Return-action', {
+        action: 'cancellation',
+        data: {
+          return_id: returnInfo.return.id,
+          event_type: 'cancellation',
+          stage: 'return_cancellation',
+          actor_type: 'customer',
+          actor_id: u.id,
+          outcome: 'success',
+          notes: '',
+          recipient: vendorId,
+          post_shipment: true,
+          order_total: totalPaid,
+          restocking_fee: restockingFee,
+        },
+      });
+    }else{
+      const u = await getStoredUser();
+  
+      navigation.navigate('Return-action', {
+        action: 'cancellation',
+        data: {
+          return_id: returnInfo.return.id,
+          event_type: 'cancellation',
+          stage: 'return_cancellation',
+          actor_type: 'vendor',
+          actor_id: u.id,
+          outcome: 'success',
+          notes: '',
+          recipient: returnInfo.return.customer_id,
+        },
+      });
+    }
+  }, [auth.activeRole, blockIfCancelled, navigation, returnInfo, statusKey]);
+
+  const onOpenDispute = useCallback(() => {
+    if(returnInfo?.dispute){
+      navigation.navigate("Dispute-detail", {
+
+      })
+      return;
+    }
+    if (blockIfCancelled()) return;
+    if(auth.activeRole === "customer"){
+      if(statusKey !== "return_delivered"){
+        Alert.alert(
+          'Cannot open dispute at this stage',
+          'To dispute this order, you must confirm you received the order from the vendor first',
+          [{ text: 'OK' }],
+        );
+      }else if(statusKey === "return_delivered"){
+        const oid =
+          returnInfo?.return?.id ??
+          returnInfo?.return?.return_id ??
+          order?.orderId ??
+          order?.order_id;
+        navigation.navigate('Open-dispute', { orderId: oid });
+      }
+    }else{
+      if(statusKey !== "return_delivered"){
+        Alert.alert(
+          'Cannot open dispute at this stage',
+          'To dispute this order, the buyer must confirm he/she received the order from   you (vendor) first',
+          [{ text: 'OK' }],
+        );
+      }else if(statusKey === "return_delivered"){
+        Alert.alert(
+          'Buyer dispute',
+          'Disputes are opened by the buyer from their account after delivery is confirmed.',
+          [{ text: 'OK' }],
+        );
+      }
+    }
+  }, [auth.activeRole, blockIfCancelled, navigation, order, returnInfo, statusKey]);
+
+  const onUpdateStatus = async () => {
+    if (blockIfCancelled()) return;
+    if (!returnInfo?.return) return;
+    const u = await getStoredUser();
+    const base = {
+      return_id: returnInfo.return.id,
+      actor_type: 'vendor',
+      actor_id: u.id,
+      outcome: 'pending',
+      notes: '',
+      recipient: returnInfo.return.customer_id,
+      meta: {},
+    };
+
+    if (auth.activeRole === 'vendor') {
+      if (statusKey === 'return_accepted') {
+        navigation.navigate('Return-action', {
+          action: 'processing',
+          data: {
+            ...base,
+            event_type: 'processing',
+            stage: 'return_processing',
+          },
+        });
+        return;
+      }
+
+      if (statusKey === 'return_processing') {
+        navigation.navigate('Return-action', {
+          action: 'shipping',
+          data: {
+            ...base,
+            event_type: 'shipping',
+            stage: 'return_shipping',
+          },
+        });
+        return;
+      }
+
+      if (statusKey === 'return_shipping') {
+        navigation.navigate('Return-action', {
+          action: 'out_for_delivery',
+          data: {
+            ...base,
+            event_type: 'delivery',
+            stage: 'return_out_for_delivery',
+          },
+        });
+        return;
+      }
+
+      if (statusKey === 'return_out_for_delivery') {
+        navigation.navigate('Return-action', {
+          action: 'delivered',
+          data: {
+            ...base,
+            event_type: 'delivered',
+            stage: 'return_delivered',
+          },
+        });
+      }
+    } else {
+      if (statusKey === 'return_delivered') {
+        navigation.navigate('Return-action', {
+          action: 'confirmation',
+          data: {
+            ...base,
+            event_type: 'confirmation',
+            stage: 'return_confirmation',
+          },
+        });
+        return;
+      }
+    }
+  };
+
+  const ORDER_ACTIONS = [
+    {
+      key: 'Message',
+      label:
+        auth.activeRole === 'vendor' ? 'Message customer' : 'Message vendor',
+      icon: 'mail-outline',
+      onPress: () => {
+        closeActions();
+        onMail();
+      },
+    },
+    {
+      key: 'status',
+      label: 'Update status',
+      icon: 'refresh-outline',
+      onPress: () => {
+        closeActions();
+        onUpdateStatus();
+      },
+    },
+    {
+      key: 'invoice',
+      label: 'Download invoice',
+      icon: 'download-outline',
+      onPress: () => {
+        closeActions();
+        onDownloadInvoice();
+      },
+    },
+    {
+      key: 'refund',
+      label: 'Refund order',
+      icon: 'return-up-back-outline',
+      onPress: () => {
+        closeActions();
+        onRefund();
+      },
+      destructive: true,
+    },
+    ...(auth.activeRole === 'vendor' &&
+    returnInfo?.return_events?.length > 1 &&
+    !isReturnCancelled
+      ? [
+          {
+            key: 'cancel-order',
+            label: 'Cancel return',
+            icon: 'close-circle-outline',
+            onPress: () => {
+              closeActions();
+              onCancelReturn();
+            },
+            destructive: true,
+          },
+        ]
+      : []),
+  ];
+
+  if (!returnInfo) {
+    return (
+      <>
+        <View
+          style={{
+            flex: 1,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <ActivityIndicator color={'#0D8A4A'} size={'large'} />
+        </View>
+      </>
+    );
+  }
+
+  return (
+    <View style={[styles.root, { paddingTop: 0 }]}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: 110 + Math.max(insets.bottom, 16) },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.card}>
+          <SectionLabel>Return Summary</SectionLabel>
+          <SummaryRow
+            icon="time-outline"
+            label="Return Date"
+            value={new Date(returnInfo?.return?.created_at).toLocaleString()}
+          />
+          <SummaryRow
+            icon="checkmark-circle-outline"
+            label="Return Status"
+            value={<StatusPill theme={statusTheme} />}
+          />
+          <SummaryRow
+            icon="location-outline"
+            label="Shipping Address"
+            value={displayShipping.text}
+          />
+
+          <SummaryRow
+            icon="cube-outline"
+            label="Shipping Method"
+            value={String(
+              returnInfo?.return?.shipping_method?.split('_').join(' ') ||
+                'Awaiting shipment',
+            )}
+          />
+          <SummaryRow
+            icon="calendar-outline"
+            label="Estimated Delivery Date"
+            value={String(
+              returnInfo?.return?.estimated_delivery_date?.split('_').join(' ') ||
+                'Not Available',
+            )}
+          />
+          <SummaryRow
+            icon="pricetag-outline"
+            label="Tracking Number"
+            value={String(
+              returnInfo?.return?.tracking_number || 'Awaiting shipment',
+            )}
+            last
+          />
+        </View>
+
+        {returnInfo?.return_events?.length > 1 && (
+          <View style={styles.card}>
+            <SectionLabel>Return summary</SectionLabel>
+            {isReturnCancelled ? (
+              <View style={styles.cancelledBanner}>
+                <Icon name="close-circle-outline" size={20} color="#C62828" />
+                <Text style={styles.cancelledBannerText}>
+                  {cancellationDetails?.message ??
+                    'This order has been cancelled.'}
+                </Text>
+              </View>
+            ) : null}
+            {!isReturnCancelled ? (
+            <View style={styles.escrowActions}>
+              <Pressable
+                onPress={onCancelReturn}
+                style={({ pressed }) => [
+                  styles.escrowBtn,
+                  styles.escrowBtnCancel,
+                  pressed && styles.pressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel return"
+              >
+                <Text style={styles.escrowBtnCancelText}>Cancel return</Text>
+              </Pressable>
+              <Pressable
+                onPress={onOpenDispute}
+                style={({ pressed }) => [
+                  styles.escrowBtn,
+                  styles.escrowBtnSecondary,
+                  pressed && styles.pressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Open dispute"
+              >
+                <Text style={styles.escrowBtnSecondaryText}>
+                  {
+                    returnInfo?.dispute ? "View dispute" : "Open dispute"
+                  }
+                </Text>
+              </Pressable>
+            </View>
+            ) : null}
+          </View>
+        )}
+
+        <View style={styles.card}>
+          <SectionLabel>
+            {auth.activeRole === 'vendor' ? 'Customer Info' : 'Shop detail'}
+          </SectionLabel>
+          {auth.activeRole === 'vendor' && (
+            <View style={styles.customerHead}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {initialsOf(
+                    `${returnInfo?.user?.fname || returnInfo?.customer?.fname} ${
+                      returnInfo?.user?.lname || returnInfo?.customer?.lname
+                    }`,
+                  )}
+                </Text>
+              </View>
+              <View style={styles.customerTitleRow}>
+                <View style={styles.customerNameCol}>
+                  <Text style={styles.customerName} numberOfLines={1}>
+                    {`${returnInfo?.user?.fname || returnInfo?.customer?.fname} ${
+                      returnInfo?.user?.lname || returnInfo?.customer?.lname
+                    }`}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={onMail}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={({ pressed }) => [
+                    styles.headMessageBtn,
+                    pressed && styles.pressed,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Message customer"
+                >
+                  <Icon name="mail-outline" size={22} color={ACCENT} />
+                </Pressable>
+              </View>
+            </View>
+          )}
+          {auth.activeRole !== 'vendor' && (
+            <View style={styles.customerHead}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {initialsOf(`${returnInfo?.shop?.name}`)}
+                </Text>
+              </View>
+              <View style={styles.customerTitleRow}>
+                <View style={styles.customerNameCol}>
+                  <Text style={styles.customerName} numberOfLines={1}>
+                    {`${returnInfo?.shop?.name}`}
+                  </Text>
+                </View>
+                <Pressable
+                  onPress={onMail}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={({ pressed }) => [
+                    styles.headMessageBtn,
+                    pressed && styles.pressed,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Message vendor"
+                >
+                  <Icon name="mail-outline" size={22} color={ACCENT} />
+                </Pressable>
+              </View>
+            </View>
+          )}
+
+          <View style={styles.shippingBlock}>
+            <Text style={styles.shippingHeader}>
+              {auth.activeRole === 'vendor'
+                ? 'Shipping address'
+                : 'Shop location'}
+            </Text>
+
+            {[displayShipping.street, displayShipping.street2]
+              .filter(Boolean)
+              .join('\n') ? (
+              <View style={[styles.kvRow, styles.kvRowAlignTop]}>
+                <Text style={styles.kvLabel}>Street</Text>
+                <Text style={[styles.kvValue, styles.kvAddress]}>
+                  {[displayShipping.street, displayShipping.street2]
+                    .filter(Boolean)
+                    .join('\n')}
+                </Text>
+              </View>
+            ) : null}
+
+            {displayShipping.city ? (
+              <View style={styles.kvRow}>
+                <Text style={styles.kvLabel}>City</Text>
+                <Text style={styles.kvValue} numberOfLines={1}>
+                  {displayShipping.city}
+                </Text>
+              </View>
+            ) : null}
+            {displayShipping.state ? (
+              <View style={styles.kvRow}>
+                <Text style={styles.kvLabel}>State</Text>
+                <Text style={styles.kvValue} numberOfLines={1}>
+                  {displayShipping.state}
+                </Text>
+              </View>
+            ) : null}
+            {displayShipping.zip ? (
+              <View style={styles.kvRow}>
+                <Text style={styles.kvLabel}>ZIP / Postal</Text>
+                <Text style={styles.kvValue} numberOfLines={1}>
+                  {displayShipping.zip}
+                </Text>
+              </View>
+            ) : null}
+            {displayShipping.country ? (
+              <View style={styles.kvRow}>
+                <Text style={styles.kvLabel}>Country</Text>
+                <Text style={styles.kvValue} numberOfLines={1}>
+                  {displayShipping.country}
+                </Text>
+              </View>
+            ) : null}
+            {!displayShipping.street &&
+            !displayShipping.street2 &&
+            !displayShipping.city &&
+            !displayShipping.state &&
+            !displayShipping.country &&
+            !displayShipping.zip ? (
+              <View style={[styles.kvRow, styles.kvRowAlignTop]}>
+                <Text style={styles.kvLabel}>Address</Text>
+                <Text style={[styles.kvValue, styles.kvAddress]}>
+                  {displayShipping.text}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        {/* <SectionLabel>Items</SectionLabel> */}
+        <View style={styles.card}>
+          {Array.isArray(returnInfo.return_items) &&
+            returnInfo.return_items.map((it, i) => (
+              <View
+                key={String(it.id ?? i)}
+                style={[
+                  styles.itemRow,
+                  i === returnInfo.return_items.length - 1 && styles.itemRowLast,
+                ]}
+              >
+                <View style={styles.itemThumb}>
+                  {it.image ? (
+                    <Image
+                      source={{ uri: String(it.image) }}
+                      style={styles.itemImg}
+                    />
+                  ) : (
+                    <Icon
+                      name="phone-portrait-outline"
+                      size={26}
+                      color="#5C5C66"
+                    />
+                  )}
+                </View>
+                <View style={styles.itemBody}>
+                  <Text style={styles.itemName} numberOfLines={2}>
+                    {String(it.product.name ?? '—')}
+                  </Text>
+                  {/* {it.variant ? (
+                  <Text style={styles.itemVariant} numberOfLines={1}>
+                    {String(it.product.specifications.variants.map(item => item))}
+                  </Text>
+                ) : null} */}
+                </View>
+                <View style={styles.itemRight}>
+                  <View style={styles.qtyChip}>
+                    <Text style={styles.qtyChipLabel}>Quantity</Text>
+                    <Text style={styles.qtyChipValue}>
+                      {Number(it.units ?? 1)}
+                    </Text>
+                  </View>
+                  <Text style={styles.itemPrice}>
+                    {fmt(Number(it.unit_price ?? 0) * Number(it.qty ?? 1))}
+                  </Text>
+                </View>
+              </View>
+            ))}
+        </View>
+
+        <View style={styles.card}>
+          <SectionLabel>Payment</SectionLabel>
+
+          <MoneyRow
+            label="Subtotal"
+            value={fmt(
+              Array.isArray(returnInfo.return_items)
+                ? returnInfo.return_items.reduce(
+                    (acc, curr) => acc + parseInt(curr.total_price, 10),
+                    0,
+                  )
+                : 0,
+            )}
+            muted
+          />
+          <MoneyRow label="Discount" value={fmt(0)} muted />
+          <MoneyRow
+            label="Shipping Cost"
+            value={
+              returnInfo?.return?.shipping_fee &&
+              fmt(returnInfo.return.shipping_fee)
+            }
+            muted
+          />
+          <MoneyRow label="Tax" value={fmt(0)} muted />
+          <View style={styles.moneyDivider} />
+          <MoneyRow
+            label="Total"
+            value={fmt(
+              returnInfo?.return?.shipping_fee &&
+                returnInfo.return_items.reduce(
+                  (acc, curr) => acc + parseInt(curr.total_price),
+                  0,
+                ) + Number(returnInfo?.return?.shipping_fee || 0),
+            )}
+            bold
+          />
+        </View>
+      </ScrollView>
+
+      <View
+        style={[
+          styles.actionBar,
+          { paddingBottom: Math.max(insets.bottom, 12) },
+        ]}
+      >
+        {!isReturnCancelled && returnInfo?.return_events?.length === 1 && auth.activeRole === "customer" && (
+          <>
+            <Pressable
+              // onPress={onRefund}
+              onPress={e => {
+                if (blockIfCancelled()) return;
+                const u = getStoredUser();
+                navigation.navigate('Return-action', {
+                  action: 'acceptance',
+                  data: {
+                    return_id: returnInfo.return.id,
+                    event_type: 'acceptance',
+                    stage: 'return_accepted',
+                    actor_type: 'vendor',
+                    actor_id: u.id,
+                    outcome: 'success',
+                    notes: '',
+                    recipient: returnInfo.return.customer_id,
+                    meta: {},
+                  },
+                });
+              }}
+              style={({ pressed }) => [
+                styles.btnAccept,
+                pressed && styles.btnAcceptPressed,
+              ]}
+            >
+              <Text style={styles.btnAcceptText}>Accept</Text>
+            </Pressable>
+
+            <Pressable
+              // onPress={onResendInvoice}
+              onPress={e => {
+                if (blockIfCancelled()) return;
+                const u = getStoredUser();
+                navigation.navigate('Return-action', {
+                  action: 'acceptance',
+                  data: {
+                    return_id: returnInfo.return.id,
+                    event_type: 'acceptance',
+                    stage: 'return_rejected',
+                    actor_type: 'vendor',
+                    actor_id: u.id,
+                    outcome: 'failure',
+                    notes: '',
+                    recipient: returnInfo.return.customer_id,
+                    meta: {},
+                  },
+                });
+              }}
+              style={({ pressed }) => [
+                styles.btnReject,
+                pressed && styles.btnRejectPressed,
+              ]}
+            >
+              <Text style={styles.btnRejectText}>Reject</Text>
+            </Pressable>
+          </>
+        )}
+        {!isReturnCancelled && returnInfo?.return_events?.length > 1 &&  (
+          statusKey !== "delivered" && auth.activeRole === 'vendor' ? '' : 
+          <Pressable
+            onPress={onUpdateStatus}
+            disabled={
+              statusKey === 'delivered' && auth.activeRole === 'vendor'
+                ? true
+                : false
+            }
+            style={({ pressed }) => [
+              styles.btnPrimary,
+              pressed && styles.btnPrimaryPressed,
+            ]}
+          >
+            <Text style={styles.btnPrimaryText}>
+              {auth.activeRole === 'customer'
+                ? statusKey === 'return_accepted'
+                  ? 'Start Processing Order'
+                  : statusKey === 'return_processing'
+                  ? 'Start Shipping Order'
+                  : statusKey === 'return_shipping'
+                  ? 'Notify Buyer For Pickup'
+                  : statusKey === 'return_out_for_delivery'
+                  ? 'Confirm Buyer Has Recieved The Order'
+                  : "Awaiting Buyer's Confirmation"
+                : ''}
+              {auth.activeRole === 'vendor' ? 'Confirm delivery' : ''}
+            </Text>
+          </Pressable>
+        )}
+
+        {!isReturnCancelled && auth.activeRole === 'vendor' && statusKey !== "delivered" ? 
+          <Pressable 
+          disabled
+          style={({ pressed }) => [
+            styles.btnPrimary,
+            pressed && styles.btnPrimaryPressed,
+            {backgroundColor: "#000"}
+          ]}
+          >
+             <Text style={[styles.btnPrimaryText, {textTransform: "capitalize"}]}>
+              {
+                statusKey === "return_initiated"?
+                "Awaiting Vendor's Approval" : statusKey?.split("_")?.join(" ")
+              }
+            </Text>
+          </Pressable>
+         : ''}
+      </View>
+
+      <Modal
+        visible={actionsOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={closeActions}
+      >
+        <View style={styles.sheetRoot}>
+          <Pressable style={styles.sheetDismiss} onPress={closeActions} />
+          <View
+            style={[
+              styles.sheet,
+              { paddingBottom: Math.max(insets.bottom, 16) + 8 },
+            ]}
+          >
+            <View style={styles.sheetHandle} />
+            <Text style={styles.sheetTitle}>Order actions</Text>
+            {ORDER_ACTIONS.map(action => (
+              <Pressable
+                key={action.key}
+                onPress={() => {
+                  if (blockIfCancelled()) return;
+                  action.onPress();
+                }}
+                style={({ pressed }) => [
+                  styles.sheetRow,
+                  pressed && styles.sheetRowPressed,
+                ]}
+              >
+                <Icon
+                  name={action.icon}
+                  size={22}
+                  color={action.destructive ? '#C62828' : TEXT}
+                  style={styles.sheetRowIcon}
+                />
+                <Text
+                  style={[
+                    styles.sheetRowText,
+                    action.destructive && styles.sheetRowTextDestructive,
+                  ]}
+                >
+                  {action.label}
+                </Text>
+              </Pressable>
+            ))}
+            <Pressable
+              onPress={closeActions}
+              style={({ pressed }) => [
+                styles.sheetCloseRow,
+                pressed && styles.sheetRowPressed,
+              ]}
+            >
+              <Text style={styles.sheetCloseText}>Close</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={cancelledModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setCancelledModalOpen(false)}
+      >
+        <View style={styles.cancelledModalRoot}>
+          <Pressable
+            style={styles.sheetDismiss}
+            onPress={() => setCancelledModalOpen(false)}
+          />
+          <View style={styles.cancelledModalCard}>
+            <Icon name="close-circle-outline" size={44} color="#C62828" />
+            <Text style={styles.cancelledModalTitle}>Order cancelled</Text>
+            <Text style={styles.cancelledModalBody}>
+              {cancellationDetails?.message ??
+                'This order has been cancelled. No further actions are available.'}
+            </Text>
+            {cancellationDetails?.reason ? (
+              <Text style={styles.cancelledModalReason}>
+                Reason: {cancellationDetails.reason}
+              </Text>
+            ) : null}
+            <Pressable
+              onPress={() => setCancelledModalOpen(false)}
+              style={({ pressed }) => [
+                styles.cancelledModalBtn,
+                pressed && styles.btnPrimaryPressed,
+              ]}
+            >
+              <Text style={styles.cancelledModalBtnText}>OK</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: PAGE_BG,
+  },
+  headerBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingTop: 14,
+  },
+  headerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexShrink: 1,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: BLACK,
+    letterSpacing: -0.4,
+  },
+  headerDate: {
+    fontSize: 13,
+    color: MUTED,
+    paddingHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  headerDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#E2E2E6',
+    marginHorizontal: 0,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: WHITE,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#E2E2E6',
+  },
+  pressed: {
+    opacity: 0.85,
+  },
+  scroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 8,
+  },
+  sectionLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: BLACK,
+    marginTop: 16,
+    marginBottom: 10,
+  },
+  sectionHeadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 16,
+    marginBottom: 10,
+  },
+  linkText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: ACCENT,
+  },
+  linkArrow: {
+    transform: [{ rotate: '45deg' }],
+  },
+  card: {
+    backgroundColor: WHITE,
+    borderRadius: 5,
+    paddingVertical: 5,
+    paddingHorizontal: 14,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#E8E8EC',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.04,
+        shadowRadius: 6,
+      },
+      android: { elevation: 1 },
+    }),
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  pillDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  pillText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: HAIR,
+  },
+  summaryRowLast: {
+    borderBottomWidth: 0,
+  },
+  summaryIcon: {
+    width: 22,
+    marginRight: 8,
+  },
+  summaryLabel: {
+    flex: 1,
+    fontSize: 11,
+    color: TEXT,
+  },
+  summaryValue: {
+    alignItems: 'flex-end',
+    flexShrink: 0,
+  },
+  summaryValueText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: BLACK,
+    textTransform: 'capitalize',
+  },
+  escrowStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: HAIR,
+  },
+  escrowAmountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingTop: 12,
+    paddingBottom: 2,
+  },
+  escrowAmountLabel: {
+    fontSize: 13,
+    color: MUTED,
+    fontWeight: '600',
+  },
+  escrowAmountValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: BLACK,
+    flexShrink: 0,
+  },
+  escrowStatusLabel: {
+    fontSize: 13,
+    color: TEXT,
+    fontWeight: '600',
+  },
+  escrowCaption: {
+    fontSize: 12,
+    color: MUTED,
+    lineHeight: 17,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  escrowActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  escrowBtn: {
+    flex: 1,
+    height: 44,
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  escrowBtnCancel: {
+    borderColor: '#F2B8B5',
+    backgroundColor: '#FFF8F7',
+  },
+  escrowBtnCancelText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#C62828',
+  },
+  escrowBtnSecondary: {
+    borderColor: '#D6D6DC',
+    backgroundColor: WHITE,
+  },
+  escrowBtnSecondaryText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: TEXT,
+  },
+  cancelledBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginTop: 12,
+    marginBottom: 6,
+    padding: 12,
+    borderRadius: 5,
+    backgroundColor: '#FFF8F7',
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#F2B8B5',
+  },
+  cancelledBannerText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 19,
+    color: '#9F1818',
+    fontWeight: '500',
+  },
+  cancelledModalRoot: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  cancelledModalCard: {
+    backgroundColor: WHITE,
+    borderRadius: 8,
+    padding: 24,
+    alignItems: 'center',
+    gap: 10,
+  },
+  cancelledModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: BLACK,
+    marginTop: 4,
+  },
+  cancelledModalBody: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: MUTED,
+    textAlign: 'center',
+  },
+  cancelledModalReason: {
+    fontSize: 13,
+    lineHeight: 19,
+    color: TEXT,
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  cancelledModalBtn: {
+    marginTop: 8,
+    width: '100%',
+    height: 48,
+    borderRadius: 5,
+    backgroundColor: ACCENT,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelledModalBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: WHITE,
+  },
+  customerHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingBottom: 12,
+    marginBottom: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: HAIR,
+  },
+  customerTitleRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 0,
+    gap: 8,
+  },
+  headMessageBtn: {
+    padding: 4,
+    flexShrink: 0,
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 5,
+    backgroundColor: '#EAEAEE',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#5C5C66',
+  },
+  customerNameCol: {
+    flex: 1,
+    minWidth: 0,
+  },
+  customerName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: BLACK,
+  },
+  customerEmail: {
+    fontSize: 12,
+    color: MUTED,
+    marginTop: 2,
+  },
+  headIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headIconDot: {
+    position: 'absolute',
+    top: 6,
+    right: 7,
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#E5484D',
+    borderWidth: 1,
+    borderColor: WHITE,
+  },
+  kvRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+  },
+  kvRowAlignTop: {
+    alignItems: 'flex-start',
+  },
+  kvLabel: {
+    flex: 1,
+    fontSize: 13,
+    color: MUTED,
+  },
+  kvValueWrap: {
+    flex: 1.4,
+    alignItems: 'flex-end',
+  },
+  kvValue: {
+    flex: 1.4,
+    fontSize: 13,
+    fontWeight: '600',
+    color: TEXT,
+    textAlign: 'right',
+  },
+  kvAddress: {
+    lineHeight: 18,
+  },
+  shippingBlock: {
+    marginTop: 6,
+    paddingTop: 6,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: HAIR,
+  },
+  shippingHeader: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: MUTED,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginTop: 6,
+    marginBottom: 2,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: HAIR,
+  },
+  itemRowLast: {
+    borderBottomWidth: 0,
+  },
+  itemThumb: {
+    width: 56,
+    height: 56,
+    borderRadius: 5,
+    backgroundColor: '#F4F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  itemImg: {
+    width: '100%',
+    height: '100%',
+  },
+  itemBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+  itemName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: BLACK,
+  },
+  itemVariant: {
+    fontSize: 12,
+    color: MUTED,
+    marginTop: 2,
+  },
+  itemRight: {
+    alignItems: 'flex-end',
+    gap: 8,
+  },
+  qtyChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F4F4F6',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 5,
+  },
+  qtyChipLabel: {
+    fontSize: 11,
+    color: MUTED,
+    fontWeight: '600',
+  },
+  qtyChipValue: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: BLACK,
+  },
+  itemPrice: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: BLACK,
+  },
+  moneyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 7,
+  },
+  moneyLabel: {
+    fontSize: 13,
+    color: TEXT,
+  },
+  moneyLabelMuted: {
+    color: MUTED,
+  },
+  moneyValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: TEXT,
+  },
+  moneyValueBold: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: BLACK,
+  },
+  moneyDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#E2E2E6',
+    marginVertical: 6,
+  },
+  tlRow: {
+    flexDirection: 'row',
+    minHeight: 56,
+  },
+  tlTrack: {
+    width: 22,
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  tlDot: {
+    width: 22,
+    height: 22,
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  tlDotDone: {
+    backgroundColor: '#0D8A4A',
+  },
+  tlDotPending: {
+    backgroundColor: WHITE,
+    borderWidth: 2,
+    borderColor: '#D6D6DC',
+  },
+  tlLine: {
+    width: 2,
+    flex: 1,
+    minHeight: 22,
+    marginTop: 2,
+    backgroundColor: '#E2E2E6',
+  },
+  tlLineDone: {
+    backgroundColor: '#BFE6CD',
+  },
+  tlBody: {
+    flex: 1,
+    paddingBottom: 14,
+  },
+  tlHeadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  tlTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: BLACK,
+    flexShrink: 1,
+  },
+  tlTitleMuted: {
+    color: MUTED,
+    fontWeight: '600',
+  },
+  tlDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  tlDate: {
+    fontSize: 12,
+    color: MUTED,
+  },
+  tlSubtitle: {
+    fontSize: 12,
+    color: MUTED,
+    marginTop: 4,
+  },
+  actionBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    backgroundColor: WHITE,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E2E2E6',
+  },
+  btnGhost: {
+    flex: 1,
+    height: 44,
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: WHITE,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: '#D6D6DC',
+  },
+  btnGhostText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: TEXT,
+  },
+  btnPrimary: {
+    flex: 1.2,
+    height: 44,
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: ACCENT,
+  },
+  btnPrimaryPressed: {
+    backgroundColor: ACCENT_PRESSED,
+  },
+  btnPrimaryText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: WHITE,
+  },
+  btnAccept: {
+    flex: 1,
+    height: 44,
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0D8A4A',
+  },
+  btnAcceptPressed: {
+    backgroundColor: '#0A6B3A',
+  },
+  btnAcceptText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: WHITE,
+  },
+  btnReject: {
+    flex: 1,
+    height: 44,
+    borderRadius: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#C62828',
+  },
+  btnRejectPressed: {
+    backgroundColor: '#A01A1A',
+  },
+  btnRejectText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: WHITE,
+  },
+  sheetRoot: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  sheetDismiss: {
+    flex: 1,
+  },
+  sheet: {
+    backgroundColor: WHITE,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+  },
+  sheetHandle: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: 5,
+    backgroundColor: '#D6D6DC',
+    marginBottom: 12,
+  },
+  sheetTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: MUTED,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    paddingHorizontal: 8,
+    marginBottom: 6,
+  },
+  sheetRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 5,
+  },
+  sheetRowPressed: {
+    backgroundColor: '#F5F5F7',
+  },
+  sheetDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  sheetRowText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
+    color: TEXT,
+  },
+  sheetRowIcon: {
+    width: 22,
+    textAlign: 'center',
+  },
+  sheetRowTextDestructive: {
+    color: '#C62828',
+  },
+  sheetCloseRow: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    marginTop: 4,
+  },
+  sheetCloseText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: MUTED,
+  },
+  headerEllipsis: {
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    marginRight: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});
