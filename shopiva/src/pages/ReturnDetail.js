@@ -278,7 +278,7 @@ function SummaryRow({ icon, label, value, last }) {
       <Text style={styles.summaryLabel}>{label}</Text>
       <View style={styles.summaryValue}>
         {typeof value === 'string' || typeof value === 'number' ? (
-          <Text style={styles.summaryValueText} numberOfLines={2}>
+          <Text style={styles.summaryValueText} numberOfLines={1}>
             {String(value)}
           </Text>
         ) : (
@@ -1559,7 +1559,7 @@ const styles = StyleSheet.create({
   summaryValue: {
     alignItems: 'flex-end',
     flexShrink: 0,
-    width: "60%"
+    width: "40%"
   },
   summaryValueText: {
     fontSize: 11,

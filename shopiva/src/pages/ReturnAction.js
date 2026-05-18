@@ -161,7 +161,7 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
     const [reason, setReason] = useState("");
     const [note, setNote] = useState("");
 
-    const [confirmItemsInStock, setConfirmItemsInStock] = useState(false);
+    // const [confirmItemsInStock, setConfirmItemsInStock] = useState(false);
     const [confirmFulfillOnTime, setConfirmFulfillOnTime] = useState(false);
     const [confirmPerformancePolicy, setConfirmPerformancePolicy] =
         useState(false);
@@ -328,12 +328,7 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                                 as soon as you accept.
                             </Text>
                             <View style={styles.processingChecklist}>
-                                <ConfirmCheckbox
-                                    checked={confirmItemsInStock}
-                                    onToggle={setConfirmItemsInStock}
-                                    label="Items are available in stock"
-                                    rowStyle={styles.processingCheckboxRow}
-                                />
+                                
                                 <View style={styles.processingChecklistDivider} />
                                 <ConfirmCheckbox
                                     checked={confirmFulfillOnTime}
@@ -356,8 +351,7 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                                 Estimated ship time
                             </Text>
                             <Text style={styles.processingFieldHint}>
-                                When do you plan to return this order to the
-                                carrier? This helps set vendor expectations.
+                                When do you plan to ship? This helps set vendor expectations.
                             </Text>
                             <Dropdown
                                 style={styles.processingDropdown}
@@ -405,7 +399,7 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                         >
                             <Text style={styles.acceptIntroText}>
                                 By accepting this return, you confirm that the
-                                products are available and will be shipped within
+                                product(s) are available and will be shipped within
                                 the required timeframe.
                             </Text>
                         </View>
@@ -430,7 +424,6 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                         <Pressable
                             onPress={async () => {
                                 if (
-                                    !confirmItemsInStock ||
                                     !confirmFulfillOnTime ||
                                     !confirmPerformancePolicy
                                 ) {
@@ -461,7 +454,6 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                                                 ? data.meta
                                                 : {}),
                                             vendor_confirmations: {
-                                                items_in_stock: true,
                                                 fulfill_on_time: true,
                                                 performance_policy: true,
                                             },

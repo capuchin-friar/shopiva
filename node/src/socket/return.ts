@@ -93,8 +93,6 @@ async function broadcastReturnUpdate(
     return { result, list: actorList };
 }
 
-
-
 export const handleReturnAcceptance = async(
     userId: number,
     nsp: Namespace,
@@ -131,19 +129,18 @@ export const handleReturnAcceptance = async(
         );
 
         if(rows.length > 0){
-            
             await updateReturnStatus(stage, return_id);
             const metaObj = (meta && typeof meta === 'object') ? (meta as Record<string, any>) : null;
             const fulfillment_duration = metaObj?.fulfillment_duration ?? null;
             if (fulfillment_duration != null) {
                 await updateShipping(fulfillment_duration, return_id);
             }
-            const orderPayload = await broadcastReturnUpdate(
+            const orderPayload = await broadcastReturnUpdate( 
                 "return_acceptance",
                 return_id,
                 actor_type,
                 actor_id,
-                recipient,
+                recipient
             );
             if(typeof ack === 'function') {
 
@@ -601,7 +598,6 @@ export const handleReturnCancellation = async(
     }
 
 }
-
 
 async function updateReturnStatus(status: unknown, return_id: unknown){
     console.log(return_id)
