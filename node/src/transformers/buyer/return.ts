@@ -37,12 +37,12 @@ export const returnTransformer = async (
         [shop.owner]
     );
 
-    let { rows: return_items } = await pool.query(
-        `SELECT * FROM return_items WHERE return_id = $1`,
-        [returnId]
+    let { rows: order_items } = await pool.query(
+        `SELECT * FROM order_items WHERE order_id = $1`,
+        [orderRef]
     );
 
-    const productIds = return_items.map(
+    const productIds = order_items.map(
         (item: any) => item.item_id
     );
 
@@ -54,7 +54,7 @@ export const returnTransformer = async (
     // console.log(products);
   
 
-    const formattedReturnItems = return_items.map((return_item: any) => {
+    const formattedReturnItems = order_items.map((return_item: any) => {
         // products.find(
         //     (p: any) => console.log(p.id, return_item.item_id)
         // )
@@ -90,7 +90,6 @@ export const returnTransformer = async (
         dispute,
         return: returnRow,
         return_items: formattedReturnItems,
-        return_events,
-        payment_info
+        return_events
     };
 };

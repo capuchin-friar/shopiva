@@ -83,6 +83,11 @@ export const orderTransformer = async (
         `SELECT * FROM disputes WHERE order_id = $1`,
         [orderId]
     );
+    console.log(
+        dispute,
+        order,
+        payment_info
+    )
 
     return {
         user,

@@ -211,7 +211,7 @@ function parseShippingAddress(input) {
     'apartment',
     'suite',
   ]);
-  const city = pickStr(obj, ['city', 'town', 'locality', 'address3']);
+  const city = pickStr(obj, ['city', 'town', 'locality']);
   const state = pickStr(obj, ['state', 'region', 'province', 'stateName']);
   const zip = pickStr(obj, [
     'zip',
@@ -278,7 +278,7 @@ function SummaryRow({ icon, label, value, last }) {
       <Text style={styles.summaryLabel}>{label}</Text>
       <View style={styles.summaryValue}>
         {typeof value === 'string' || typeof value === 'number' ? (
-          <Text style={styles.summaryValueText} numberOfLines={1}>
+          <Text style={styles.summaryValueText} numberOfLines={2}>
             {String(value)}
           </Text>
         ) : (
@@ -405,7 +405,7 @@ export default function ReturnDetailScreen() {
     if (auth.activeRole === 'customer') {
       (async () => {
         await connectChatSocket();
-        fetchBuyerReturn(route.params.returnItem.orderId)
+        fetchBuyerReturn(route.params.returnItem.return_id)
           .then(({ return: ret }) => {
             dispatch(set_returnInfo(ret));
           })
@@ -468,7 +468,6 @@ export default function ReturnDetailScreen() {
     if (auth.activeRole === 'vendor') {
       const raw =
         returnInfo?.return?.shipping_address ??
-        returnInfo?.payment_info?.metadata?.shipping_address ??
         '';
       let parsed = parseShippingAddress(raw);
       const loc = returnInfo?.user?.location || returnInfo?.customer?.location;
@@ -907,7 +906,9 @@ export default function ReturnDetailScreen() {
           <SummaryRow
             icon="location-outline"
             label="Shipping Address"
-            value={displayShipping.text}
+            value={String(
+                Object.values(JSON.parse(returnInfo?.return?.shipping_address)).join(", ")
+            )}
           />
 
           <SummaryRow
@@ -1558,6 +1559,7 @@ const styles = StyleSheet.create({
   summaryValue: {
     alignItems: 'flex-end',
     flexShrink: 0,
+    width: "60%"
   },
   summaryValueText: {
     fontSize: 11,

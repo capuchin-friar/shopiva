@@ -73,19 +73,6 @@ export const returnTransformer = async (
         [orderRef]
     );
 
-     console.log(
-           { customer,
-        // shop: {
-            ...shop,
-             shopOwner,
-        // },
-        dispute,
-        return: returnRow,
-        return_items: formattedReturnItems,
-        return_events,
-        payment_info}
-    )
-
     return {
         customer,
         shop: {
