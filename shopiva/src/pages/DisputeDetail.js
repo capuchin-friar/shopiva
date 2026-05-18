@@ -44,7 +44,7 @@ const STATUS_DISPLAY = {
 
 const STATUS_PILL = {
   open: { bg: '#FFF3E0', fg: '#C45C00' },
-  under_review: { bg: '#E3F2FD', fg: '#1565C0' },
+  responded: { bg: '#E3F2FD', fg: '#1565C0' },
   resolved: { bg: '#E8F5E9', fg: '#2E7D32' },
 };
 
@@ -58,7 +58,7 @@ function MetaCell({ label, value, valueIsLink }) {
           {value}
         </Text>
       ) : (
-        <Text style={styles.metaStrong} numberOfLines={2}>
+        <Text style={[styles.metaStrong, {textTransform: "capitalize"}]} numberOfLines={2}>
           {value}
         </Text>
       )}
@@ -118,23 +118,16 @@ export default function DisputeDetailScreen() {
   const auth = useSelector((s) => s.auth);
   const { disputeInfo: dispute } = useSelector((s) => s.disputeInfo);
   const isCustomer = auth?.activeRole === 'customer';
-  const counterpartLabel = isCustomer ? 'Vendor' : 'Customer';
+  const counterpartLabel = isCustomer ? 'Vendor' : 'Buyer';
   const summaryTitle = isCustomer ? 'Your summary' : 'Buyer’s summary';
   const messageActionLabel = isCustomer ? 'Message vendor' : 'Message customer';
 
-  const raw = route.params?.dispute;
-  const disputeIdParam = route.params?.disputeId;
   const [actionsOpen, setActionsOpen] = useState(false);
 
   useEffect(() => {
     connectChatSocket();
   }, []);
 
-  useEffect(() => {
-    if (raw) {
-      dispatch(set_disputeInfo(raw));
-    }
-  }, [raw, dispatch]);
  
   const openActions = useCallback(() => {
     setActionsOpen(true);
@@ -155,7 +148,7 @@ export default function DisputeDetailScreen() {
         <View style={[styles.statusRow, {flexDirection: "column"}]}>
           <Text style={styles.disputeId}>{dispute.dispute_ref}</Text>
           <View style={[styles.statusPill, { backgroundColor: pill.bg }]}>
-            <Text style={[styles.statusPillText, { color: pill.fg }]}>{statusText}</Text>
+            <Text style={[styles.statusPillText, { color: pill.fg, textTransform: "capitalize" }]}>{statusText}</Text>
           </View>
         </View>
       )
@@ -196,14 +189,13 @@ export default function DisputeDetailScreen() {
   const closeActions = () => setActionsOpen(false);
 
   const onAcceptOffer = () => {
-    Alert.alert(
-      'Accept',
-      'Accept the proposed resolution for this dispute?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Accept', onPress: () => Alert.alert('Confirmed', 'Resolution accepted.') },
-      ],
-    );
+    if(dispute.status === "responded")return;
+    navigation.navigate("Dispute-action", {
+      action: "acceptance",
+      data: {
+        dispute_id: dispute.id
+      }
+    })
   };
 
   const onSubmitEvidenceFab = () => {
@@ -448,9 +440,43 @@ export default function DisputeDetailScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        
-        {/* <Text style={styles.pageHeadline}>{dispute.title}</Text> */}
-
+        <View style={[styles.card, styles.cardSpaced]}>
+          <View style={styles.cardTitleRow}>
+            <Icon name="shield-checkmark-outline" size={22} color={BLACK} />
+            <Text style={styles.cardTitle}>Dispute Details</Text>
+          </View>
+          <AnalysisField
+            label="Dispute reason"
+            value={dispute.reason}
+            highlight
+          />
+          <AnalysisField label="Item condition" value={"_"} highlight />
+          <AnalysisField
+            label="Payment made to Escrow"
+            value={formatNaira(dispute?.order?.amount_paid)}
+            highlight={false}
+          />
+          <AnalysisField
+            label={
+              isCustomer
+                ? 'Your preferred resolution'
+                : 'Customer preferred resolution'
+            }
+            value={dispute.metadata.preferred_resolution_label}
+            highlight={false}
+          />
+        </View>
+        <View style={[styles.card, styles.cardSpaced]}>
+          <View style={styles.noteHeader}>
+            <Icon
+              name={isCustomer ? 'storefront-outline' : 'person-outline'}
+              size={18}
+              color={MUTED}
+            />
+            <Text style={styles.noteTitle}>{summaryTitle}</Text>
+          </View>
+          <Text style={styles.noteBody}>{dispute.description}</Text>
+        </View>
         <View style={styles.card}>
           <View style={styles.metaGrid}>
             <MetaCell
@@ -458,11 +484,11 @@ export default function DisputeDetailScreen() {
               value={isCustomer ? `${dispute.vendorName }`: `${dispute?.customer?.fname} ${dispute?.customer?.lname}`}
             />
             <MetaCell label="Order date" value={dayjs().to(dayjs(dispute?.order?.created_at))} />
-            <MetaCell label="Delivery date" value={dayjs().to(dayjs(dispute.order_event.created_at))} />
+            <MetaCell label="Delivery date" value={dayjs().to(dayjs(dispute?.order_event?.created_at))} />
             <MetaCell label="Order no." value={dispute.orderNumberDisplay} valueIsLink />
           </View>
 
-          {dispute.order_items.length > 0 ? (
+          {dispute?.order_items?.length > 0 ? (
             <>
               <View style={styles.tableHeader}>
                 <Text style={[styles.tableHCell, styles.tableHName]}>Item name</Text>
@@ -481,47 +507,6 @@ export default function DisputeDetailScreen() {
               {/* order_items */}
             </View>
           )}
-        </View>
-
-        <View style={[styles.card, styles.cardSpaced]}>
-          <View style={styles.noteHeader}>
-            <Icon
-              name={isCustomer ? 'storefront-outline' : 'person-outline'}
-              size={18}
-              color={MUTED}
-            />
-            <Text style={styles.noteTitle}>{summaryTitle}</Text>
-          </View>
-          <Text style={styles.noteBody}>{dispute.description}</Text>
-        </View>
-
-        {/* <Text style={styles.pageHeadline}>Dispute Analysis Summary</Text> */}
-
-        <View style={[styles.card, styles.cardSpaced]}>
-          <View style={styles.cardTitleRow}>
-            <Icon name="shield-checkmark-outline" size={22} color={BLACK} />
-            <Text style={styles.cardTitle}>Dispute Details</Text>
-          </View>
-          <AnalysisField
-            label="Dispute reason"
-            value={dispute.reason}
-            highlight
-          />
-          <AnalysisField label="Item condition" value={"_"} highlight />
-          <AnalysisField
-            label="Payment made to Escrow"
-            value={formatNaira(dispute.order.amount_paid)}
-            highlight={false}
-          />
-          <AnalysisField
-            label={
-              isCustomer
-                ? 'Your preferred resolution'
-                : 'Customer preferred resolution'
-            }
-            value={dispute.metadata.preferred_resolution_label}
-            highlight={false}
-          />
         </View>
 
         <View style={[styles.card, styles.cardSpaced]}>
@@ -566,39 +551,32 @@ export default function DisputeDetailScreen() {
           </View>
         ) : null}
 
-        {/* <View style={[styles.card, styles.cardSpaced]}>
-          <Text style={styles.sectionTitle}>Activity</Text>
-          <DisputeActivityTimeline steps={timeline} />
-        </View> */}
       </ScrollView>
 
-      {/* {!isResolved ? (
-        <View style={[styles.fabBar, { bottom: fabBottom, paddingBottom: 4 }]}>
+      {!isResolved ? (
+        <View style={[styles.fabBar, { bottom: 0, paddingBottom: 4 }]}>
           <Pressable
-            style={({ pressed }) => [styles.fabAccept, pressed && styles.fabPressed]}
+            style={({ pressed }) => [styles.fabAccept, pressed && styles.fabPressed, {backgroundColor: STATUS_PILL[dispute.status].fg}]}
             onPress={onAcceptOffer}
           >
             <Icon name="checkmark-circle" size={20} color={WHITE} />
-            <Text style={styles.fabAcceptText}>Accept</Text>
+            <Text style={styles.fabAcceptText}>{
+              dispute.status === "open"?
+              "Accept claim" : dispute.response.will_return_item ? "Return processing" : "Refund processing" 
+            }</Text>
           </Pressable>
-          {showEvidence ? (
+          
+          {
+            dispute.status === "open" && 
             <Pressable
-              style={({ pressed }) => [styles.fabSecondary, pressed && styles.fabPressed]}
-              onPress={onSubmitEvidenceFab}
+              style={({ pressed }) => [styles.fabMore, pressed && styles.fabPressed]}
+              onPress={onEscalate}
             >
-              <Text style={styles.fabSecondaryText}>Submit evidence</Text>
-              <Icon name="chevron-forward" size={18} color={BLACK} />
+              <Text style={styles.fabSecondaryText}>Deny (Escalate)</Text>
             </Pressable>
-          ) : null}
-          <Pressable
-            style={({ pressed }) => [styles.fabMore, pressed && styles.fabPressed]}
-            onPress={openActions}
-          >
-            <Text style={styles.fabSecondaryText}>More</Text>
-            <Icon name="chevron-down" size={18} color={BLACK} />
-          </Pressable>
-        </View>
-      ) : null} */}
+          }
+          </View>
+      ) : null}
     </View>
   );
 }
@@ -726,7 +704,7 @@ const styles = StyleSheet.create({
   },
   statusPillText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '600',
   },
   pageHeadline: {
     fontSize: 17,
@@ -976,14 +954,18 @@ const styles = StyleSheet.create({
   },
   fabBar: {
     position: 'absolute',
-    left: 14,
-    right: 14,
+    left: 0,
+    right: 0,
+    height: 80,
+    // bottom: 0,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: "center",
     gap: 8,
+    width: "100%",
     backgroundColor: WHITE,
     borderRadius: 5,
-    paddingVertical: 8,
+    paddingVertical: 0,
     paddingHorizontal: 8,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#E4E4E4',

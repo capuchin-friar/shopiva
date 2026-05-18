@@ -54,6 +54,5 @@ export const disputesTransformer = async(
             order_items
         });
     }));
-    console.log(disputeList[0].order_items);
     return disputeList;
 }

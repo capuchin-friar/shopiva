@@ -6,10 +6,11 @@ import {
   CreateBuyerDisputeService,
   parseRaiseDisputePayload,
 } from "../services/buyer/disputes.js";
+import { disputesTransformer } from "../transformers/business/disputes.js";
 
 type DisputeSocketPayload = {
   result: unknown;
-  list: unknown[];
+  // list: unknown[];
 };
 
 async function resolveOrderParties(orderId: number | null): Promise<{
@@ -45,14 +46,11 @@ async function broadcastDisputeUpdate(
   event: string,
   disputeRef: string,
   customerId: number,
-  shopId: number | null,
+  shopId: number | string,
   shopOwnerId: number | null,
   actorId: number
 ): Promise<DisputeSocketPayload> {
-  const result = await disputeModel.getByCustomerAndDisputeId(
-    customerId,
-    disputeRef
-  );
+  const result = await disputesTransformer(shopId, actorId);
 
   const [customerList, vendorList] = await Promise.all([
     disputeModel.getByCustomerId(customerId, { includeClosed: true }),
@@ -66,13 +64,12 @@ async function broadcastDisputeUpdate(
   const recipientId = actorIsCustomer ? shopOwnerId : customerId;
   const recipientList = actorIsCustomer ? vendorList : customerList;
 
-  const payload = { result, list: actorList };
+  const payload = { result: result[0] };
   notifyUser(actorId, event, payload);
   if (recipientId != null && recipientId !== actorId) {
-    notifyUser(recipientId, event, { result, list: recipientList });
+    notifyUser(recipientId, event, payload);
   }
-
-  return { result, list: actorList };
+  return { result: result[0] };
 }
 
 function ackError(ack: unknown, message: string) {
@@ -94,7 +91,7 @@ function ackSuccess(ack: unknown, payload: DisputeSocketPayload) {
       message: "Dispute created successfully",
       error: null,
       result: payload.result,
-      list: payload.list,
+      // list: payload.list,
     });
   }
 }
@@ -122,12 +119,65 @@ export const handleNewDispute = async (
 
     const { shopId, shopOwnerId } = await resolveOrderParties(orderId);
 
+    if (shopId) {
+      const socketPayload = await broadcastDisputeUpdate(
+        "raise_dispute",
+        disputeRef,
+        customerId,
+        shopId,
+        shopOwnerId,
+        userId
+      );
+      ackSuccess(ack, socketPayload);
+    }
+
+  } catch (error) {
+    console.error("[raise_dispute] error:", error);
+    ackError(
+      ack,
+      error instanceof Error ? error.message : "Failed to create dispute"
+    );
+  }
+};
+
+
+export const handleDisputeResponse = async(
+  userId: number,
+  _nsp: Namespace,
+  payload: Record<string, unknown>,
+  ack: unknown
+) => {
+  try {
+    const {
+      dispute_id, response
+    } = payload;
+
+    const pool = await db();
+    console.log(dispute_id)
+
+    const {rows: [dispute]} = await pool.query(
+      `UPDATE disputes 
+      SET "response" = $1,
+        "status" = $2,
+          updated_at = NOW()
+      WHERE id = $3
+      RETURNING *`,
+      [response, "responded", (dispute_id)]
+    );
+
+    const {rows: [shop]} = await pool.query(
+      `SELECT id 
+      FROM shops 
+      WHERE ownerid = $1`,
+      [userId]
+    );
+
     const socketPayload = await broadcastDisputeUpdate(
-      "raise_dispute",
-      disputeRef,
-      customerId,
-      shopId,
-      shopOwnerId,
+      "dispute_acceptance",
+      dispute.dispute_ref,
+      dispute.customer_id,
+      shop.id,
+      userId,
       userId
     );
 
@@ -139,4 +189,4 @@ export const handleNewDispute = async (
       error instanceof Error ? error.message : "Failed to create dispute"
     );
   }
-};
+}

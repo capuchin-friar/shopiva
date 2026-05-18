@@ -7,7 +7,7 @@ import VendorDisputeScreen from '../../pages/DisputesList';
 import DisputeDetailScreen from '../../pages/DisputeDetail';
 import OrderActionScreen from '../../pages/OrderAction';
 import OpenDispute from '../../pages/OpenDispute';
-
+import DisputeActionScreen from '../../pages/DisputeAction'
 const VendorActivitiesStack = createNativeStackNavigator();
 
 const shellStyles = StyleSheet.create({
@@ -67,6 +67,7 @@ export function VendorActivitiesStackScreen() {
         options={disputeOpt}
       />
       <VendorActivitiesStack.Screen name="Disputes" options={{ headerShown: true, title: 'Disputes', headerBackVisible: true, headerShadowVisible: false,}}  component={VendorDisputeScreen} /> 
+      <VendorActivitiesStack.Screen name="Dispute-action" options={{ headerShown: true, title: 'Disputes', headerBackVisible: true, headerShadowVisible: false,}}  component={DisputeActionScreen} /> 
       <VendorActivitiesStack.Screen name="Dispute-detail" options={{ headerShown: true, title: 'Dispute detail', headerBackVisible: true, headerShadowVisible: false,}}  component={DisputeDetailScreen} /> 
     </VendorActivitiesStack.Navigator>
   );

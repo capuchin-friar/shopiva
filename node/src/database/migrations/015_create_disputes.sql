@@ -9,7 +9,8 @@ CREATE TABLE disputes (
   source VARCHAR(30) NOT NULL DEFAULT 'customer',
   metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  response JSONB NOT NULL DEFAULT '{}'::jsonb,
 );
 
 CREATE INDEX idx_disputes_customer_id ON disputes(customer_id);
