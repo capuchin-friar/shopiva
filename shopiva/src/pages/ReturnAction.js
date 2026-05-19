@@ -1528,7 +1528,7 @@ function ConfirmDelivery({data}) {
                         pressed && styles.btnAcceptPressed,
                     ]}
                 >
-                    <Text style={styles.btnAcceptText}>Confirm & Pay Vendor</Text>
+                    <Text style={styles.btnAcceptText}>Confirm & Refund Buyer</Text>
                 </Pressable>
             </View>
         </View>

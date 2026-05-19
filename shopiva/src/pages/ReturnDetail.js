@@ -1284,7 +1284,7 @@ export default function ReturnDetailScreen() {
           </>
         )}
         {!isReturnCancelled && returnInfo?.return_events?.length > 1 &&  (
-          statusKey !== "delivered" && auth.activeRole === 'vendor' ? '' : 
+          statusKey == "delivered" && auth.activeRole === 'vendor' ? '' : 
           <Pressable
             onPress={onUpdateStatus}
             disabled={
@@ -1314,7 +1314,7 @@ export default function ReturnDetailScreen() {
           </Pressable>
         )}
 
-        {!isReturnCancelled && auth.activeRole === 'vendor' && statusKey !== "delivered" ? 
+        {!isReturnCancelled && auth.activeRole === 'vendor' && statusKey == "delivered" ? 
           <Pressable 
           disabled
           style={({ pressed }) => [
