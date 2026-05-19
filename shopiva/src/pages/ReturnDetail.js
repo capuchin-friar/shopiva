@@ -1317,7 +1317,7 @@ export default function ReturnDetailScreen() {
              <Text style={[styles.btnPrimaryText, {textTransform: "capitalize"}]}>
               {
                 statusKey === "return_initiated"?
-                "Awaiting Vendor's Approval" : statusKey?.split("_")?.join(" ")
+                "Awaiting Customer's Approval" : statusKey?.split("_")?.join(" ")
               }
             </Text>
           </Pressable>
