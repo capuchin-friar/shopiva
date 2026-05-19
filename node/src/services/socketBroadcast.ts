@@ -9,5 +9,6 @@ export function attachSocketServer(io: Server): void {
 /** Emit to Socket.IO room `user:<userId>` (same as socket connection handler). */
 export function notifyUser(userId: number, event: string, payload: unknown): void {
   if (!ioInstance || !Number.isFinite(userId)) return;
+  console.log("notifying user: ", userId)
   ioInstance.to(`user:${userId}`).emit(event, payload);
 }

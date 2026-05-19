@@ -54,6 +54,7 @@ export function applyOrderSocketPayload(res) {
 export function applyReturnSocketPayload(res) {
   if (!res || typeof res !== 'object') return;
   const payload = /** @type {Record<string, unknown>} */ (res);
+  console.log("socket res: ", payload)
   if (payload.result) {
     store.dispatch(set_returnInfo(payload.result));
   }

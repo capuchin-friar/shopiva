@@ -395,6 +395,14 @@ export default function ReturnDetailScreen() {
     return String(n).replace(/^ORD-/i, '');
   }, [order]);
 
+  const [vendor_id, set_vendor_id] = useState(null);
+  useEffect(() => {
+    (async () => {
+      const owners = await fetchShopOwner(returnInfo.return.shop_id);
+      set_vendor_id(owners[0].id);
+    })();
+  }, [returnInfo, route]);
+
 
   useEffect(() => {
     if (!returnInfo) return;
@@ -733,16 +741,17 @@ export default function ReturnDetailScreen() {
   }, [auth.activeRole, blockIfCancelled, navigation, order, returnInfo, statusKey]);
 
   const onUpdateStatus = async () => {
+    
     if (blockIfCancelled()) return;
     if (!returnInfo?.return) return;
     const u = await getStoredUser();
     const base = {
       return_id: returnInfo.return.id,
-      actor_type: 'vendor',
+      actor_type: auth.activeRole,
       actor_id: u.id,
       outcome: 'pending',
       notes: '',
-      recipient: returnInfo.return.customer_id,
+      recipient: vendor_id,
       meta: {},
     };
 
@@ -1232,7 +1241,7 @@ export default function ReturnDetailScreen() {
                     actor_id: u.id,
                     outcome: 'success',
                     notes: '',
-                    recipient: returnInfo.return.customer_id,
+                    recipient: vendor_id,
                     meta: {},
                   },
                 });
