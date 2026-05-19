@@ -56,43 +56,43 @@ const PAY_THEME = {
 };
 
 const STATUS_THEME = {
-  initiated: {
+  return_initiated: {
     bg: '#FFF4D6',
     dot: '#B58100',
     text: '#7A5800',
     label: 'Return Initiated',
   },
-  accepted: {
+  return_accepted: {
     bg: '#FFF4D6',
     dot: '#B58100',
     text: '#7A5800',
     label: 'Return accepted',
   },
-  processing: {
+  return_processing: {
     bg: '#FFF0E0',
     dot: '#C45C00',
     text: '#7A3A00',
     label: 'Processing',
   },
-  shipping: {
+  return_shipping: {
     bg: '#E0EAFF',
     dot: '#2F5DDB',
     text: '#1B3FA1',
     label: 'Shipping',
   },
-  out_for_delivery: {
+  return_out_for_delivery: {
     bg: '#E0F2E9',
     dot: '#08ccfd',
     text: '#075646',
     label: 'Out For Delivery',
   },
-  delivered: {
+  return_delivered: {
     bg: '#E0F2E9',
     dot: '#0D8A4A',
     text: '#0D5C2F',
     label: 'Delivered',
   },
-  cancellation: {
+  return_cancellation: {
     bg: '#FDE3E3',
     dot: '#C62828',
     text: '#9F1818',
@@ -746,7 +746,7 @@ export default function ReturnDetailScreen() {
       meta: {},
     };
 
-    if (auth.activeRole === 'vendor') {
+    if (auth.activeRole === 'customer') {
       if (statusKey === 'return_accepted') {
         navigation.navigate('Return-action', {
           action: 'processing',
@@ -1291,14 +1291,14 @@ export default function ReturnDetailScreen() {
             <Text style={styles.btnPrimaryText}>
               {auth.activeRole === 'customer'
                 ? statusKey === 'return_accepted'
-                  ? 'Start Processing Order'
+                  ? 'Start Processing Return'
                   : statusKey === 'return_processing'
-                  ? 'Start Shipping Order'
+                  ? 'Start Shipping Return'
                   : statusKey === 'return_shipping'
-                  ? 'Notify Buyer For Pickup'
+                  ? 'Notify Vendor For Pickup'
                   : statusKey === 'return_out_for_delivery'
-                  ? 'Confirm Buyer Has Recieved The Order'
-                  : "Awaiting Buyer's Confirmation"
+                  ? 'Confirm Vendor Has Recieved The Return'
+                  : "Awaiting Vendor's Confirmation"
                 : ''}
               {auth.activeRole === 'vendor' ? 'Confirm delivery' : ''}
             </Text>
