@@ -1367,74 +1367,35 @@ function ConfirmDelivery({data}) {
     const [handedOffForShipping, setHandedOffForShipping] = useState(false);
     const [withinCommittedTimeframe, setWithinCommittedTimeframe] =
         useState(false);
-    const [shippingMethod, setShippingMethod] = useState(null);
-    const [estimatedDelivery, setEstimatedDelivery] = useState(null);
-    const [trackingId, setTrackingId] = useState("");
 
     useEffect(() => {
         connectChatSocket();
     }, []);
 
-    const optionLabel = (options, value) =>
-        options.find((o) => o.value === value)?.label ?? null;
-
-    const buildShippingMeta = () => ({
-        ...(data.meta && typeof data.meta === "object" ? data.meta : {}),
-        handed_off_for_shipping: handedOffForShipping,
-        within_committed_timeframe: withinCommittedTimeframe,
-        shipping_method: shippingMethod,
-        shipping_method_label: optionLabel(SHIPPING_METHOD_OPTIONS, shippingMethod),
-        estimated_delivery: estimatedDelivery,
-        estimated_delivery_label: optionLabel(
-            FULFILLMENT_TIMEFRAME_OPTIONS,
-            estimatedDelivery
-        ),
-        tracking_id: shippingUsesTrackingId(shippingMethod)
-            ? trackingId.trim() || null
-            : null,
-    });
-
     const validateShipping = () => {
-        if (!handedOffForShipping || !withinCommittedTimeframe) {
+        if(!handedOffForShipping || !withinCommittedTimeframe){
             Alert.alert(
-                "Confirmations required",
-                "Confirm both statements before you mark this return as shipping."
+                "Confirm delivery",
+                "Mark the checkbox to confirm delivery",
+                [
+                    {
+                        text: "OK",
+                        style: "default",
+                        onPress: submitConfirmation,
+                    },
+                ]
             );
             return false;
         }
-        if (shippingMethod == null || shippingMethod === "") {
-            Alert.alert(
-                "Shipping method",
-                "Select how this order is being returned to the vendor."
-            );
-            return false;
-        }
-        if (shippingUsesTrackingId(shippingMethod)) {
-            const tid = trackingId.trim();
-            if (!tid) {
-                Alert.alert(
-                    "Tracking or reference ID required",
-                    "Enter a waybill, tracking number, or reference for this shipment. Self delivery is the only option that skips this."
-                );
-                return false;
-            }
-        }
-        if (estimatedDelivery == null || estimatedDelivery === "") {
-            Alert.alert(
-                "Delivery window",
-                "Select when the vendor should expect the returned order (or pickup)."
-            );
-            return false;
-        }
-        return true;
+        return true
     };
 
-    const submitShipping = async () => {
-        if (!validateShipping()) return;
+    const submitConfirmation = async () => {
+        let v = validateShipping()
+        if(!v)return;
         const u = await getStoredUser();
-        const response = await emitSocketAck("return_shipping", {
+        const response = await emitSocketAck("return_confirmation", {
             ...data,
-            meta: buildShippingMeta(),
             outcome: "success",
             actor_id: u.id,
         });
@@ -1456,9 +1417,9 @@ function ConfirmDelivery({data}) {
             >
                 {/* 1 — Commitments */}
                 <View style={styles.processingCard}>
-                    <Text style={styles.processingSectionTitle}>Confirm Delivery & Release Payment</Text>
+                    <Text style={styles.processingSectionTitle}>Confirm Return & Refund Buyer</Text>
                     <Text style={styles.processingSectionSubtitle}>
-                        Please confirm the following to release the escrow funds to the vendor:
+                        Please confirm the following to refund the escrow funds to the buyer:
                     </Text>
                     <View style={styles.processingChecklist}>
                         <ConfirmCheckbox
@@ -1471,7 +1432,7 @@ function ConfirmDelivery({data}) {
                         <ConfirmCheckbox
                             checked={withinCommittedTimeframe}
                             onToggle={setWithinCommittedTimeframe}
-                            label="The items are in good condition and match the description."
+                            label="The items are in good condition."
                             rowStyle={styles.processingCheckboxRow}
                         />
                     </View>
@@ -1518,7 +1479,7 @@ function ConfirmDelivery({data}) {
                                 {
                                     text: "Confirm",
                                     style: "default",
-                                    onPress: submitShipping,
+                                    onPress: submitConfirmation,
                                 },
                             ]
                         );
