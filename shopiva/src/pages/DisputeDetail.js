@@ -553,7 +553,7 @@ export default function DisputeDetailScreen() {
 
       </ScrollView>
 
-      {!isResolved ? (
+      {auth.activeRole === "vendor" && !isResolved ? (
         <View style={[styles.fabBar, { bottom: 0, paddingBottom: 4 }]}>
           <Pressable
             style={({ pressed }) => [styles.fabAccept, pressed && styles.fabPressed, {backgroundColor: STATUS_PILL[dispute.status].fg}]}

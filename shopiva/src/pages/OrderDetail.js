@@ -468,7 +468,10 @@ export default function OrderDetailScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerTitle: () => (
-        <View>
+        <View style={{
+          width: "100%",
+          display: "flex", alignItems: "center", justifyContent: "center"
+        }}>
           <Text style={{ fontWeight: 700, fontSize: 18 }}>
             Order #{orderNumber}
           </Text>
