@@ -71,6 +71,7 @@ function normalizeCheckoutLine(row, index = 0) {
   const inventoryId = Number(r.inventoryId ?? r.inventory_id);
   const productIdRaw = r.productId ?? r.product_id;
   const productId = Number(productIdRaw);
+  const shop_id = r.shop_id
   const variantFromLabel = typeof r.variantLabel === 'string' ? r.variantLabel.trim() : '';
   const variantFromSku = r.sku != null && String(r.sku).trim() ? String(r.sku).trim() : '';
   const variantLabel = variantFromLabel || variantFromSku;
@@ -80,6 +81,7 @@ function normalizeCheckoutLine(row, index = 0) {
     image,
     unitPrice,
     qty,
+    shop_id,
     variantLabel,
     cartItemId: Number.isFinite(cartItemId) && cartItemId > 0 ? cartItemId : undefined,
     inventoryId: Number.isFinite(inventoryId) && inventoryId > 0 ? inventoryId : undefined,
@@ -344,13 +346,14 @@ export default function CartCheckoutScreen({ navigation }) {
     const ordersByShop = checkoutLines.reduce((acc, line) => {
       // Use shop_id from checkoutLines or default to a generic shop
       const shopId = line.shop_id || 'default-shop';
+      console.log(line);
       
       if (!acc[shopId]) {
         acc[shopId] = [];
       }
       
       acc[shopId].push({
-        item_id: String(line.key),
+        item_id: String(line.productId),
         unit: line.qty,
         unit_price: line.unitPrice,
         total: line.unitPrice * line.qty,

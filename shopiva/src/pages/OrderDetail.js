@@ -357,10 +357,6 @@ export default function OrderDetailScreen() {
     connectChatSocket();
   }, []);
 
-  useEffect(() => {
-    console.log("orderInfo: ", orderInfo);
-  }, [orderInfo]);
-
   const isOrderCancelled = statusKey === 'order_cancellation';
 
   const cancellationDetails = useMemo(() => {

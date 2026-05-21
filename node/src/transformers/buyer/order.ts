@@ -48,16 +48,20 @@ export const orderTransformer = async (
     const productIds = order_items.map(
         (item: any) => item.item_id
     );
-
+    console.log(productIds);
     const { rows: products } = await pool.query(
         `SELECT * FROM products WHERE id = ANY($1)`,
         [productIds]
     );
 
+    console.log(
+        products
+    );
     const formattedOrderItems = order_items.map((order_item: any) => {
         // products.find(
         //     (p: any) => console.log(p.id, order_item.item_id)
         // )
+        
         return ({
             ...order_item,
             product: products.find(
@@ -80,11 +84,7 @@ export const orderTransformer = async (
         `SELECT * FROM disputes WHERE order_id = $1`,
         [orderId]
     );
-    console.log(
-        dispute,
-        order,
-        payment_info
-    )
+   
 
     return {
         user,
