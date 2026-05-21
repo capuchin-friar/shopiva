@@ -1,3 +1,4 @@
+import { Alert } from 'react-native';
 import { apiFetchAuth } from './client';
 
 /**
@@ -87,6 +88,13 @@ export async function createBuyerDispute(body) {
 /** @returns {Promise<{ lines: unknown[] }>} */
 export async function fetchBuyerCart() {
   const res = await apiFetchAuth('/buyer/cart');
+  return readJson(res);
+}
+
+
+/** @returns {Promise<{ lines: unknown[] }>} */
+export async function fetchBuyerCartProductShopId(productId) {
+  const res = await apiFetchAuth(`/buyer/cart/${productId}`);
   return readJson(res);
 }
 

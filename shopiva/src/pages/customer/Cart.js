@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import {
+  ActivityIndicator,
   Image,
   Platform,
   Pressable,
@@ -13,7 +14,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatNaira } from '../../utils/formatNaira';
-import { deleteBuyerCartLine, fetchBuyerCart, patchBuyerCartLine } from '../../api/buyer';
+import { deleteBuyerCartLine, fetchBuyerCart, fetchBuyerCartProductShopId, patchBuyerCartLine } from '../../api/buyer';
 
 const BG = '#F8F8F8';
 const TEAL = '#00926e';
@@ -104,6 +105,7 @@ export default function CartScreen({ navigation }) {
 
   const [lines, setLines] = useState(/** @type {CartLine[]} */ ([]));
   const [cartLoading, setCartLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -193,71 +195,96 @@ export default function CartScreen({ navigation }) {
     <View style={[styles.root, { paddingTop: 0 }]}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
+      {
+        loading &&  
+        <View style={{
+          height: "100%",
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center" 
+        }}>
+          <ActivityIndicator size={"large"} color={"green"} />
+        </View>
+      }
       
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.scrollContent,
-          { paddingBottom: insets.bottom + 130 },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        {cartLoading ? (
-          <View style={styles.empty}>
-            <Text style={styles.emptyHint}>Loading your cart…</Text>
-          </View>
-        ) : lines.length === 0 ? (
-          <View style={styles.empty}>
-            <Icon name="cart-outline" size={56} color="#000000" />
-            <Text style={styles.emptyTitle}>Your cart is empty</Text>
-            <Text style={styles.emptyHint}>Browse vendors and add items to continue.</Text>
-          </View>
-        ) : (
-          lines.map((item) => (
-            <CartLineCard
-              key={item.id}
-              item={item}
-              onInc={() => bump(item.id, 1)}
-              onDec={() => bump(item.id, -1)}
-              onRemove={() => remove(item.id)}
-            />
-          ))
-        )}
-      </ScrollView>
-
-      {lines.length > 0 ? (
-        <View style={[styles.checkoutBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-          <View>
-            <Text style={styles.totalLabel}>Total Price</Text>
-            <Text style={styles.totalValue}>{formatNairaTotalBar(total)}</Text>
-          </View>
-          <Pressable
-            style={styles.checkoutBtn}
-            onPress={() =>
-              navigation.navigate('Cart-checkout', {
-                checkoutSource: 'cart',
-                checkoutLines: lines.map((l) => ({
-                  key: l.id,
-                  cartItemId: l.cartItemId,
-                  inventoryId: l.inventoryId,
-                  productId: l.productId,
-                  title: l.title,
-                  image: l.image,
-                  unitPrice: l.unitPrice,
-                  qty: l.qty,
-                  variantLabel: l.size && l.size !== '—' ? l.size : '',
-                })),
-              })
-            }
-            accessibilityRole="button"
-            accessibilityLabel="Go to checkout"
+      {!loading && 
+        <>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={[
+              styles.scrollContent,
+              { paddingBottom: insets.bottom + 130 },
+            ]}
+            showsVerticalScrollIndicator={false}
           >
-            <Text style={styles.checkoutBtnText}>Go To Checkout</Text>
-            <Icon name="arrow-forward" size={20} color="#000000" />
-          </Pressable>
-        </View>
-      ) : null}
+            {cartLoading ? (
+              <View style={styles.empty}>
+                <Text style={styles.emptyHint}>Loading your cart…</Text>
+              </View>
+            ) : lines.length === 0 ? (
+              <View style={styles.empty}>
+                <Icon name="cart-outline" size={56} color="#000000" />
+                <Text style={styles.emptyTitle}>Your cart is empty</Text>
+                <Text style={styles.emptyHint}>Browse vendors and add items to continue.</Text>
+              </View>
+            ) : (
+              lines.map((item) => (
+                <CartLineCard
+                  key={item.id}
+                  item={item}
+                  onInc={() => bump(item.id, 1)}
+                  onDec={() => bump(item.id, -1)}
+                  onRemove={() => remove(item.id)}
+                />
+              ))
+            )}
+          </ScrollView>
+
+          {lines.length > 0 ? (
+            <View style={[styles.checkoutBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+              <View>
+                <Text style={styles.totalLabel}>Total Price</Text>
+                <Text style={styles.totalValue}>{formatNairaTotalBar(total)}</Text>
+              </View>
+              <Pressable
+                style={styles.checkoutBtn}
+                onPress={async() => {
+                    setLoading(true);
+                    const list = await Promise.all(lines.map(async(l) => {
+                      let {
+                        shop_id
+                      } = await fetchBuyerCartProductShopId(l.productId);
+                      return({
+                        key: l.id,
+                        cartItemId: l.cartItemId,
+                        inventoryId: l.inventoryId,
+                        productId: l.productId,
+                        title: l.title,
+                        image: l.image,
+                        unitPrice: l.unitPrice,
+                        qty: l.qty,
+                        shop_id,
+                        variantLabel: l.size && l.size !== '—' ? l.size : '',
+                      })
+                    }));
+                    navigation.navigate('Cart-checkout', {
+                      checkoutSource: 'cart',
+                      checkoutLines: list,
+                    })
+                  }
+                }
+                accessibilityRole="button"
+                accessibilityLabel="Go to checkout"
+              >
+                <Text style={styles.checkoutBtnText}>Go To Checkout</Text>
+                <Icon name="arrow-forward" size={20} color="#000000" />
+              </Pressable>
+            </View>
+          ) : null}
+        </>
+      }
     </View>
   );
 }

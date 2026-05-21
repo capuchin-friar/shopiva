@@ -81,7 +81,7 @@ function DisputeCard({ item, onPress }) {
         <View style={styles.cardTitleCol}>
           <Text style={styles.disputeId}>{item.dispute_ref}</Text>
           <Text style={styles.orderRef} numberOfLines={1}>
-            ORD-{item.order.id} · {item.reason}
+            ORD-{item?.order?.id} · {item.reason}
           </Text>
         </View>
         <Icon name="chevron-forward" size={20} color={MUTED} />

@@ -357,6 +357,10 @@ export default function OrderDetailScreen() {
     connectChatSocket();
   }, []);
 
+  useEffect(() => {
+    console.log("orderInfo: ", orderInfo);
+  }, [orderInfo]);
+
   const isOrderCancelled = statusKey === 'order_cancellation';
 
   const cancellationDetails = useMemo(() => {
@@ -1244,7 +1248,7 @@ export default function OrderDetailScreen() {
                 </View>
                 <View style={styles.itemBody}>
                   <Text style={styles.itemName} numberOfLines={2}>
-                    {String(it.product.name ?? '—')}
+                    {String(it?.product?.name ?? '—')}
                   </Text>
                   {/* {it.variant ? (
                   <Text style={styles.itemVariant} numberOfLines={1}>

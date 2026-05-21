@@ -343,7 +343,7 @@ export default function CartCheckoutScreen({ navigation }) {
     // Group items by shop_id to create orders array
     const ordersByShop = checkoutLines.reduce((acc, line) => {
       // Use shop_id from checkoutLines or default to a generic shop
-      const shopId = line.shopId || 'default-shop';
+      const shopId = line.shop_id || 'default-shop';
       
       if (!acc[shopId]) {
         acc[shopId] = [];

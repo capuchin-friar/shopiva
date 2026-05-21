@@ -11,14 +11,16 @@ import {
 import {
   DeleteBuyerCartLineController,
   GetBuyerCartController,
+  GetBuyerCartProductShopId,
   PatchBuyerCartLineController,
   PostBuyerCartController,
 } from "../controllers/buyer/cart.js";
 import { PostBuyerCheckoutConfirmPaymentController } from "../controllers/buyer/checkout.js";
 
 const BuyerRouter = express.Router();
-
+// /buyer/cart/${productId}/shopId
 BuyerRouter.get("/buyer/cart", verifyToken, GetBuyerCartController);
+BuyerRouter.get("/buyer/cart/:productId", verifyToken, GetBuyerCartProductShopId);
 BuyerRouter.post("/buyer/cart", verifyToken, PostBuyerCartController);
 BuyerRouter.patch("/buyer/cart/:cartItemId", verifyToken, PatchBuyerCartLineController);
 BuyerRouter.delete("/buyer/cart/:cartItemId", verifyToken, DeleteBuyerCartLineController);

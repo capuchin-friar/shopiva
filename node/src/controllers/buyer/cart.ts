@@ -6,6 +6,7 @@ import {
   listCartLinesForUser,
   setCartLineQuantity,
 } from "../../services/buyer/cart.js";
+import { db } from "../../config/database.js";
 
 function firstImageUrl(images: unknown): string {
   if (Array.isArray(images) && images.length > 0) {
@@ -38,6 +39,27 @@ export async function GetBuyerCartController(req: AuthRequest, res: Response): P
     }));
     res.status(200).json({ lines });
   } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
+  }
+}
+
+export async function GetBuyerCartProductShopId(req: AuthRequest, res: Response): Promise<void> {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+    const pool = await db();
+    const {
+      rows: [shop]
+    } = await pool.query(
+      `SELECT shop_id FROM products WHERE id = $1`, [req.params.productId]
+    )
+    res.status(200).json({ shop_id: shop.shop_id });
+  } catch (err) {
+    console.log(err)
+
     res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
   }
 }

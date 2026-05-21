@@ -562,7 +562,7 @@ export default function DisputeDetailScreen() {
             <Icon name="checkmark-circle" size={20} color={WHITE} />
             <Text style={styles.fabAcceptText}>{
               dispute.status === "open"?
-              "Accept claim" : dispute.response.will_return_item ? "Return processing" : "Refund processing" 
+              "Accept claim" : dispute?.response?.will_return_item ? "Return processing" : "Refund processing" 
             }</Text>
           </Pressable>
           

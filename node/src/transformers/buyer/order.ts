@@ -54,9 +54,6 @@ export const orderTransformer = async (
         [productIds]
     );
 
-    // console.log(products);
-  
-
     const formattedOrderItems = order_items.map((order_item: any) => {
         // products.find(
         //     (p: any) => console.log(p.id, order_item.item_id)

@@ -22,7 +22,7 @@ async function resolveOrderParties(orderId: number | null): Promise<{
   }
   const pool = await db();
   const { rows } = await pool.query<{ shop_id: string | null; owner: number | null }>(
-    `SELECT o.shop_id, s.owner
+    `SELECT o.shop_id, s.ownerid
      FROM orders o
      LEFT JOIN shops s ON s.id::text = trim(o.shop_id::text)
      WHERE o.id = $1
