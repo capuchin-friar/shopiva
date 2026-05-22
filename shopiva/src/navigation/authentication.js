@@ -6,7 +6,7 @@ import VendorTabs from './vendor';
 import AuthPurposeScreen from '../pages/auth/AuthPurpose';
 import LoginScreen from '../pages/auth/LoginScreen';
 // import OnboardingProfileScreen from '../pages/auth/OnboardingProfileScreen';
-import SignUpScreen from '../pages/auth/SignUpScreen';
+import SignUpScreen from '../pages/auth/SignupScreen';
 import VerifyCodeScreen from '../pages/auth/VerifyCodeScreen';
 // import WelcomeScreen from '../pages/auth/WelcomeScreen';
 import { SplashScreen } from '../pages/SplashScreen';
