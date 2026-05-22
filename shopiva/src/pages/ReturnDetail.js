@@ -440,7 +440,10 @@ export default function ReturnDetailScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerTitle: () => (
-        <View>
+        <View style={{
+          width: "100%",
+          display: "flex", alignItems: "center", justifyContent: "center"
+        }}>
           <Text style={{ fontWeight: 700, fontSize: 18 }}>
             Return #{returnNumber}
           </Text>
@@ -915,7 +918,9 @@ export default function ReturnDetailScreen() {
           <SummaryRow
             icon="location-outline"
             label="Shipping Address"
-            value={String(
+            value={
+              returnInfo?.return?.shipping_address &&
+              String(
                 Object.values(JSON.parse(returnInfo?.return?.shipping_address)).join(", ")
             )}
           />
