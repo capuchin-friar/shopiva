@@ -34,8 +34,8 @@ const BLACK = '#111111';
 const TEXT = '#1A1A1A';
 const MUTED = '#8E8E93';
 const HAIR = '#ECECEE';
-const ACCENT = '#7C5CFC';
-const ACCENT_PRESSED = '#6A48F5';
+const ACCENT = '#00926e';
+const ACCENT_PRESSED = '#00bc8d';
 
 /** Pill themes */
 const PAY_THEME = {
@@ -460,7 +460,7 @@ export default function OrderDetailScreen() {
           .catch(err => console.log(err));
       })();
     }
-  }, [route]);
+  }, [route, auth.activeRole, dispatch]);
 
   const payKey = String(order?.paymentStatus ?? 'paid').toLowerCase();
   const payTheme = PAY_THEME[payKey] ?? PAY_THEME.paid;
@@ -971,6 +971,24 @@ export default function OrderDetailScreen() {
     );
   }
 
+  const actionBtn = () => {
+    return (
+      (auth.activeRole === 'vendor')
+        ? statusKey === 'order_accepted'
+          ? 'Start Processing Order'
+          : statusKey === 'order_processing'
+          ? 'Start Shipping Order'
+          : statusKey === 'order_shipping'
+          ? 'Notify Buyer For Pickup'
+          : statusKey === 'order_out_for_delivery'
+          ? 'Confirm Buyer Has Recieved The Order'
+          : "Awaiting Buyer's Confirmation"
+        : 
+      (auth.activeRole === 'customer') 
+      ? 'Confirm delivery' : ''
+    )
+  }
+
   return (
     <View style={[styles.root, { paddingTop: 0 }]}>
       <ScrollView
@@ -1389,18 +1407,9 @@ export default function OrderDetailScreen() {
             ]}
           >
             <Text style={styles.btnPrimaryText}>
-              {auth.activeRole === 'vendor'
-                ? statusKey === 'order_accepted'
-                  ? 'Start Processing Order'
-                  : statusKey === 'order_processing'
-                  ? 'Start Shipping Order'
-                  : statusKey === 'order_shipping'
-                  ? 'Notify Buyer For Pickup'
-                  : statusKey === 'order_out_for_delivery'
-                  ? 'Confirm Buyer Has Recieved The Order'
-                  : "Awaiting Buyer's Confirmation"
-                : ''}
-              {auth.activeRole === 'customer' ? 'Confirm delivery' : ''}
+              {
+                actionBtn()
+              }
             </Text>
           </Pressable>
         )}
