@@ -54,7 +54,6 @@ export function applyOrderSocketPayload(res) {
 export function applyReturnSocketPayload(res) {
   if (!res || typeof res !== 'object') return;
   const payload = /** @type {Record<string, unknown>} */ (res);
-  console.log("socket res: ", payload)
   if (payload.result) {
     store.dispatch(set_returnInfo(payload.result));
   }
@@ -68,6 +67,8 @@ export function applyReturnSocketPayload(res) {
 
 /** @param {unknown} res */
 export function applyDisputeSocketPayload(res) {
+  const auth = store.getState().auth;
+
   if (!res || typeof res !== 'object') return;
   const payload = /** @type {Record<string, unknown>} */ (res);
   if (payload.result && typeof payload.result === 'object') {
@@ -75,6 +76,14 @@ export function applyDisputeSocketPayload(res) {
       /** @type {Record<string, unknown>} */ (payload.result),
     );
     store.dispatch(set_disputeInfo(mapped));
+
+    if(auth.activeRole === "vendor"){
+      store.dispatch(set_orderInfo(payload.others.voi))
+      store.dispatch(set_orderList(payload.others.vol))
+    }else{
+      store.dispatch(set_orderInfo(payload.others.coi))
+      store.dispatch(set_orderList(payload.others.col))
+    }
   }
   if (Array.isArray(payload.list)) {
     const mapped = payload.list.map((row) =>
@@ -121,6 +130,7 @@ function bindDisputeSocketListeners(socket) {
   socket.__disputeListenersBound = true;
 
   const onDisputeUpdate = (res) => {
+    console.log("disputed::", res)
     applyDisputeSocketPayload(res);
   };
 
@@ -136,15 +146,18 @@ function parseAck(payload) {
       success: false,
       result: null,
       list: null,
+      others: null,
       message: 'No response from socket server',
       error: '',
     };
   }
   const rec = /** @type {Record<string, unknown>} */ (payload);
+  console.log("rec: ", rec)
   return {
     success: Boolean(rec.success),
     result: rec.result ?? null,
     list: Array.isArray(rec.list) ? rec.list : null,
+    others: rec.others ,
     message: String(rec.message ?? ''),
     error: rec.error != null ? String(rec.error) : '',
   };
@@ -221,6 +234,7 @@ export async function emitSocketAck(event, payload = {}) {
         success: out.success,
         result: /** @type {T | null} */ (out.result),
         list: out.list,
+        others: out.others,
         message: out.message,
         error: out.error,
       });

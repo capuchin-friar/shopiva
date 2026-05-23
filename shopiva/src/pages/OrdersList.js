@@ -72,6 +72,12 @@ const STATUS_THEME = {
     text: '#0D5C2F',
     label: 'Delivered',
   },
+  order_disputed: {
+    bg: '#E0F2E9',
+    dot: '#eb8900',
+    text: '#a46000',
+    label: 'Delivered',
+  },
   order_cancellation: {
     bg: '#FDE3E3',
     dot: '#C62828',
@@ -92,6 +98,7 @@ function statusThemeFor(raw) {
   if (key.includes('ship')) return STATUS_THEME.order_shipping;
   if (key.includes('process')) return STATUS_THEME.order_processing;
   if (key.includes('accept')) return STATUS_THEME.order_accepted;
+  if (key.includes('dispute')) return STATUS_THEME.order_disputed;
   if (key.includes('payment') || key.includes('pending') || key.includes('paid'))
     return STATUS_THEME.payment_received;
   return STATUS_THEME.payment_received;
