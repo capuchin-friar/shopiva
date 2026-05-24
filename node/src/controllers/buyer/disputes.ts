@@ -7,6 +7,7 @@ import {
   GetBuyerDisputesService,
   parseRaiseDisputePayload,
 } from "../../services/buyer/disputes.js";
+import { disputesTransformer } from "../../transformers/buyer/disputes.js";
 
 export async function GetBuyerDisputesController(req: AuthRequest, res: Response): Promise<void> {
   try {
@@ -15,15 +16,10 @@ export async function GetBuyerDisputesController(req: AuthRequest, res: Response
       res.status(401).json({ error: "Unauthorized" });
       return;
     }
-    const shouldBackfill = String(req.query.backfill ?? "true").toLowerCase() !== "false";
-    if (shouldBackfill) {
-      await BackfillBuyerDisputesFromOrdersService(userId);
-    }
-
-    const includeClosed = String(req.query.includeClosed ?? "").toLowerCase() === "true";
-    const disputes = await GetBuyerDisputesService(userId, { includeClosed });
+    const disputes = await disputesTransformer(userId);
     res.status(200).json({ disputes });
   } catch (err) {
+    console.log(err)
     res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
   }
 }

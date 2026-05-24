@@ -92,6 +92,12 @@ const STATUS_THEME = {
     text: '#0D5C2F',
     label: 'Delivered',
   },
+  order_disputed: {
+    bg: '#fff3e3',
+    dot: '#eb8900',
+    text: '#a46000',
+    label: 'Order disputed',
+  },
   order_cancellation: {
     bg: '#FDE3E3',
     dot: '#C62828',
@@ -441,7 +447,7 @@ export default function OrderDetailScreen() {
     if (auth.activeRole === 'customer') {
       (async () => {
         await connectChatSocket();
-        fetchBuyerOrder(route.params.order.orderId)
+        fetchBuyerOrder(route.params.order.order_id)
           .then(({ order }) => {
             dispatch(set_orderInfo(order));
           })
@@ -453,7 +459,7 @@ export default function OrderDetailScreen() {
         let { id: userId } = await getStoredUser();
         let shop = await fetchOwnerShops(userId);
         let sid = shop[0].id;
-        fetchShopOrderDetail(sid, route.params.order.orderId, userId)
+        fetchShopOrderDetail(sid, route.params.order.order_id, userId)
           .then(({ order }) => {
             dispatch(set_orderInfo(order));
           })

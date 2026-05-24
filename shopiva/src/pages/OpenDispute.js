@@ -324,20 +324,20 @@ export default function OpenDispute() {
       }
       
   
-      Alert.alert(
-        'Dispute submitted',
-        'We have received your dispute. Our team will review your evidence and contact you.',
-        [
-          {
-            text: 'View dispute',
-            onPress: () =>
-              navigation.replace('Dispute-detail', {
-                dispute: mapped,
-                disputeId: mapped.id,
-              }),
-          },
-        ]
-      );
+      // Alert.alert(
+      //   'Dispute submitted',
+      //   'We have received your dispute. Our team will review your evidence and contact you.',
+      //   [
+      //     {
+      //       text: 'View dispute',
+      //       onPress: () =>
+      //         navigation.replace('Dispute-detail', {
+      //           dispute: mapped,
+      //           disputeId: mapped.id,
+      //         }),
+      //     },
+      //   ]
+      // );
     } catch (e) {
       Alert.alert(
         'Could not submit',

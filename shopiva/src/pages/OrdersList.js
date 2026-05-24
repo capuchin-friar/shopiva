@@ -73,10 +73,10 @@ const STATUS_THEME = {
     label: 'Delivered',
   },
   order_disputed: {
-    bg: '#E0F2E9',
+    bg: '#fff3e3',
     dot: '#eb8900',
     text: '#a46000',
-    label: 'Delivered',
+    label: 'Order disputed',
   },
   order_cancellation: {
     bg: '#FDE3E3',
@@ -108,7 +108,7 @@ function statusThemeFor(raw) {
  * @param {{ item: Record<string, unknown>; onPress: () => void }} p
  */
 function OrderCard({ item, onPress }) {
-  const t = statusThemeFor(item.statusRaw ?? item.status);
+  const t = statusThemeFor(item.status);
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
@@ -119,7 +119,7 @@ function OrderCard({ item, onPress }) {
           <View style={[styles.statusDot, { backgroundColor: t.dot }]} />
         </View>
         <View style={styles.cardTitleCol}>
-          <Text style={styles.orderId}>{item.id}</Text>
+          <Text style={styles.orderId}>{item.order_id}</Text>
           <Text style={styles.vendorLine} numberOfLines={1}>
             {item.vendor ?? item.customer}
           </Text>
@@ -130,11 +130,11 @@ function OrderCard({ item, onPress }) {
       <View style={styles.grid}>
         <View style={styles.gridCol}>
           <Text style={styles.gridLabel}>Items</Text>
-          <Text style={styles.gridValue}>{item.items}</Text>
+          <Text style={styles.gridValue}>{item.qty}</Text>
         </View>
         <View style={styles.gridCol}>
           <Text style={styles.gridLabel}>Value</Text>
-          <Text style={styles.gridValue}>{formatNaira(item.valueRupees)}</Text>
+          <Text style={styles.gridValue}>{formatNaira(item.amount)}</Text>
         </View>
         <View style={[styles.gridCol, styles.gridColLast]}>
           <Text style={styles.gridLabel}>Status</Text>
@@ -165,24 +165,6 @@ export default function OrderListScreen() {
     return Number.isFinite(n) && n > 0 ? n : 0;
   }
 
-  /**
-   * MVP: choose only the first-created shop for dashboard metrics.
-   * @param {Record<string, unknown>[]} shops
-   * @returns {Record<string, unknown> | null}
-   */
-  function pickFirstCreatedShop(shops) {
-    if (!Array.isArray(shops) || shops.length === 0) return null;
-    return shops
-    .slice()
-    .sort((a, b) => {
-      const aa = shopCreatedAtMsOf(/** @type {Record<string, unknown>} */ (a));
-      const bb = shopCreatedAtMsOf(/** @type {Record<string, unknown>} */ (b));
-      if (aa !== bb) return aa - bb;
-      return shopIdOf(/** @type {Record<string, unknown>} */ (a)) - shopIdOf(/** @type {Record<string, unknown>} */ (b));
-    })[0] || null;
-  }
-
-
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -204,10 +186,7 @@ export default function OrderListScreen() {
         const data = auth.activeRole === "customer" ? await fetchBuyerOrders() : await fetchShopOrders(shopId, userId);
         if (cancelled) return;
 
-        const mapped = (Array.isArray(data) ? data : data.orders).map((r) =>
-          mapOrderRowToListItem(/** @type {Record<string, unknown>} */ (r)),
-        );
-        dispatch(set_orderList(mapped))
+        dispatch(set_orderList(Array.isArray(data) ? data : data.orders))
       } catch (e) {
         if (!cancelled) {
           dispatch(set_orderList([]))
@@ -220,7 +199,7 @@ export default function OrderListScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [auth.activeRole, dispatch]);
 
   const data = useMemo(() => {
     if (filter === 'all') return orderList;
@@ -234,7 +213,6 @@ export default function OrderListScreen() {
         onPress={() =>
           navigation.navigate('Order-detail', {
             order: item,
-            orderId: item.orderId,
           })
         }
       />

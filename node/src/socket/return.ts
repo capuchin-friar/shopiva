@@ -10,7 +10,6 @@ function parseRecipientUserId(recipient: unknown): number | null {
     const userId = Number(recipient);
     return Number.isFinite(userId) ? userId : null;
 }
-
 type ReturnSocketPayload = {
     result: unknown;
     list: unknown[];

@@ -121,6 +121,7 @@ export default function handleSocketConnection(client: SocketWithAuth) {
             message: msg,
             error: msg,
             result: null,
+            others: null
           });
         }
       }

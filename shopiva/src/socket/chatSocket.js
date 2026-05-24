@@ -72,24 +72,19 @@ export function applyDisputeSocketPayload(res) {
   if (!res || typeof res !== 'object') return;
   const payload = /** @type {Record<string, unknown>} */ (res);
   if (payload.result && typeof payload.result === 'object') {
-    const mapped = mapBuyerDisputeRow(
-      /** @type {Record<string, unknown>} */ (payload.result),
-    );
-    store.dispatch(set_disputeInfo(mapped));
+    // const mapped = mapBuyerDisputeRow(
+    //   /** @type {Record<string, unknown>} */ (payload.result),
+    // );
+    const {result, actor} = res;
+    store.dispatch(set_disputeInfo(result));
 
     if(auth.activeRole === "vendor"){
-      store.dispatch(set_orderInfo(payload.others.voi))
-      store.dispatch(set_orderList(payload.others.vol))
+      store.dispatch(set_orderInfo(actor.voi))
+      store.dispatch(set_orderList(actor.vol))
     }else{
-      store.dispatch(set_orderInfo(payload.others.coi))
-      store.dispatch(set_orderList(payload.others.col))
+      store.dispatch(set_orderInfo(actor.coi))
+      store.dispatch(set_orderList(actor.col))
     }
-  }
-  if (Array.isArray(payload.list)) {
-    const mapped = payload.list.map((row) =>
-      mapBuyerDisputeRow(/** @type {Record<string, unknown>} */ (row)),
-    );
-    store.dispatch(set_disputeList(mapped));
   }
 }
 
@@ -130,7 +125,6 @@ function bindDisputeSocketListeners(socket) {
   socket.__disputeListenersBound = true;
 
   const onDisputeUpdate = (res) => {
-    console.log("disputed::", res)
     applyDisputeSocketPayload(res);
   };
 
