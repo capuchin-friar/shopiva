@@ -15,10 +15,7 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatNaira } from '../utils/formatNaira';
 import { fetchBuyerOrders } from '../api/buyer';
-// import { fetchVendorOrders } from '../../api/vendors'
-import { mapOrderRowToListItem } from '../utils/buyerUi';
 import { useDispatch, useSelector } from 'react-redux';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getStoredUser } from '../auth/session';
 import { fetchOwnerShops, fetchShopOrders } from '../api';
 import { set_orderList } from '../../redux/orders';

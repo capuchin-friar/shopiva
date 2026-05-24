@@ -42,13 +42,16 @@ const DISPUTE_SOCKET_EVENTS = [
 export function applyOrderSocketPayload(res) {
   if (!res || typeof res !== 'object') return;
   const payload = /** @type {Record<string, unknown>} */ (res);
-  if (payload?.others && payload?.others?.voi) {
-    store.dispatch(set_orderInfo(payload.others.voi));
-    store.dispatch(set_orderList(payload.others.vol));
-  }else{
-    store.dispatch(set_orderInfo(payload.others.coi));
-    store.dispatch(set_orderList(payload.others.col));
-  }
+  console.log("order payload form socket: ", payload);
+  store.dispatch(set_orderInfo(payload.result))
+  store.dispatch(set_orderList(payload.list))
+  // if (payload?.others && payload?.others?.voi) {
+  //   store.dispatch(set_orderInfo(payload.others.voi));
+  //   store.dispatch(set_orderList(payload.others.vol));
+  // }else{
+  //   store.dispatch(set_orderInfo(payload.others.coi));
+  //   store.dispatch(set_orderList(payload.others.col));
+  // }
 }
 
 /** @param {unknown} res */
@@ -158,6 +161,8 @@ function parseAck(payload) {
       success: false,
       dispute: null,
       others: null,
+      result: null,
+      list: null,
       message: 'No response from socket server',
       error: '',
     };
@@ -167,6 +172,8 @@ function parseAck(payload) {
     success: Boolean(rec.success),
     dispute: rec.dispute ?? null,
     others: rec.others ,
+    result: rec.result,
+    list: rec.list,
     message: String(rec.message ?? ''),
     error: rec.error != null ? String(rec.error) : '',
   };
@@ -243,6 +250,8 @@ export async function emitSocketAck(event, payload = {}) {
         success: out.success,
         dispute: /** @type {T | null} */ (out.dispute),
         others: out.others,
+        result: out.result,
+        list: out.list,
         message: out.message,
         error: out.error,
       });
