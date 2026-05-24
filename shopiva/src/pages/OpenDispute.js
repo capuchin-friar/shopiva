@@ -304,7 +304,6 @@ export default function OpenDispute() {
       if (!response.success) {
         throw new Error(response.error || response.message || 'Dispute failed');
       }
-      console.log(response);
       dispatch(set_disputeInfo(response.dispute.customer.cdi));
       dispatch(set_disputeList(response.dispute.customer.cdl));
       if(auth.activeRole === "vendor"){
@@ -360,6 +359,7 @@ export default function OpenDispute() {
 
   return (
     <View style={styles.root}>
+      {submitting && <Spinner />}
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
@@ -511,6 +511,28 @@ export default function OpenDispute() {
         </Pressable>
       </View>
     </View>
+  );
+}
+
+
+function Spinner() {
+  return (
+    <>
+      <View
+        style={{
+          height: '100%',
+          width: '100%',
+          position: 'absolute',
+          top: 0,
+          backgroundColor: 'rgba(0,0,0,0.3)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}
+      >
+        <ActivityIndicator size="large" color="green" />
+      </View>
+    </>
   );
 }
 
