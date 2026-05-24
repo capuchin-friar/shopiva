@@ -45,13 +45,6 @@ export function applyOrderSocketPayload(res) {
   console.log("order payload form socket: ", payload);
   store.dispatch(set_orderInfo(payload.result))
   store.dispatch(set_orderList(payload.list))
-  // if (payload?.others && payload?.others?.voi) {
-  //   store.dispatch(set_orderInfo(payload.others.voi));
-  //   store.dispatch(set_orderList(payload.others.vol));
-  // }else{
-  //   store.dispatch(set_orderInfo(payload.others.coi));
-  //   store.dispatch(set_orderList(payload.others.col));
-  // }
 }
 
 /** @param {unknown} res */

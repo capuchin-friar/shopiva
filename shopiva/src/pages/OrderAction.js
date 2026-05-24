@@ -158,10 +158,9 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
   if (data.stage === 'order_rejected') {
     return (
       <>
-        {loading && <Spinner />}
-
-        {!loading && (
+        {(
           <View style={[styles.cnt, styles.processingRoot]}>
+            {loading && <Spinner />}
             <ScrollView
               showsVerticalScrollIndicator={false}
               contentContainerStyle={[
@@ -538,10 +537,9 @@ function Processing({ data }) {
 
   return (
     <>
-      {loading && <Spinner />}
-
-      {!loading && (
+      {(
         <View style={[styles.cnt, styles.processingRoot]}>
+        {loading && <Spinner />}
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
@@ -737,10 +735,11 @@ function Shipping({ data }) {
 
   return (
     <>
-      {loading && <Spinner />}
+     
 
-      {!loading && (
+      {(
         <View style={[styles.cnt, styles.processingRoot]}>
+         {loading && <Spinner />}
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
@@ -981,9 +980,11 @@ function OutForDelivery({ data }) {
 
   return (
     <>
-      {loading && <Spinner />}
-      {!loading && (
+      
+      {(
+
         <View style={[styles.cnt, styles.processingRoot]}>
+        {loading && <Spinner />}
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
@@ -1222,10 +1223,11 @@ function MarkAsDelivered({ data }) {
 
   return (
     <>
-      {loading && <Spinner />}
+      
 
-      {!loading && (
+      {(
         <View style={[styles.cnt, styles.processingRoot]}>
+        {loading && <Spinner />}
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
@@ -1436,9 +1438,11 @@ function ConfirmDelivery({ data }) {
 
   return (
     <>
-      {loading && <Spinner />}
-      {!loading && (
+      
+      {(
+        
         <View style={[styles.cnt, styles.processingRoot]}>
+        {loading && <Spinner />}
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
@@ -1629,9 +1633,11 @@ function VendorCancelOrder({ data }) {
 
   return (
     <>
-      {submitting && <Spinner />}
-      {!submitting && (
+      
+      {(
+        
         <View style={[styles.cnt, styles.processingRoot]}>
+        {submitting && <Spinner />}
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
@@ -1879,9 +1885,11 @@ function CancelOrder({ data }) {
 
   return (
     <>
-      {submitting && <Spinner />}
-      {!submitting && (
+      
+      {(
+        
         <View style={[styles.cnt, styles.processingRoot]}>
+        {submitting && <Spinner />}
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
@@ -2014,9 +2022,10 @@ function Spinner() {
           width: '100%',
           position: 'absolute',
           top: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
+          backgroundColor: 'rgba(0,0,0,0.3)',
           justifyContent: 'center',
           alignItems: 'center',
+          zIndex: 1000
         }}
       >
         <ActivityIndicator size="large" color="green" />
