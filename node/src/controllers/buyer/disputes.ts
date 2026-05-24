@@ -8,6 +8,7 @@ import {
   parseRaiseDisputePayload,
 } from "../../services/buyer/disputes.js";
 import { disputesTransformer } from "../../transformers/buyer/disputes.js";
+import { disputeTransformer } from "../../transformers/buyer/dispute.js";
 
 export async function GetBuyerDisputesController(req: AuthRequest, res: Response): Promise<void> {
   try {
@@ -36,7 +37,7 @@ export async function GetBuyerDisputeByIdController(req: AuthRequest, res: Respo
       res.status(400).json({ error: "Invalid dispute id" });
       return;
     }
-    const dispute = await GetBuyerDisputeByIdService(userId, disputeId);
+    const dispute = await disputeTransformer(disputeId);
     if (!dispute) {
       res.status(404).json({ error: "Dispute not found" });
       return;

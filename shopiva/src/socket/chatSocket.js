@@ -33,20 +33,22 @@ const RETURN_SOCKET_EVENTS = [
   'return_cancelled',
 ];
 
-const DISPUTE_SOCKET_EVENTS = ['raise_dispute'];
+const DISPUTE_SOCKET_EVENTS = [
+  'raise_dispute', 
+  'dispute_acceptance'
+];
 
 /** @param {unknown} res */
 export function applyOrderSocketPayload(res) {
   if (!res || typeof res !== 'object') return;
   const payload = /** @type {Record<string, unknown>} */ (res);
-  if (payload.result) {
-    store.dispatch(set_orderInfo(payload.result));
-  }
-  if (Array.isArray(payload.list)) {
-    const mapped = payload.list.map((row) =>
-      mapOrderRowToListItem(/** @type {Record<string, unknown>} */ (row)),
-    );
-    store.dispatch(set_orderList(mapped));
+  console.log("coi testing", res)
+  if (payload?.others && payload?.others?.voi) {
+    store.dispatch(set_orderInfo(payload.others.voi));
+    store.dispatch(set_orderList(payload.others.vol));
+  }else{
+    store.dispatch(set_orderInfo(payload.others.coi));
+    store.dispatch(set_orderList(payload.others.col));
   }
 }
 
@@ -71,12 +73,15 @@ export function applyDisputeSocketPayload(res) {
 
   if (!res || typeof res !== 'object') return;
   const payload = /** @type {Record<string, unknown>} */ (res);
-  if (payload.result && typeof payload.result === 'object') {
-    // const mapped = mapBuyerDisputeRow(
-    //   /** @type {Record<string, unknown>} */ (payload.result),
-    // );
-    const {result, actor} = res;
-    store.dispatch(set_disputeInfo(result));
+  if (payload.actor && typeof payload.actor === 'object') {
+    const {actor} = res;
+    if (auth.activeRole === "customer" && actor?.cdl) {
+      store.dispatch(set_disputeList(actor.cdl));
+      store.dispatch(set_disputeInfo(actor.cdi));
+    }else if(auth.activeRole === "vendor" && actor?.vdl){
+      store.dispatch(set_disputeList(actor.vdl));
+      store.dispatch(set_disputeInfo(actor.vdi));
+    }
 
     if (auth.activeRole === "vendor" && actor?.voi || auth.activeRole === "customer" && actor?.coi) {
       if(auth.activeRole === "vendor"){
@@ -136,6 +141,7 @@ function bindDisputeSocketListeners(socket) {
   socket.__disputeListenersBound = true;
 
   const onDisputeUpdate = (res) => {
+    console.log(res)
     applyDisputeSocketPayload(res);
   };
 
@@ -149,8 +155,7 @@ function parseAck(payload) {
   if (!payload || typeof payload !== 'object') {
     return {
       success: false,
-      result: null,
-      list: null,
+      dispute: null,
       others: null,
       message: 'No response from socket server',
       error: '',
@@ -159,8 +164,7 @@ function parseAck(payload) {
   const rec = /** @type {Record<string, unknown>} */ (payload);
   return {
     success: Boolean(rec.success),
-    result: rec.result ?? null,
-    list: Array.isArray(rec.list) ? rec.list : null,
+    dispute: rec.dispute ?? null,
     others: rec.others ,
     message: String(rec.message ?? ''),
     error: rec.error != null ? String(rec.error) : '',
@@ -236,8 +240,7 @@ export async function emitSocketAck(event, payload = {}) {
       }
       resolve({
         success: out.success,
-        result: /** @type {T | null} */ (out.result),
-        list: out.list,
+        dispute: /** @type {T | null} */ (out.dispute),
         others: out.others,
         message: out.message,
         error: out.error,

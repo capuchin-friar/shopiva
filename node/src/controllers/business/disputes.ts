@@ -13,6 +13,7 @@ import {
   GetShopDisputesService,
 } from "../../services/business/disputes.js";
 import { disputesTransformer } from "../../transformers/business/disputes.js";
+import { disputeTransformer } from "../../transformers/business/dispute.js";
 
 /**
  * GET /shop/:shopId/disputes/:id
@@ -62,19 +63,13 @@ export async function GetShopDisputeByIdController(req: Request, res: Response):
       return;
     }
 
-    const ownerId = req.params.id;
-    const shopId = parseInt(req.params.shopId ?? "", 10);
     const disputeId = String(req.params.disputeId ?? "").trim();
-    if (isNaN(shopId)) {
-      res.status(400).json({ error: "Invalid shop ID" });
-      return;
-    }
     if (!disputeId) {
       res.status(400).json({ error: "Invalid dispute id" });
       return;
     }
 
-    const dispute = await GetShopDisputeByIdService(shopId, ownerId, disputeId);
+    const dispute = await disputeTransformer(disputeId);
     if (!dispute) {
       res.status(404).json({ error: "Dispute not found" });
       return;

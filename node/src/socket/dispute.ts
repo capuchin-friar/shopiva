@@ -6,8 +6,11 @@ import {
   CreateBuyerDisputeService,
   parseRaiseDisputePayload,
 } from "../services/buyer/disputes.js";
-import { disputesTransformer as vendorDisputeTransformer } from "../transformers/business/disputes.js";
-import { disputesTransformer as customerDisputeTransformer } from "../transformers/buyer/disputes.js";
+import { disputeTransformer as vendorDisputeTransformer } from "../transformers/business/dispute.js";
+import { disputesTransformer as vendorDisputesTransformer } from "../transformers/business/disputes.js";
+
+import { disputeTransformer as customerDisputeTransFormer } from "../transformers/buyer/dispute.js";
+import { disputesTransformer as customerDisputesTransformer } from "../transformers/buyer/disputes.js";
 import { OrderHandler } from "../services/webhook/paystack.js";
 import { orderTransformer as vendorOrderTransFormer } from "../transformers/business/order.js";
 import { ordersTransformer as vendorOrdersTransformer } from "../transformers/business/orders.js";
@@ -16,8 +19,9 @@ import { orderTransformer as customerOrderTransFormer } from "../transformers/bu
 import { ordersTransformer as customerOrdersTransformer } from "../transformers/buyer/orders.js";
 
 type DisputeSocketPayload = {
-  result: unknown;
-  others: unknown
+  // result: unknown;
+  others: unknown;
+  disputes: unknown;
 };
 
 async function resolveOrderParties(orderId: number | null): Promise<{
@@ -55,7 +59,8 @@ async function broadcastDisputeUpdate(
   recipient:  number,
   actorId: number,
   role: string,
-  orderId: any
+  orderId: any,
+  disputeId: any
 ): Promise<DisputeSocketPayload> {
   let result;
   let payloadForRecipient;
@@ -64,22 +69,33 @@ async function broadcastDisputeUpdate(
   let coi;
   let col;
 
+  let cdl;
+  let cdi;
+  let vdl;
+  let vdi;
+
   if(role === "vendor"){
     // for vendor get dispute transformer for both recipient(customer) and vendor
-    payloadForRecipient = await customerDisputeTransformer(recipient);
-    result = await vendorDisputeTransformer(shopId, actorId);
+    // payloadForRecipient = await customerDisputeTransformer(recipient);
+    // result = await vendorDisputeTransformer(shopId, actorId);
 
     // get order data for actor
-    voi = await vendorOrderTransFormer(orderId);
-    vol = await vendorOrdersTransformer(shopId);
+    vdi = await vendorDisputeTransformer(disputeId);
+    vdl = await vendorDisputesTransformer(shopId, actorId);
 
     // get order data for recipient(customer)
-    coi = await customerOrderTransFormer(orderId);
-    col = await customerOrdersTransformer(recipient);
+    cdi = await customerDisputeTransFormer(disputeId);
+    cdl = await customerDisputesTransformer(recipient);
   }else{
     // for customer get dispute transformer for both recipient(vendor) and customer
-    payloadForRecipient = await vendorDisputeTransformer(shopId, recipient);
-    result = await customerDisputeTransformer(actorId);
+    vdl = await vendorDisputesTransformer(shopId, recipient);
+    vdi = await vendorDisputeTransformer(disputeId);
+
+    cdl = await customerDisputesTransformer(actorId);
+    cdi = await customerDisputeTransFormer(disputeId);
+
+    // payloadForRecipient = await vendorDisputeTransformer(shopId, recipient);
+    // result = await customerDisputeTransformer(actorId);
 
     // get order data for actor 
     coi = await customerOrderTransFormer(orderId);
@@ -90,14 +106,19 @@ async function broadcastDisputeUpdate(
     vol = await vendorOrdersTransformer(shopId);
   }
   const payload = { 
-    result: payloadForRecipient[0], 
-    actor: role !== "vendor" ? {voi, vol} : {coi, col}, 
+    // result: payloadForRecipient[0], 
+    actor: role !== "vendor" ? {voi, vol, vdl, vdi} : {coi, col, cdl, cdi}, 
+    // role
     // recipient: role !== "vendor" ? {voi, vol} : {coi, col}, 
   };
   notifyUser(recipient, event, payload);
   const others = role === "vendor" ? {voi, vol} : {coi, col};
   return { 
-    result: result[0],
+    // result: result[0],
+    disputes: {
+      vendor: {vdl, vdi}, 
+      customer: {cdl, cdi}
+    },
     others
   };
 }
@@ -120,7 +141,7 @@ function ackSuccess(ack: unknown, payload: DisputeSocketPayload) {
       success: true,
       message: "Dispute created successfully",
       error: null,
-      result: payload.result,
+      dispute: payload.disputes,
       others: payload.others
     });
   }
@@ -157,7 +178,8 @@ export const handleNewDispute = async (
         Number(shopOwnerId),
         userId,
         "customer",
-        orderId
+        orderId,
+        created.id
       );
       ackSuccess(ack, socketPayload);
     }
@@ -238,7 +260,8 @@ export const handleDisputeResponse = async(
       Number(dispute.customer_id),
       userId,
       "vendor",
-      dispute.order_id
+      dispute.order_id,
+      dispute.id
     );
 
     ackSuccess(ack, socketPayload);

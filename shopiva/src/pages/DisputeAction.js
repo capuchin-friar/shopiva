@@ -31,6 +31,7 @@ import {
     reverseGeocodeToPlace,
 } from "../utils/deviceLocation";
 import { set_disputeInfo } from "../../redux/dispute";
+import { set_disputeList } from "../../redux/disputes";
 
 const DEFAULT_RETURN_COUNTRY = "Nigeria";
 
@@ -575,7 +576,8 @@ function Acceptance({ data }) {
                             );
                             if (response.success) {
                                 console.log(response)
-                                dispatch(set_disputeInfo(response.result));
+                                dispatch(set_disputeInfo(response.dispute.vendor.vdi));
+                                dispatch(set_disputeList(response.dispute.vendor.vdl));
 
                                 navigation.goBack();
                             }

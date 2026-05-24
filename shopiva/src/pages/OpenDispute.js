@@ -28,6 +28,7 @@ import { mapBuyerDisputeRow } from '../utils/buyerUi';
 import { set_disputeInfo } from '../../redux/dispute';
 import { set_orderInfo } from '../../redux/order';
 import { set_orderList } from '../../redux/orders';
+import { set_disputeList } from '../../redux/disputes';
 
 const DISPUTE_REASONS = [
   { label: 'Item not as described', value: 'not_as_described' },
@@ -303,9 +304,9 @@ export default function OpenDispute() {
       if (!response.success) {
         throw new Error(response.error || response.message || 'Dispute failed');
       }
-
-      dispatch(set_disputeInfo(response.result));
-      console.log("response: ", response)
+      console.log(response);
+      dispatch(set_disputeInfo(response.dispute.customer.cdi));
+      dispatch(set_disputeList(response.dispute.customer.cdl));
       if(auth.activeRole === "vendor"){
         dispatch(set_orderInfo(response.others.voi))
         dispatch(set_orderList(response.others.vol))
@@ -323,8 +324,8 @@ export default function OpenDispute() {
             text: 'View dispute',
             onPress: () =>
               navigation.replace('Dispute-detail', {
-                dispute: response.result,
-                disputeId: response.result.id,
+                dispute: response.others.coi,
+                disputeId: response.others.coi.dispute.id,
               }),
           },
         ]
