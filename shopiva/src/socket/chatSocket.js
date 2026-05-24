@@ -78,13 +78,24 @@ export function applyDisputeSocketPayload(res) {
     const {result, actor} = res;
     store.dispatch(set_disputeInfo(result));
 
-    if(auth.activeRole === "vendor"){
-      store.dispatch(set_orderInfo(actor.voi))
-      store.dispatch(set_orderList(actor.vol))
+    if (auth.activeRole === "vendor" && actor?.voi || auth.activeRole === "customer" && actor?.coi) {
+      if(auth.activeRole === "vendor"){
+        store.dispatch(set_orderInfo(actor.voi))
+        store.dispatch(set_orderList(actor.vol))
+      }else{
+        store.dispatch(set_orderInfo(actor.coi))
+        store.dispatch(set_orderList(actor.col))
+      }
     }else{
-      store.dispatch(set_orderInfo(actor.coi))
-      store.dispatch(set_orderList(actor.col))
+      if(auth.activeRole === "vendor"){
+        store.dispatch(set_orderInfo(payload.others.voi))
+        store.dispatch(set_orderList(payload.others.vol))
+      }else{
+        store.dispatch(set_orderInfo(payload.others.coi))
+        store.dispatch(set_orderList(payload.others.col))
+      }
     }
+
   }
 }
 
@@ -146,7 +157,6 @@ function parseAck(payload) {
     };
   }
   const rec = /** @type {Record<string, unknown>} */ (payload);
-  console.log("rec: ", rec)
   return {
     success: Boolean(rec.success),
     result: rec.result ?? null,

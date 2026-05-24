@@ -304,17 +304,8 @@ export default function OpenDispute() {
         throw new Error(response.error || response.message || 'Dispute failed');
       }
 
-      const row =
-        response.result && typeof response.result === 'object'
-          ? /** @type {Record<string, unknown>} */ ({
-              ...response.result,
-              metadata,
-              reason: reasonLabel,
-              description: description.trim(),
-            })
-          : { dispute_ref, ...payload };
-      const mapped = mapBuyerDisputeRow(row);
-      dispatch(set_disputeInfo(mapped));
+      dispatch(set_disputeInfo(response.result));
+      console.log("response: ", response)
       if(auth.activeRole === "vendor"){
         dispatch(set_orderInfo(response.others.voi))
         dispatch(set_orderList(response.others.vol))
@@ -324,20 +315,20 @@ export default function OpenDispute() {
       }
       
   
-      // Alert.alert(
-      //   'Dispute submitted',
-      //   'We have received your dispute. Our team will review your evidence and contact you.',
-      //   [
-      //     {
-      //       text: 'View dispute',
-      //       onPress: () =>
-      //         navigation.replace('Dispute-detail', {
-      //           dispute: mapped,
-      //           disputeId: mapped.id,
-      //         }),
-      //     },
-      //   ]
-      // );
+      Alert.alert(
+        'Dispute submitted',
+        'We have received your dispute. Our team will review your evidence and contact you.',
+        [
+          {
+            text: 'View dispute',
+            onPress: () =>
+              navigation.replace('Dispute-detail', {
+                dispute: response.result,
+                disputeId: response.result.id,
+              }),
+          },
+        ]
+      );
     } catch (e) {
       Alert.alert(
         'Could not submit',
