@@ -300,10 +300,9 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
   } else {
     return (
       <>
-        {loading && <Spinner />}
-
-        {!loading && (
+        {(
           <View style={[styles.cnt, styles.processingRoot]}>
+            {loading && <Spinner />}
             <ScrollView
               showsVerticalScrollIndicator={false}
               contentContainerStyle={[

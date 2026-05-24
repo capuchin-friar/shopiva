@@ -508,7 +508,7 @@ export default function OrderDetailScreen() {
       if (typeof n === 'string') return n;
       if (!Number.isFinite(Number(n))) return '—';
       if (isNaira) return formatNaira(Number(n));
-      return `$${Number(n).toLocaleString('en-US', {
+      return `₦${Number(n).toLocaleString('en-US', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       })}`;
