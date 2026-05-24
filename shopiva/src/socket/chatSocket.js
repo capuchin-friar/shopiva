@@ -42,7 +42,6 @@ const DISPUTE_SOCKET_EVENTS = [
 export function applyOrderSocketPayload(res) {
   if (!res || typeof res !== 'object') return;
   const payload = /** @type {Record<string, unknown>} */ (res);
-  console.log("coi testing", res)
   if (payload?.others && payload?.others?.voi) {
     store.dispatch(set_orderInfo(payload.others.voi));
     store.dispatch(set_orderList(payload.others.vol));
@@ -73,6 +72,8 @@ export function applyDisputeSocketPayload(res) {
 
   if (!res || typeof res !== 'object') return;
   const payload = /** @type {Record<string, unknown>} */ (res);
+  console.log("coi testing", payload)
+
   if (payload.actor && typeof payload.actor === 'object') {
     const {actor} = res;
     if (auth.activeRole === "customer" && actor?.cdl) {
@@ -83,23 +84,23 @@ export function applyDisputeSocketPayload(res) {
       store.dispatch(set_disputeInfo(actor.vdi));
     }
 
-    if (auth.activeRole === "vendor" && actor?.voi || auth.activeRole === "customer" && actor?.coi) {
-      if(auth.activeRole === "vendor"){
-        store.dispatch(set_orderInfo(actor.voi))
-        store.dispatch(set_orderList(actor.vol))
-      }else{
-        store.dispatch(set_orderInfo(actor.coi))
-        store.dispatch(set_orderList(actor.col))
-      }
-    }else{
-      if(auth.activeRole === "vendor"){
-        store.dispatch(set_orderInfo(payload.others.voi))
-        store.dispatch(set_orderList(payload.others.vol))
-      }else{
-        store.dispatch(set_orderInfo(payload.others.coi))
-        store.dispatch(set_orderList(payload.others.col))
-      }
-    }
+    // if (auth.activeRole === "vendor" && actor?.voi || auth.activeRole === "customer" && actor?.coi) {
+    //   if(auth.activeRole === "vendor"){
+    //     store.dispatch(set_orderInfo(actor.voi))
+    //     store.dispatch(set_orderList(actor.vol))
+    //   }else{
+    //     store.dispatch(set_orderInfo(actor.coi))
+    //     store.dispatch(set_orderList(actor.col))
+    //   }
+    // }else{
+    //   if(auth.activeRole === "vendor"){
+    //     store.dispatch(set_orderInfo(payload.others.voi))
+    //     store.dispatch(set_orderList(payload.others.vol))
+    //   }else{
+    //     store.dispatch(set_orderInfo(payload.others.coi))
+    //     store.dispatch(set_orderList(payload.others.col))
+    //   }
+    // }
 
   }
 }

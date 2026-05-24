@@ -106,10 +106,7 @@ async function broadcastDisputeUpdate(
     vol = await vendorOrdersTransformer(shopId);
   }
   const payload = { 
-    // result: payloadForRecipient[0], 
     actor: role !== "vendor" ? {voi, vol, vdl, vdi} : {coi, col, cdl, cdi}, 
-    // role
-    // recipient: role !== "vendor" ? {voi, vol} : {coi, col}, 
   };
   notifyUser(recipient, event, payload);
   const others = role === "vendor" ? {voi, vol} : {coi, col};
