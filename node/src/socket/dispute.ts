@@ -232,7 +232,7 @@ export const handleDisputeResponse = async(
               $1, $2, $3, $4, $5, NOW(), NOW()
           ) RETURNING id`,
         [
-          dispute.order_id, dispute.customer_id, shop.id, "initiated", JSON.stringify((response as any).return_address)
+          dispute.order_id, dispute.customer_id, shop.id, "return_initiated", JSON.stringify((response as any).return_address)
         ]
       );
 

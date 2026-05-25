@@ -238,6 +238,7 @@ function Acceptance({ data }) {
     const dispatch = useDispatch();
 
     const [note, setNote] = useState("");
+    const [loading, setLoading] = useState(false);
 
     const [confirmClaim, setConfirmClaim] = useState(false);
     const [willReturnItem, setWillReturnItem] = useState(null);
@@ -315,6 +316,7 @@ function Acceptance({ data }) {
     return (
         <>
             <View style={[styles.cnt, styles.processingRoot]}>
+                {loading && <Spinner />}
                 <ScrollView
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={[
@@ -547,6 +549,7 @@ function Acceptance({ data }) {
                                 return;
                             }
                             setShowErrors(false);
+                            setLoading(true);
                             const u = await getStoredUser();
                             const returnAddress =
                                 willReturnItem && roleForShipping
@@ -855,6 +858,27 @@ function CancelOrder({ data }) {
             </View>
         </View>
     );
+}
+
+function Spinner() {
+  return (
+    <>
+      <View
+        style={{
+          height: '100%',
+          width: '100%',
+          position: 'absolute',
+          top: 0,
+          backgroundColor: 'rgba(0,0,0,0.3)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}
+      >
+        <ActivityIndicator size="large" color="green" />
+      </View>
+    </>
+  );
 }
 
 

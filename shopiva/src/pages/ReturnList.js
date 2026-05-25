@@ -77,7 +77,6 @@ const STATUS_THEME = {
   },
 };
 
-/** @param {unknown} raw */
 function statusThemeFor(raw) {
   const key = String(raw ?? '').toLowerCase().trim();
   if (STATUS_THEME[key]) return STATUS_THEME[key];
@@ -94,10 +93,8 @@ function statusThemeFor(raw) {
   return STATUS_THEME.return_initiated;
 }
 
-/**
- * @param {{ item: Record<string, unknown>; onPress: () => void }} p
- */
 function ReturnCard({ item, onPress }) {
+  console.log("item::", item);
   const t = statusThemeFor(item.statusRaw ?? item.status);
   return (
     <Pressable
@@ -109,7 +106,7 @@ function ReturnCard({ item, onPress }) {
           <View style={[styles.statusDot, { backgroundColor: t.dot }]} />
         </View>
         <View style={styles.cardTitleCol}>
-          <Text style={styles.orderId}>{`RTN-${item.order_id}`}</Text>
+          <Text style={styles.orderId}>{`RTN-${item?.return_id}`}</Text>
           <Text style={styles.vendorLine} numberOfLines={1}>
             {item.customer}
             {/* auth.activeRole === "vendor" ? item.customer : item.vendor */}
@@ -149,31 +146,6 @@ export default function ReturnListScreen() {
   const [error, setError] = useState('');
   const { returnList } = useSelector(s => s.returnList);
 
-  /** @param {Record<string, unknown>} row */
-  function shopIdOf(row) {
-    const v = row.id ?? row.shopid ?? row.shop_id;
-    const n = Number(v);
-    return Number.isFinite(n) && n > 0 ? n : 0;
-  }
-
-  /**
-   * MVP: choose only the first-created shop for dashboard metrics.
-   * @param {Record<string, unknown>[]} shops
-   * @returns {Record<string, unknown> | null}
-   */
-  function pickFirstCreatedShop(shops) {
-    if (!Array.isArray(shops) || shops.length === 0) return null;
-    return shops
-    .slice()
-    .sort((a, b) => {
-      const aa = shopCreatedAtMsOf(/** @type {Record<string, unknown>} */ (a));
-      const bb = shopCreatedAtMsOf(/** @type {Record<string, unknown>} */ (b));
-      if (aa !== bb) return aa - bb;
-      return shopIdOf(/** @type {Record<string, unknown>} */ (a)) - shopIdOf(/** @type {Record<string, unknown>} */ (b));
-    })[0] || null;
-  }
-
-
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -208,7 +180,7 @@ export default function ReturnListScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [auth.activeRole, dispatch]);
 
   const data = useMemo(() => {
     if (filter === 'all') return returnList;
@@ -233,8 +205,6 @@ export default function ReturnListScreen() {
   const listHeader = useMemo(
     () => (
       <View style={styles.headerBlock}>
-        {/* <Text style={styles.pageTitle}>Returns</Text> */}
-        {/* <Text style={styles.pageSubtitle}>Manage all your orders</Text> */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}

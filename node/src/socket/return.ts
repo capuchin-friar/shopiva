@@ -215,7 +215,6 @@ export const handleReturnProcessing = async(
             await updateReturnStatus(stage, return_id);
             const metaObj = (meta && typeof meta === 'object') ? (meta as Record<string, any>) : null;
             const fulfillment_duration = metaObj?.fulfillment_duration ?? null;
-            console.log("meta: ", meta);
             if (fulfillment_duration != null) {
                 await updateShipping(fulfillment_duration, return_id);
             }
