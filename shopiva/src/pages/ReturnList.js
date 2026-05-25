@@ -128,7 +128,7 @@ function ReturnCard({ item, onPress }) {
           <Text style={styles.gridLabel}>Status</Text>
           <View style={[styles.statusPill, { backgroundColor: t.bg }]}>
             <View style={[styles.statusDot, { backgroundColor: t.dot }]} />
-            <Text style={[styles.statusPillText, { color: t.text, textTransform: "capitalize" }]}>{item.status}</Text>
+            <Text style={[styles.statusPillText, { color: t.text, textTransform: "capitalize" }]}>{item.status.split('_').join(" ")}</Text>
           </View>
         </View>
       </View>
