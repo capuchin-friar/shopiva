@@ -55,10 +55,10 @@ export function applyReturnSocketPayload(res) {
     store.dispatch(set_returnInfo(payload.result));
   }
   if (Array.isArray(payload.list)) {
-    const mapped = payload.list.map((row) =>
-      mapOrderRowToListItem(/** @type {Record<string, unknown>} */ (row)),
-    );
-    store.dispatch(set_returnList(mapped));
+    // const mapped = payload.list.map((row) =>
+    //   mapOrderRowToListItem(/** @type {Record<string, unknown>} */ (row)),
+    // );
+    store.dispatch(set_returnList(payload.list));
   }
 }
 
