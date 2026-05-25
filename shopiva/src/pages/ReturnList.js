@@ -94,7 +94,6 @@ function statusThemeFor(raw) {
 }
 
 function ReturnCard({ item, onPress }) {
-  console.log("item::", item);
   const t = statusThemeFor(item.statusRaw ?? item.status);
   return (
     <Pressable
