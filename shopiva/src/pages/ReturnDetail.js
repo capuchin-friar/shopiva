@@ -34,20 +34,20 @@ const BLACK = '#111111';
 const TEXT = '#1A1A1A';
 const MUTED = '#8E8E93';
 const HAIR = '#ECECEE';
-const ACCENT = '#7C5CFC';
-const ACCENT_PRESSED = '#6A48F5';
+const ACCENT = '#0D8A4A';
+const ACCENT_PRESSED = '#1dd275';
 
 /** Pill themes */
 const PAY_THEME = {
-  paid: { bg: '#E0F2E9', dot: '#0D8A4A', text: '#0D5C2F', label: 'Paid' },
-  unpaid: { bg: '#FFF4D6', dot: '#B58100', text: '#7A5800', label: 'Unpaid' },
-  refunded: {
+  return_initiated: { bg: '#E0F2E9', dot: '#0D8A4A', text: '#0D5C2F', label: 'Paid' },
+  return_accepted: { bg: '#FFF4D6', dot: '#B58100', text: '#7A5800', label: 'Unpaid' },
+  return_processing: {
     bg: '#EFEAFF',
     dot: '#7C5CFC',
     text: '#3F2BB8',
     label: 'Refunded',
   },
-  cancelled: {
+  return_shipping: {
     bg: '#FDE3E3',
     dot: '#C62828',
     text: '#9F1818',
@@ -92,6 +92,12 @@ const STATUS_THEME = {
     text: '#0D5C2F',
     label: 'Delivered',
   },
+  return_confirmed: {
+    bg: '#d8f6e7',
+    dot: '#00d567',
+    text: '#28ed7d',
+    label: 'Confirmed',
+  },
   return_cancellation: {
     bg: '#FDE3E3',
     dot: '#C62828',
@@ -129,11 +135,6 @@ function initialsOf(name) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-/**
- * Pull a non-empty string from an object trying multiple key aliases.
- * @param {Record<string, unknown> | null | undefined} obj
- * @param {string[]} keys
- */
 function pickStr(obj, keys) {
   if (!obj || typeof obj !== 'object') return '';
   for (const k of keys) {
@@ -145,25 +146,6 @@ function pickStr(obj, keys) {
   return '';
 }
 
-/**
- * Normalize a shipping address that may arrive as:
- *  - a plain string
- *  - a JSON-stringified object (jsonb cast to text from the API)
- *  - a parsed object with various key aliases
- * @param {unknown} input
- * @returns {{
- *   recipient: string;
- *   phone: string;
- *   email: string;
- *   street: string;
- *   street2: string;
- *   city: string;
- *   state: string;
- *   zip: string;
- *   country: string;
- *   text: string;
- * }}
- */
 function parseShippingAddress(input) {
   /** @type {Record<string, unknown> | null} */
   let obj = null;
@@ -432,9 +414,9 @@ export default function ReturnDetailScreen() {
           .catch(err => console.log(err));
       })();
     }
-  }, [route]);
+  }, [route, auth.activeRole, dispatch]);
 
-  const payKey = String(order?.paymentStatus ?? 'paid').toLowerCase();
+  const payKey = String(returnInfo?.return?.status ?? 'paid').toLowerCase();
   const payTheme = PAY_THEME[payKey] ?? PAY_THEME.paid;
 
   useLayoutEffect(() => {
@@ -447,7 +429,7 @@ export default function ReturnDetailScreen() {
           <Text style={{ fontWeight: 700, fontSize: 18 }}>
             Return #{returnNumber}
           </Text>
-          <StatusPill theme={payTheme} />
+          {/* <StatusPill theme={payTheme} /> */}
         </View>
       ),
       headerRight: () => (
@@ -591,10 +573,6 @@ export default function ReturnDetailScreen() {
     return '';
   }, [returnInfo, auth.activeRole]);
 
-  const onClose = () => {
-    if (navigation.canGoBack()) navigation.goBack();
-  };
-
   const onMail = () => {
     if (blockIfCancelled()) return;
     if (!counterpartEmail) {
@@ -701,7 +679,7 @@ export default function ReturnDetailScreen() {
         },
       });
     }
-  }, [auth.activeRole, blockIfCancelled, navigation, returnInfo, statusKey]);
+  }, [auth.activeRole, blockIfCancelled, order.id, navigation, returnInfo, statusKey]);
 
   const onOpenDispute = useCallback(() => {
     if(returnInfo?.dispute){
@@ -754,7 +732,7 @@ export default function ReturnDetailScreen() {
       actor_id: u.id,
       outcome: 'pending',
       notes: '',
-      recipient: vendor_id,
+      recipient: auth.activeRole === "customer" ? vendor_id : returnInfo?.dispute?.customer_id,
       meta: {},
     };
 
@@ -812,7 +790,7 @@ export default function ReturnDetailScreen() {
           data: {
             ...base,
             event_type: 'confirmation',
-            stage: 'return_confirmation',
+            stage: 'return_confirmed',
           },
         });
         return;
@@ -892,7 +870,23 @@ export default function ReturnDetailScreen() {
       </>
     );
   }
-
+  const actionBtn = () => {
+    return (
+      (auth.activeRole === 'customer')
+        ? statusKey === 'order_accepted'
+          ? 'Start Processing Order'
+          : statusKey === 'order_processing'
+          ? 'Start Shipping Order'
+          : statusKey === 'order_shipping'
+          ? 'Notify Vendor For Pickup'
+          : statusKey === 'order_out_for_delivery'
+          ? 'Confirm Vendor Has Recieved The Order'
+          : "Awaiting Vendor's Confirmation"
+          :
+      (auth.activeRole === 'vendor') 
+      ? 'Confirm delivery' : ''
+    )
+  }
   return (
     <View style={[styles.root, { paddingTop: 0 }]}>
       <ScrollView
@@ -1202,8 +1196,8 @@ export default function ReturnDetailScreen() {
           <MoneyRow
             label="Shipping Cost"
             value={
-              returnInfo?.return?.shipping_fee &&
-              fmt(returnInfo.return.shipping_fee)
+              returnInfo?.return?.return_shipping_fee &&
+              fmt(returnInfo?.return?.return_shipping_fee)
             }
             muted
           />
@@ -1212,7 +1206,7 @@ export default function ReturnDetailScreen() {
           <MoneyRow
             label="Total"
             value={fmt(
-              returnInfo?.return?.shipping_fee &&
+              returnInfo?.return?.return_shipping_fee &&
                 returnInfo.return_items.reduce(
                   (acc, curr) => acc + parseInt(curr.total_price),
                   0,
@@ -1303,7 +1297,10 @@ export default function ReturnDetailScreen() {
             ]}
           >
             <Text style={styles.btnPrimaryText}>
-              {auth.activeRole === 'customer'
+              {
+                actionBtn()
+              }
+              {/* {auth.activeRole === 'customer'
                 ? statusKey === 'return_accepted'
                   ? 'Start Processing Return'
                   : statusKey === 'return_processing'
@@ -1314,7 +1311,7 @@ export default function ReturnDetailScreen() {
                   ? 'Confirm Vendor Has Recieved The Return'
                   : "Awaiting Vendor's Confirmation"
                 : ''}
-              {auth.activeRole === 'vendor' ? 'Confirm delivery' : ''}
+              {auth.activeRole === 'vendor' ? 'Confirm delivery' : ''} */}
             </Text>
           </Pressable>
         )}

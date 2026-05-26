@@ -21,6 +21,7 @@ const ORDER_SOCKET_EVENTS = [
   'order_shipping',
   'order_out_for_delivery',
   'order_delivered',
+  'order_confirmed',
   'order_cancelled',
 ];
 
@@ -30,57 +31,74 @@ const RETURN_SOCKET_EVENTS = [
   'return_shipping',
   'return_out_for_delivery',
   'return_delivered',
+  'return_confirmed',
   'return_cancelled',
 ];
 
-const DISPUTE_SOCKET_EVENTS = ['raise_dispute'];
+const DISPUTE_SOCKET_EVENTS = [
+  'raise_dispute', 
+  'dispute_acceptance'
+];
 
 /** @param {unknown} res */
 export function applyOrderSocketPayload(res) {
   if (!res || typeof res !== 'object') return;
   const payload = /** @type {Record<string, unknown>} */ (res);
-  if (payload.result) {
-    store.dispatch(set_orderInfo(payload.result));
-  }
-  if (Array.isArray(payload.list)) {
-    const mapped = payload.list.map((row) =>
-      mapOrderRowToListItem(/** @type {Record<string, unknown>} */ (row)),
-    );
-    store.dispatch(set_orderList(mapped));
-  }
+  console.log("order payload form socket: ", payload);
+  store.dispatch(set_orderInfo(payload.result))
+  store.dispatch(set_orderList(payload.list))
 }
 
 /** @param {unknown} res */
 export function applyReturnSocketPayload(res) {
   if (!res || typeof res !== 'object') return;
   const payload = /** @type {Record<string, unknown>} */ (res);
-  console.log("socket res: ", payload)
   if (payload.result) {
     store.dispatch(set_returnInfo(payload.result));
   }
   if (Array.isArray(payload.list)) {
-    const mapped = payload.list.map((row) =>
-      mapOrderRowToListItem(/** @type {Record<string, unknown>} */ (row)),
-    );
-    store.dispatch(set_returnList(mapped));
+    store.dispatch(set_returnList(payload.list));
   }
 }
 
 /** @param {unknown} res */
 export function applyDisputeSocketPayload(res) {
+  const auth = store.getState().auth;
+
   if (!res || typeof res !== 'object') return;
   const payload = /** @type {Record<string, unknown>} */ (res);
-  if (payload.result && typeof payload.result === 'object') {
-    const mapped = mapBuyerDisputeRow(
-      /** @type {Record<string, unknown>} */ (payload.result),
-    );
-    store.dispatch(set_disputeInfo(mapped));
-  }
-  if (Array.isArray(payload.list)) {
-    const mapped = payload.list.map((row) =>
-      mapBuyerDisputeRow(/** @type {Record<string, unknown>} */ (row)),
-    );
-    store.dispatch(set_disputeList(mapped));
+  console.log("coi testing", payload)
+
+  if (payload.actor && typeof payload.actor === 'object') {
+    const {actor} = res;
+    if (auth.activeRole === "customer" && actor?.cdl) {
+      store.dispatch(set_disputeList(actor.cdl));
+      store.dispatch(set_disputeInfo(actor.cdi));
+    }else if(auth.activeRole === "vendor" && actor?.vdl){
+      store.dispatch(set_disputeList(actor.vdl));
+      store.dispatch(set_disputeInfo(actor.vdi));
+    }
+
+    if (actor?.voi || actor?.coi) {
+      if (auth.activeRole === "vendor" && actor?.voi || auth.activeRole === "customer" && actor?.coi) {
+        if(auth.activeRole === "vendor"){
+          store.dispatch(set_orderInfo(actor.voi))
+          store.dispatch(set_orderList(actor.vol))
+        }else{
+          store.dispatch(set_orderInfo(actor.coi))
+          store.dispatch(set_orderList(actor.col))
+        }
+      }else{
+        if(auth.activeRole === "vendor"){
+          store.dispatch(set_orderInfo(payload.others.voi))
+          store.dispatch(set_orderList(payload.others.vol))
+        }else{
+          store.dispatch(set_orderInfo(payload.others.coi))
+          store.dispatch(set_orderList(payload.others.col))
+        }
+      }
+    }
+
   }
 }
 
@@ -121,6 +139,7 @@ function bindDisputeSocketListeners(socket) {
   socket.__disputeListenersBound = true;
 
   const onDisputeUpdate = (res) => {
+    console.log(res)
     applyDisputeSocketPayload(res);
   };
 
@@ -134,6 +153,8 @@ function parseAck(payload) {
   if (!payload || typeof payload !== 'object') {
     return {
       success: false,
+      dispute: null,
+      others: null,
       result: null,
       list: null,
       message: 'No response from socket server',
@@ -143,8 +164,10 @@ function parseAck(payload) {
   const rec = /** @type {Record<string, unknown>} */ (payload);
   return {
     success: Boolean(rec.success),
-    result: rec.result ?? null,
-    list: Array.isArray(rec.list) ? rec.list : null,
+    dispute: rec.dispute ?? null,
+    others: rec.others ,
+    result: rec.result,
+    list: rec.list,
     message: String(rec.message ?? ''),
     error: rec.error != null ? String(rec.error) : '',
   };
@@ -219,7 +242,9 @@ export async function emitSocketAck(event, payload = {}) {
       }
       resolve({
         success: out.success,
-        result: /** @type {T | null} */ (out.result),
+        dispute: /** @type {T | null} */ (out.dispute),
+        others: out.others,
+        result: out.result,
         list: out.list,
         message: out.message,
         error: out.error,

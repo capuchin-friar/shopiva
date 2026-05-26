@@ -7,6 +7,8 @@ import {
   GetBuyerDisputesService,
   parseRaiseDisputePayload,
 } from "../../services/buyer/disputes.js";
+import { disputesTransformer } from "../../transformers/buyer/disputes.js";
+import { disputeTransformer } from "../../transformers/buyer/dispute.js";
 
 export async function GetBuyerDisputesController(req: AuthRequest, res: Response): Promise<void> {
   try {
@@ -15,15 +17,10 @@ export async function GetBuyerDisputesController(req: AuthRequest, res: Response
       res.status(401).json({ error: "Unauthorized" });
       return;
     }
-    const shouldBackfill = String(req.query.backfill ?? "true").toLowerCase() !== "false";
-    if (shouldBackfill) {
-      await BackfillBuyerDisputesFromOrdersService(userId);
-    }
-
-    const includeClosed = String(req.query.includeClosed ?? "").toLowerCase() === "true";
-    const disputes = await GetBuyerDisputesService(userId, { includeClosed });
+    const disputes = await disputesTransformer(userId);
     res.status(200).json({ disputes });
   } catch (err) {
+    console.log(err)
     res.status(400).json({ error: err instanceof Error ? err.message : String(err) });
   }
 }
@@ -40,7 +37,7 @@ export async function GetBuyerDisputeByIdController(req: AuthRequest, res: Respo
       res.status(400).json({ error: "Invalid dispute id" });
       return;
     }
-    const dispute = await GetBuyerDisputeByIdService(userId, disputeId);
+    const dispute = await disputeTransformer(disputeId);
     if (!dispute) {
       res.status(404).json({ error: "Dispute not found" });
       return;

@@ -15,7 +15,6 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatNaira } from '../utils/formatNaira';
 import { fetchBuyerOrders } from '../api/buyer';
-import { mapOrderRowToListItem } from '../utils/buyerUi';
 import { useDispatch, useSelector } from 'react-redux';
 import { getStoredUser } from '../auth/session';
 import { fetchOwnerShops, fetchShopOrders } from '../api';
@@ -70,6 +69,18 @@ const STATUS_THEME = {
     text: '#0D5C2F',
     label: 'Delivered',
   },
+  order_confirmed: {
+    bg: '#fff3e3',
+    dot: '#eb8900',
+    text: '#a46000',
+    label: 'Order confirmed',
+  },
+  order_disputed: {
+    bg: '#fff3e3',
+    dot: '#eb8900',
+    text: '#a46000',
+    label: 'Order disputed',
+  },
   order_cancellation: {
     bg: '#FDE3E3',
     dot: '#C62828',
@@ -90,6 +101,7 @@ function statusThemeFor(raw) {
   if (key.includes('ship')) return STATUS_THEME.order_shipping;
   if (key.includes('process')) return STATUS_THEME.order_processing;
   if (key.includes('accept')) return STATUS_THEME.order_accepted;
+  if (key.includes('dispute')) return STATUS_THEME.order_disputed;
   if (key.includes('payment') || key.includes('pending') || key.includes('paid'))
     return STATUS_THEME.payment_received;
   return STATUS_THEME.payment_received;
@@ -99,7 +111,7 @@ function statusThemeFor(raw) {
  * @param {{ item: Record<string, unknown>; onPress: () => void }} p
  */
 function OrderCard({ item, onPress }) {
-  const t = statusThemeFor(item.statusRaw ?? item.status);
+  const t = statusThemeFor(item.status);
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
@@ -110,7 +122,7 @@ function OrderCard({ item, onPress }) {
           <View style={[styles.statusDot, { backgroundColor: t.dot }]} />
         </View>
         <View style={styles.cardTitleCol}>
-          <Text style={styles.orderId}>{item.id}</Text>
+          <Text style={styles.orderId}>{item.order_id}</Text>
           <Text style={styles.vendorLine} numberOfLines={1}>
             {item.vendor ?? item.customer}
           </Text>
@@ -121,11 +133,11 @@ function OrderCard({ item, onPress }) {
       <View style={styles.grid}>
         <View style={styles.gridCol}>
           <Text style={styles.gridLabel}>Items</Text>
-          <Text style={styles.gridValue}>{item.items}</Text>
+          <Text style={styles.gridValue}>{item.qty}</Text>
         </View>
         <View style={styles.gridCol}>
           <Text style={styles.gridLabel}>Value</Text>
-          <Text style={styles.gridValue}>{formatNaira(item.valueRupees)}</Text>
+          <Text style={styles.gridValue}>{formatNaira(item.amount)}</Text>
         </View>
         <View style={[styles.gridCol, styles.gridColLast]}>
           <Text style={styles.gridLabel}>Status</Text>
@@ -156,7 +168,6 @@ export default function OrderListScreen() {
     return Number.isFinite(n) && n > 0 ? n : 0;
   }
 
-
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -178,10 +189,7 @@ export default function OrderListScreen() {
         const data = auth.activeRole === "customer" ? await fetchBuyerOrders() : await fetchShopOrders(shopId, userId);
         if (cancelled) return;
 
-        const mapped = (Array.isArray(data) ? data : data.orders).map((r) =>
-          mapOrderRowToListItem(/** @type {Record<string, unknown>} */ (r)),
-        );
-        dispatch(set_orderList(mapped))
+        dispatch(set_orderList(Array.isArray(data) ? data : data.orders))
       } catch (e) {
         if (!cancelled) {
           dispatch(set_orderList([]))
@@ -194,7 +202,7 @@ export default function OrderListScreen() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [auth.activeRole, dispatch]);
 
   const data = useMemo(() => {
     if (filter === 'all') return orderList;
@@ -208,7 +216,6 @@ export default function OrderListScreen() {
         onPress={() =>
           navigation.navigate('Order-detail', {
             order: item,
-            orderId: item.orderId,
           })
         }
       />

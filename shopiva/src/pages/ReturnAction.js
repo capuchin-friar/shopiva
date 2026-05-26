@@ -1,6 +1,7 @@
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { useEffect, useState } from "react";
 import {
+    ActivityIndicator,
     Alert,
     Image,
     Pressable,
@@ -160,7 +161,7 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
 
     const [reason, setReason] = useState("");
     const [note, setNote] = useState("");
-
+    const [loading, setLoading] = useState(false);
     // const [confirmItemsInStock, setConfirmItemsInStock] = useState(false);
     const [confirmFulfillOnTime, setConfirmFulfillOnTime] = useState(false);
     const [confirmPerformancePolicy, setConfirmPerformancePolicy] =
@@ -177,6 +178,7 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
         return (
             <>
                 <View style={[styles.cnt, styles.processingRoot]}>
+                    {loading && <Spinner />}
                     <ScrollView
                         showsVerticalScrollIndicator={false}
                         contentContainerStyle={[
@@ -281,6 +283,7 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                                             text: 'Reject',
                                             style: 'destructive',
                                             onPress: async () => {
+                                                setLoading(!loading);
                                                 const u = await getStoredUser();
                                                 const response = await emitSocketAck("return_acceptance", {
                                                     ...data,
@@ -311,6 +314,7 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
         return (
             <>
                 <View style={[styles.cnt, styles.processingRoot]}>
+                    {loading && <Spinner />}
                     <ScrollView
                         showsVerticalScrollIndicator={false}
                         contentContainerStyle={[
@@ -443,6 +447,7 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                                     );
                                     return;
                                 }
+                                setLoading(!loading);
                                 const u = await getStoredUser();
                                 const response = await emitSocketAck(
                                     "return_acceptance",
@@ -497,7 +502,7 @@ function Processing({ data }) {
     const [startedProcessing, setStartedProcessing] = useState(false);
     const [shipWithinCommitment, setShipWithinCommitment] = useState(false);
     const [fulfillmentDuration, setFulfillmentDuration] = useState(null);
-
+    const [loading, setLoading] = useState(false);
     useEffect(() => {
         connectChatSocket();
     }, []);
@@ -532,6 +537,7 @@ function Processing({ data }) {
 
     const runProcessingConfirm = async () => {
         if (!validateProcessing()) return;
+        setLoading(!loading)
         const u = await getStoredUser();
         const response = await emitSocketAck("return_processing", {
             ...data,
@@ -547,6 +553,7 @@ function Processing({ data }) {
 
     return (
         <View style={[styles.cnt, styles.processingRoot]}>
+            {loading && <Spinner />}
             <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={[
@@ -661,7 +668,7 @@ function Shipping({ data }) {
     const insets = useSafeAreaInsets();
     const dispatch = useDispatch();
     const navigation = useNavigation();
-
+    const [loading, setLoading] = useState(false);
     const [handedOffForShipping, setHandedOffForShipping] = useState(false);
     const [withinCommittedTimeframe, setWithinCommittedTimeframe] =
         useState(false);
@@ -729,6 +736,7 @@ function Shipping({ data }) {
 
     const submitShipping = async () => {
         if (!validateShipping()) return;
+        setLoading(!loading)
         const u = await getStoredUser();
         const response = await emitSocketAck("return_shipping", {
             ...data,
@@ -744,6 +752,7 @@ function Shipping({ data }) {
 
     return (
         <View style={[styles.cnt, styles.processingRoot]}>
+            {loading && <Spinner />}
             <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={[
@@ -921,7 +930,7 @@ function OutForDelivery({ data }) {
     const insets = useSafeAreaInsets();
     const dispatch = useDispatch();
     const navigation = useNavigation();
-
+    const [loading, setLoading] = useState(false);
     const [confirmOutForDelivery, setConfirmOutForDelivery] = useState(false);
     const [finalDeliveryHandler, setFinalDeliveryHandler] = useState(null);
     const [riderContact, setRiderContact] = useState("");
@@ -977,6 +986,7 @@ function OutForDelivery({ data }) {
 
     const submit = async () => {
         if (!validate()) return;
+        setLoading(!loading)
         const u = await getStoredUser();
         const response = await emitSocketAck("return_out_for_delivery", {
             ...data,
@@ -992,6 +1002,7 @@ function OutForDelivery({ data }) {
 
     return (
         <View style={[styles.cnt, styles.processingRoot]}>
+            {loading && <Spinner />}
             <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={[
@@ -1132,7 +1143,7 @@ function MarkAsDelivered({ data }) {
     const [confirmed, setConfirmed] = useState(false);
     /** @type {{ id: string; uri: string; name: string; type: string }[]} */
     const [evidence, setEvidence] = useState([]);
-
+    const [loading, setLoading] = useState(false);
     useEffect(() => {
         connectChatSocket();
     }, []);
@@ -1211,6 +1222,7 @@ function MarkAsDelivered({ data }) {
             );
             return;
         }
+        setLoading(!loading)
         const u = await getStoredUser();
         const response = await emitSocketAck("return_delivered", {
             ...data,
@@ -1234,6 +1246,7 @@ function MarkAsDelivered({ data }) {
 
     return (
         <View style={[styles.cnt, styles.processingRoot]}>
+            {loading && <Spinner />}
             <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={[
@@ -1363,7 +1376,7 @@ function ConfirmDelivery({data}) {
     const insets = useSafeAreaInsets();
     const dispatch = useDispatch();
     const navigation = useNavigation();
-
+    const [loading, setLoading] = useState(false);
     const [handedOffForShipping, setHandedOffForShipping] = useState(false);
     const [withinCommittedTimeframe, setWithinCommittedTimeframe] =
         useState(false);
@@ -1375,13 +1388,13 @@ function ConfirmDelivery({data}) {
     const validateShipping = () => {
         if(!handedOffForShipping || !withinCommittedTimeframe){
             Alert.alert(
-                "Confirm delivery",
-                "Mark the checkbox to confirm delivery",
+                "Confirm return",
+                "Mark the checkbox to confirm return",
                 [
                     {
                         text: "OK",
                         style: "default",
-                        onPress: submitConfirmation,
+                        onPress: () => {},
                     },
                 ]
             );
@@ -1393,6 +1406,7 @@ function ConfirmDelivery({data}) {
     const submitConfirmation = async () => {
         let v = validateShipping()
         if(!v)return;
+        setLoading(!loading)
         const u = await getStoredUser();
         const response = await emitSocketAck("return_confirmation", {
             ...data,
@@ -1407,6 +1421,7 @@ function ConfirmDelivery({data}) {
 
     return (
         <View style={[styles.cnt, styles.processingRoot]}>
+            {loading && <Spinner />}
             <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={[
@@ -1472,7 +1487,7 @@ function ConfirmDelivery({data}) {
                 <Pressable
                     onPress={() => {
                         Alert.alert(
-                            "Confirm shipping",
+                            "Confirm return",
                             "Submit this shipping update for the vendor?",
                             [
                                 { text: "Cancel", style: "cancel" },
@@ -1601,6 +1616,7 @@ function VendorCancelReturn({ data }) {
 
     return (
         <View style={[styles.cnt, styles.processingRoot]}>
+            {submitting && <Spinner />}
             <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={[
@@ -1861,6 +1877,7 @@ function CancelReturn({ data }) {
 
     return (
         <View style={[styles.cnt, styles.processingRoot]}>
+            {submitting && <Spinner />}
             <ScrollView
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={[
@@ -1984,6 +2001,28 @@ function CancelReturn({ data }) {
             </View>
         </View>
     );
+}
+
+
+function Spinner() {
+  return (
+    <>
+      <View
+        style={{
+          height: '100%',
+          width: '100%',
+          position: 'absolute',
+          top: 0,
+          backgroundColor: 'rgba(0,0,0,0.3)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}
+      >
+        <ActivityIndicator size="large" color="green" />
+      </View>
+    </>
+  );
 }
 
 

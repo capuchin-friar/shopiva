@@ -481,7 +481,7 @@ export default function DisputeDetailScreen() {
           <View style={styles.metaGrid}>
             <MetaCell
               label={counterpartLabel}
-              value={isCustomer ? `${dispute.vendorName }`: `${dispute?.customer?.fname} ${dispute?.customer?.lname}`}
+              value={isCustomer ? `${dispute?.vendor?.fname} ${dispute?.vendor?.lname}`: `${dispute?.customer?.fname} ${dispute?.customer?.lname}`}
             />
             <MetaCell label="Order date" value={dayjs().to(dayjs(dispute?.order?.created_at))} />
             <MetaCell label="Delivery date" value={dayjs().to(dayjs(dispute?.order_event?.created_at))} />

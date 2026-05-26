@@ -26,6 +26,9 @@ import { getStoredUser } from '../auth/session';
 import { connectChatSocket, emitSocketAck } from '../socket/chatSocket';
 import { mapBuyerDisputeRow } from '../utils/buyerUi';
 import { set_disputeInfo } from '../../redux/dispute';
+import { set_orderInfo } from '../../redux/order';
+import { set_orderList } from '../../redux/orders';
+import { set_disputeList } from '../../redux/disputes';
 
 const DISPUTE_REASONS = [
   { label: 'Item not as described', value: 'not_as_described' },
@@ -281,7 +284,7 @@ export default function OpenDispute() {
           mime_type: e.type,
           uri: e.uri,
         })),
-        shop_id:
+        shop_id:  
           orderInfo?.shop?.id != null ? String(orderInfo.shop.id) : undefined,
       };
 
@@ -301,19 +304,17 @@ export default function OpenDispute() {
       if (!response.success) {
         throw new Error(response.error || response.message || 'Dispute failed');
       }
-
-      const row =
-        response.result && typeof response.result === 'object'
-          ? /** @type {Record<string, unknown>} */ ({
-              ...response.result,
-              metadata,
-              reason: reasonLabel,
-              description: description.trim(),
-            })
-          : { dispute_ref, ...payload };
-      const mapped = mapBuyerDisputeRow(row);
-      dispatch(set_disputeInfo(mapped));
-
+      dispatch(set_disputeInfo(response.dispute.customer.cdi));
+      dispatch(set_disputeList(response.dispute.customer.cdl));
+      if(auth.activeRole === "vendor"){
+        dispatch(set_orderInfo(response.others.voi))
+        dispatch(set_orderList(response.others.vol))
+      }else{
+        dispatch(set_orderInfo(response.others.coi))
+        dispatch(set_orderList(response.others.col))
+      }
+      
+  
       Alert.alert(
         'Dispute submitted',
         'We have received your dispute. Our team will review your evidence and contact you.',
@@ -322,8 +323,8 @@ export default function OpenDispute() {
             text: 'View dispute',
             onPress: () =>
               navigation.replace('Dispute-detail', {
-                dispute: mapped,
-                disputeId: mapped.id,
+                dispute: response.others.coi,
+                disputeId: response.others.coi.dispute.id,
               }),
           },
         ]
@@ -358,6 +359,7 @@ export default function OpenDispute() {
 
   return (
     <View style={styles.root}>
+      {submitting && <Spinner />}
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[
@@ -509,6 +511,28 @@ export default function OpenDispute() {
         </Pressable>
       </View>
     </View>
+  );
+}
+
+
+function Spinner() {
+  return (
+    <>
+      <View
+        style={{
+          height: '100%',
+          width: '100%',
+          position: 'absolute',
+          top: 0,
+          backgroundColor: 'rgba(0,0,0,0.3)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}
+      >
+        <ActivityIndicator size="large" color="green" />
+      </View>
+    </>
   );
 }
 

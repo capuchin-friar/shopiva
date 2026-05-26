@@ -513,6 +513,84 @@ export const handleOrderDelivered = async(
 
 }
 
+export const handleOrderConfirmation = async(
+    userId: number,
+    nsp: Namespace,
+    payload: Record<string, unknown>,
+    ack: unknown
+) => {
+    try {
+        const p = await db();
+
+        const {
+            order_id, event_type, stage, actor_type, actor_id, outcome, notes, meta, recipient, reason
+        } = payload;
+
+        const { rows } = await p.query(
+            `
+                INSERT INTO order_events
+                (
+                    order_id, event_type, stage, actor_type, actor_id, outcome, notes, meta, created_at
+                )
+                VALUES(
+                    $1, $2, $3, $4, $5, $6, $7, $8::jsonb, NOW()
+                )
+                RETURNING *
+            `, [
+                order_id, 
+                event_type, 
+                stage, 
+                actor_type, 
+                actor_id, 
+                outcome, 
+                notes || '', 
+                JSON.stringify(meta || { reason })
+            ]
+        );
+
+        if(rows.length > 0){
+            
+            await updateFulfillmentStatus(stage, order_id);
+
+            const orderPayload = await broadcastOrderUpdate(
+                "order_confirmation",
+                order_id,
+                actor_type,
+                actor_id,
+                recipient,
+            );
+            if(typeof ack === 'function') {
+                ack({
+                    success: true,
+                    message: "Order event recorded successfully",
+                    error: null,
+                    result: orderPayload.result,
+                    list: orderPayload.list,
+                })
+            }
+        } else {
+            if(typeof ack === 'function') {
+                ack({
+                    success: false,
+                    message: "Failed to record order event",
+                    error: "No rows inserted",
+                    result: null,
+                })
+            }
+        }
+    } catch (error) {
+        console.error("Error handling order acceptance:", error);
+        if(typeof ack === 'function') {
+            ack({
+                success: false,
+                message: "Error processing order event",
+                error: error instanceof Error ? error.message : "Unknown error",
+                result: null,
+            })
+        }
+    }
+}
+
 export const handleOrderCancellation = async(
        userId: number,
         nsp: Namespace,

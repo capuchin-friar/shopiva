@@ -18,6 +18,7 @@ import store from "../../redux/store"
 import Tools from "../utils/gen"
 import { set_nested_nav } from '../../redux/nested_nav';
 import { navigationRef } from './root';
+import { connectChatSocket } from '../socket/chatSocket';
 
 export { navigationRef, navigate } from './root';
 
@@ -60,6 +61,10 @@ function NavigationTree() {
     });
     return () => sub.remove();
   }, [handleOAuthUrl]);
+
+  useEffect(() => {
+    connectChatSocket()
+  }, [])
 
   return (
     <NavigationContainer
