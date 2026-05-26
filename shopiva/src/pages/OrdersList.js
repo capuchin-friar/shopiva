@@ -69,6 +69,12 @@ const STATUS_THEME = {
     text: '#0D5C2F',
     label: 'Delivered',
   },
+  order_confirmed: {
+    bg: '#fff3e3',
+    dot: '#eb8900',
+    text: '#a46000',
+    label: 'Order confirmed',
+  },
   order_disputed: {
     bg: '#fff3e3',
     dot: '#eb8900',

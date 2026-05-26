@@ -92,6 +92,12 @@ const STATUS_THEME = {
     text: '#0D5C2F',
     label: 'Delivered',
   },
+  order_confirmed: {
+    bg: '#fff3e3',
+    dot: '#eb8900',
+    text: '#a46000',
+    label: 'Order confirmed',
+  },
   order_disputed: {
     bg: '#fff3e3',
     dot: '#eb8900',
@@ -105,15 +111,6 @@ const STATUS_THEME = {
     label: 'Cancelled',
   },
 };
-
-const STATUS_OPTIONS = [
-  { key: 'pending', label: 'Pending' },
-  { key: 'processing', label: 'Processing' },
-  { key: 'shipped', label: 'Shipped' },
-  { key: 'out_for_delivery', label: 'Out for delivery' },
-  { key: 'delivered', label: 'Delivered' },
-  { key: 'cancelled', label: 'Cancelled' },
-];
 
 /** Escrow pill themes — keys match {@link orderInfo.order.escrow_status}. */
 const ESCROW_STATUS_THEME = {
@@ -782,7 +779,7 @@ export default function OrderDetailScreen() {
         },
       });
     }
-  }, [auth.activeRole, blockIfCancelled, navigation, orderInfo, statusKey]);
+  }, [auth.activeRole, blockIfCancelled, navigation, order.id, orderInfo, statusKey]);
 
   const onOpenDispute = useCallback(() => {
     if(orderInfo?.dispute){
@@ -892,7 +889,7 @@ export default function OrderDetailScreen() {
           data: {
             ...base,
             event_type: 'confirmation',
-            stage: 'order_confirmation',
+            stage: 'order_confirmed',
           },
         });
         return;
@@ -1395,14 +1392,14 @@ export default function OrderDetailScreen() {
           </>
         )}
         {!isOrderCancelled && orderInfo?.order_events?.length > 1 &&  (
-          statusKey !== "delivered" && auth.activeRole === 'customer' ? '' : 
+          statusKey !== "order_delivered" && auth.activeRole === 'customer' ? '' : 
           <Pressable
             onPress={onUpdateStatus}
-            disabled={
-              statusKey === 'delivered' && auth.activeRole === 'customer'
-                ? true
-                : false
-            }
+            // disabled={
+            //   statusKey !== 'order_delivered' && auth.activeRole === 'customer'
+            //     ? true
+            //     : false
+            // }
             style={({ pressed }) => [
               styles.btnPrimary,
               pressed && styles.btnPrimaryPressed,
@@ -1416,7 +1413,7 @@ export default function OrderDetailScreen() {
           </Pressable>
         )}
 
-        {!isOrderCancelled && auth.activeRole === 'customer' && statusKey !== "delivered" ? 
+        {!isOrderCancelled && auth.activeRole === 'customer' && statusKey !== "order_delivered" ? 
           <Pressable 
           disabled
           style={({ pressed }) => [

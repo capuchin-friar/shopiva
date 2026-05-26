@@ -21,6 +21,7 @@ const ORDER_SOCKET_EVENTS = [
   'order_shipping',
   'order_out_for_delivery',
   'order_delivered',
+  'order_confirmed',
   'order_cancelled',
 ];
 

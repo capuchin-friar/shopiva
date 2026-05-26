@@ -1357,32 +1357,10 @@ function ConfirmDelivery({ data }) {
   const [handedOffForShipping, setHandedOffForShipping] = useState(false);
   const [withinCommittedTimeframe, setWithinCommittedTimeframe] =
     useState(false);
-  const [shippingMethod, setShippingMethod] = useState(null);
-  const [estimatedDelivery, setEstimatedDelivery] = useState(null);
-  const [trackingId, setTrackingId] = useState('');
 
   useEffect(() => {
     connectChatSocket();
   }, []);
-
-  const optionLabel = (options, value) =>
-    options.find(o => o.value === value)?.label ?? null;
-
-  const buildShippingMeta = () => ({
-    ...(data.meta && typeof data.meta === 'object' ? data.meta : {}),
-    handed_off_for_shipping: handedOffForShipping,
-    within_committed_timeframe: withinCommittedTimeframe,
-    shipping_method: shippingMethod,
-    shipping_method_label: optionLabel(SHIPPING_METHOD_OPTIONS, shippingMethod),
-    estimated_delivery: estimatedDelivery,
-    estimated_delivery_label: optionLabel(
-      FULFILLMENT_TIMEFRAME_OPTIONS,
-      estimatedDelivery,
-    ),
-    tracking_id: shippingUsesTrackingId(shippingMethod)
-      ? trackingId.trim() || null
-      : null,
-  });
 
   const validateShipping = () => {
     if (!handedOffForShipping || !withinCommittedTimeframe) {
@@ -1392,40 +1370,16 @@ function ConfirmDelivery({ data }) {
       );
       return false;
     }
-    if (shippingMethod == null || shippingMethod === '') {
-      Alert.alert(
-        'Shipping method',
-        'Select how this order is being sent to the customer.',
-      );
-      return false;
-    }
-    if (shippingUsesTrackingId(shippingMethod)) {
-      const tid = trackingId.trim();
-      if (!tid) {
-        Alert.alert(
-          'Tracking or reference ID required',
-          'Enter a waybill, tracking number, or reference for this shipment. Self delivery is the only option that skips this.',
-        );
-        return false;
-      }
-    }
-    if (estimatedDelivery == null || estimatedDelivery === '') {
-      Alert.alert(
-        'Delivery window',
-        'Select when the customer should expect delivery (or pickup).',
-      );
-      return false;
-    }
     return true;
   };
 
-  const submitShipping = async () => {
+  const submitOrder = async () => {
     if (!validateShipping()) return;
     setLoading(!loading);
     const u = await getStoredUser();
-    const response = await emitSocketAck('order_shipping', {
+    const response = await emitSocketAck('order_confirmed', {
       ...data,
-      meta: buildShippingMeta(),
+      meta: JSON.stringify({handedOffForShipping, withinCommittedTimeframe}),
       outcome: 'success',
       actor_id: u.id,
     });
@@ -1505,14 +1459,14 @@ function ConfirmDelivery({ data }) {
             <Pressable
               onPress={() => {
                 Alert.alert(
-                  'Confirm shipping',
+                  'Confirm order',
                   'Submit this shipping update for the customer?',
                   [
                     { text: 'Cancel', style: 'cancel' },
                     {
                       text: 'Confirm',
                       style: 'default',
-                      onPress: submitShipping,
+                      onPress: submitOrder,
                     },
                   ],
                 );
