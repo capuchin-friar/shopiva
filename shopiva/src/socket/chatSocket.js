@@ -30,6 +30,7 @@ const RETURN_SOCKET_EVENTS = [
   'return_shipping',
   'return_out_for_delivery',
   'return_delivered',
+  'return_confirmed',
   'return_cancelled',
 ];
 

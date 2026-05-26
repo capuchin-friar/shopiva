@@ -1388,13 +1388,13 @@ function ConfirmDelivery({data}) {
     const validateShipping = () => {
         if(!handedOffForShipping || !withinCommittedTimeframe){
             Alert.alert(
-                "Confirm delivery",
-                "Mark the checkbox to confirm delivery",
+                "Confirm return",
+                "Mark the checkbox to confirm return",
                 [
                     {
                         text: "OK",
                         style: "default",
-                        onPress: submitConfirmation,
+                        onPress: () => {},
                     },
                 ]
             );
@@ -1487,7 +1487,7 @@ function ConfirmDelivery({data}) {
                 <Pressable
                     onPress={() => {
                         Alert.alert(
-                            "Confirm shipping",
+                            "Confirm return",
                             "Submit this shipping update for the vendor?",
                             [
                                 { text: "Cancel", style: "cancel" },

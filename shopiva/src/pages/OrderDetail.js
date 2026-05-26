@@ -676,10 +676,6 @@ export default function OrderDetailScreen() {
     return '';
   }, [orderInfo, auth.activeRole]);
 
-  const onClose = () => {
-    if (navigation.canGoBack()) navigation.goBack();
-  };
-
   const onMail = () => {
     if (blockIfCancelled()) return;
     if (!counterpartEmail) {

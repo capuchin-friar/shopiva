@@ -10,7 +10,7 @@ import {
 } from "../socket/chat.js";
 import { handleDisputeResponse, handleNewDispute } from "../socket/dispute.js";
 import { handleOrderAcceptance, handleOrderCancellation, handleOrderDelivered, handleOrderOutForDelivery, handleOrderProcessing, handleOrderShipping } from "../socket/order.js";
-import { handleReturnAcceptance, handleReturnCancellation, handleReturnDelivered, handleReturnOutForDelivery, handleReturnProcessing, handleReturnShipping } from "../socket/return.js";
+import { handleReturnAcceptance, handleReturnCancellation, handleReturnConfirmation, handleReturnDelivered, handleReturnOutForDelivery, handleReturnProcessing, handleReturnShipping } from "../socket/return.js";
 
 type SocketWithAuth = Socket & {
   user?: { id: string };
@@ -74,6 +74,9 @@ export default function handleSocketConnection(client: SocketWithAuth) {
   client.on("order_cancelled", wrapSocketHandler((p, a) =>
     handleOrderCancellation(userId, nsp, asPayload(p), a)
   ));
+  // client.on("order_confirmation", wrapSocketHandler((p, a) =>
+    // handleReturnConfirmation(userId, nsp, asPayload(p), a)
+  // ));
 
   // return updates
   client.on("return_acceptance", wrapSocketHandler((p, a) =>
@@ -93,6 +96,9 @@ export default function handleSocketConnection(client: SocketWithAuth) {
   ));
   client.on("return_cancelled", wrapSocketHandler((p, a) =>
     handleReturnCancellation(userId, nsp, asPayload(p), a)
+  ));
+  client.on("return_confirmation", wrapSocketHandler((p, a) =>
+    handleReturnConfirmation(userId, nsp, asPayload(p), a)
   ));
 
   // disputes

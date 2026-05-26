@@ -435,7 +435,6 @@ export const handleReturnDelivered = async(
         payload: Record<string, unknown>,
         ack: unknown
     ) => {
-        console.log(payload)
     try {
         const p = await db();
 
@@ -598,6 +597,83 @@ export const handleReturnCancellation = async(
 
 }
 
+export const handleReturnConfirmation = async(
+    userId: number,
+    nsp: Namespace,
+    payload: Record<string, unknown>,
+    ack: unknown
+) => {
+    try {
+        const p = await db();
+
+        const {
+            return_id, event_type, stage, actor_type, actor_id, outcome, notes, meta, recipient, reason
+        } = payload;
+
+        const { rows } = await p.query(
+            `
+                INSERT INTO return_events
+                (
+                    return_id, event_type, stage, actor_type, actor_id, outcome, notes, meta, created_at
+                )
+                VALUES(
+                    $1, $2, $3, $4, $5, $6, $7, $8::jsonb, NOW()
+                )
+                RETURNING *
+            `, [
+                return_id, 
+                event_type, 
+                stage, 
+                actor_type, 
+                actor_id, 
+                outcome, 
+                notes || '', 
+                JSON.stringify(meta || { reason })
+            ]
+        );
+
+        if(rows.length > 0){
+            
+            await updateReturnStatus(stage, return_id);
+
+            const returnPayload = await broadcastReturnUpdate(
+                "return_confirmed",
+                return_id,
+                actor_type,
+                actor_id,
+                recipient,
+            );
+            if(typeof ack === 'function') {
+                ack({
+                    success: true,
+                    message: "Return event recorded successfully",
+                    error: null,
+                    result: returnPayload.result,
+                    list: returnPayload.list,
+                })
+            }
+        } else {
+            if(typeof ack === 'function') {
+                ack({
+                    success: false,
+                    message: "Failed to record return event",
+                    error: "No rows inserted",
+                    result: null,
+                })
+            }
+        }
+    } catch (error) {
+        console.error("Error handling return acceptance:", error);
+        if(typeof ack === 'function') {
+            ack({
+                success: false,
+                message: "Error processing return event",
+                error: error instanceof Error ? error.message : "Unknown error",
+                result: null,
+            })
+        }
+    }
+}
 async function updateReturnStatus(status: unknown, return_id: unknown){
     console.log(return_id)
     const pool = await db();

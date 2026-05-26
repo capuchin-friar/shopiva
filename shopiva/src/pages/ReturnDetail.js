@@ -34,8 +34,8 @@ const BLACK = '#111111';
 const TEXT = '#1A1A1A';
 const MUTED = '#8E8E93';
 const HAIR = '#ECECEE';
-const ACCENT = '#7C5CFC';
-const ACCENT_PRESSED = '#6A48F5';
+const ACCENT = '#0D8A4A';
+const ACCENT_PRESSED = '#1dd275';
 
 /** Pill themes */
 const PAY_THEME = {
@@ -91,6 +91,12 @@ const STATUS_THEME = {
     dot: '#0D8A4A',
     text: '#0D5C2F',
     label: 'Delivered',
+  },
+  return_confirmed: {
+    bg: '#d8f6e7',
+    dot: '#00d567',
+    text: '#28ed7d',
+    label: 'Confirmed',
   },
   return_cancellation: {
     bg: '#FDE3E3',
@@ -726,7 +732,7 @@ export default function ReturnDetailScreen() {
       actor_id: u.id,
       outcome: 'pending',
       notes: '',
-      recipient: vendor_id,
+      recipient: auth.activeRole === "customer" ? vendor_id : returnInfo?.dispute?.customer_id,
       meta: {},
     };
 
@@ -784,7 +790,7 @@ export default function ReturnDetailScreen() {
           data: {
             ...base,
             event_type: 'confirmation',
-            stage: 'return_confirmation',
+            stage: 'return_confirmed',
           },
         });
         return;
@@ -864,7 +870,23 @@ export default function ReturnDetailScreen() {
       </>
     );
   }
-
+  const actionBtn = () => {
+    return (
+      (auth.activeRole === 'customer')
+        ? statusKey === 'order_accepted'
+          ? 'Start Processing Order'
+          : statusKey === 'order_processing'
+          ? 'Start Shipping Order'
+          : statusKey === 'order_shipping'
+          ? 'Notify Vendor For Pickup'
+          : statusKey === 'order_out_for_delivery'
+          ? 'Confirm Vendor Has Recieved The Order'
+          : "Awaiting Vendor's Confirmation"
+          :
+      (auth.activeRole === 'vendor') 
+      ? 'Confirm delivery' : ''
+    )
+  }
   return (
     <View style={[styles.root, { paddingTop: 0 }]}>
       <ScrollView
@@ -1275,7 +1297,10 @@ export default function ReturnDetailScreen() {
             ]}
           >
             <Text style={styles.btnPrimaryText}>
-              {auth.activeRole === 'customer'
+              {
+                actionBtn()
+              }
+              {/* {auth.activeRole === 'customer'
                 ? statusKey === 'return_accepted'
                   ? 'Start Processing Return'
                   : statusKey === 'return_processing'
@@ -1286,7 +1311,7 @@ export default function ReturnDetailScreen() {
                   ? 'Confirm Vendor Has Recieved The Return'
                   : "Awaiting Vendor's Confirmation"
                 : ''}
-              {auth.activeRole === 'vendor' ? 'Confirm delivery' : ''}
+              {auth.activeRole === 'vendor' ? 'Confirm delivery' : ''} */}
             </Text>
           </Pressable>
         )}
