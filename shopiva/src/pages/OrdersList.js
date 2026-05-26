@@ -15,10 +15,8 @@ import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatNaira } from '../utils/formatNaira';
 import { fetchBuyerOrders } from '../api/buyer';
-// import { fetchVendorOrders } from '../../api/vendors'
 import { mapOrderRowToListItem } from '../utils/buyerUi';
 import { useDispatch, useSelector } from 'react-redux';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getStoredUser } from '../auth/session';
 import { fetchOwnerShops, fetchShopOrders } from '../api';
 import { set_orderList } from '../../redux/orders';
@@ -158,23 +156,6 @@ export default function OrderListScreen() {
     return Number.isFinite(n) && n > 0 ? n : 0;
   }
 
-  /**
-   * MVP: choose only the first-created shop for dashboard metrics.
-   * @param {Record<string, unknown>[]} shops
-   * @returns {Record<string, unknown> | null}
-   */
-  function pickFirstCreatedShop(shops) {
-    if (!Array.isArray(shops) || shops.length === 0) return null;
-    return shops
-    .slice()
-    .sort((a, b) => {
-      const aa = shopCreatedAtMsOf(/** @type {Record<string, unknown>} */ (a));
-      const bb = shopCreatedAtMsOf(/** @type {Record<string, unknown>} */ (b));
-      if (aa !== bb) return aa - bb;
-      return shopIdOf(/** @type {Record<string, unknown>} */ (a)) - shopIdOf(/** @type {Record<string, unknown>} */ (b));
-    })[0] || null;
-  }
-
 
   useEffect(() => {
     let cancelled = false;
@@ -238,8 +219,6 @@ export default function OrderListScreen() {
   const listHeader = useMemo(
     () => (
       <View style={styles.headerBlock}>
-        {/* <Text style={styles.pageTitle}>Orders</Text> */}
-        {/* <Text style={styles.pageSubtitle}>Manage all your orders</Text> */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
