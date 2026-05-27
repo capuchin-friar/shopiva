@@ -953,9 +953,9 @@ export default function OrderDetailScreen() {
                 </Text>
               </View>
             ) : null}
-            {!isOrderCancelled ? (
+            {!isOrderCancelled && statusKey !== "order_confirmed" ? (
             <View style={styles.escrowActions}>
-              <Pressable
+             { statusKey !== "order_disputed" &&<Pressable
                 onPress={onCancelDelivery}
                 style={({ pressed }) => [
                   styles.escrowBtn,
@@ -966,7 +966,7 @@ export default function OrderDetailScreen() {
                 accessibilityLabel="Cancel delivery"
               >
                 <Text style={styles.escrowBtnCancelText}>Cancel delivery</Text>
-              </Pressable>
+              </Pressable>}
               <Pressable
                 onPress={onOpenDispute}
                 style={({ pressed }) => [

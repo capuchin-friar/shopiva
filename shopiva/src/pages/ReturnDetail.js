@@ -27,84 +27,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { getStoredUser } from '../auth/session';
 import { connectChatSocket } from '../socket/chatSocket';
 import { set_returnInfo } from '../../redux/return';
-
-const PAGE_BG = '#FFF';
-const WHITE = '#FFFFFF';
-const BLACK = '#111111';
-const TEXT = '#1A1A1A';
-const MUTED = '#8E8E93';
-const HAIR = '#ECECEE';
-const ACCENT = '#0D8A4A';
-const ACCENT_PRESSED = '#1dd275';
-
-/** Pill themes */
-const PAY_THEME = {
-  return_initiated: { bg: '#E0F2E9', dot: '#0D8A4A', text: '#0D5C2F', label: 'Paid' },
-  return_accepted: { bg: '#FFF4D6', dot: '#B58100', text: '#7A5800', label: 'Unpaid' },
-  return_processing: {
-    bg: '#EFEAFF',
-    dot: '#7C5CFC',
-    text: '#3F2BB8',
-    label: 'Refunded',
-  },
-  return_shipping: {
-    bg: '#FDE3E3',
-    dot: '#C62828',
-    text: '#9F1818',
-    label: 'Cancelled',
-  },
-};
-
-const STATUS_THEME = {
-  return_initiated: {
-    bg: '#FFF4D6',
-    dot: '#B58100',
-    text: '#7A5800',
-    label: 'Return Initiated',
-  },
-  return_accepted: {
-    bg: '#FFF4D6',
-    dot: '#B58100',
-    text: '#7A5800',
-    label: 'Return accepted',
-  },
-  return_processing: {
-    bg: '#FFF0E0',
-    dot: '#C45C00',
-    text: '#7A3A00',
-    label: 'Processing',
-  },
-  return_shipping: {
-    bg: '#E0EAFF',
-    dot: '#2F5DDB',
-    text: '#1B3FA1',
-    label: 'Shipping',
-  },
-  return_out_for_delivery: {
-    bg: '#E0F2E9',
-    dot: '#08ccfd',
-    text: '#075646',
-    label: 'Out For Delivery',
-  },
-  return_delivered: {
-    bg: '#E0F2E9',
-    dot: '#0D8A4A',
-    text: '#0D5C2F',
-    label: 'Delivered',
-  },
-  return_confirmed: {
-    bg: '#d8f6e7',
-    dot: '#00d567',
-    text: '#28ed7d',
-    label: 'Confirmed',
-  },
-  return_cancellation: {
-    bg: '#FDE3E3',
-    dot: '#C62828',
-    text: '#9F1818',
-    label: 'Cancelled',
-  },
-};
+import { RETURN_STATUS_THEME, RETURN_PAY_THEME, COLOR } from '../utils/statusTheme';
 
 
 /** @param {unknown} meta */
@@ -256,7 +179,7 @@ function SectionLabel({ children }) {
 function SummaryRow({ icon, label, value, last }) {
   return (
     <View style={[styles.summaryRow, last && styles.summaryRowLast]}>
-      <Icon name={icon} size={18} color={MUTED} style={styles.summaryIcon} />
+      <Icon name={icon} size={18} color={COLOR.MUTED} style={styles.summaryIcon} />
       <Text style={styles.summaryLabel}>{label}</Text>
       <View style={styles.summaryValue}>
         {typeof value === 'string' || typeof value === 'number' ? (
@@ -417,7 +340,7 @@ export default function ReturnDetailScreen() {
   }, [route, auth.activeRole, dispatch]);
 
   const payKey = String(returnInfo?.return?.status ?? 'paid').toLowerCase();
-  const payTheme = PAY_THEME[payKey] ?? PAY_THEME.paid;
+  const payTheme = RETURN_PAY_THEME[payKey] ?? RETURN_PAY_THEME.paid;
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -443,13 +366,13 @@ export default function ReturnDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel="More order actions"
         >
-          <Icon name="ellipsis-horizontal" size={22} color={TEXT} />
+          <Icon name="ellipsis-horizontal" size={22} color={COLOR.TEXT} />
         </Pressable>
       ),
     });
   }, [navigation, returnNumber, openActions, payTheme]);
   const statusTheme =
-    STATUS_THEME[returnInfo?.return?.status] ?? 'Not Available';
+    RETURN_STATUS_THEME[returnInfo?.return?.status] ?? 'Not Available';
   const fmt = useCallback(n => {
     if (typeof n === 'string') return n;
     if (!Number.isFinite(Number(n))) return '—';
@@ -1025,7 +948,7 @@ export default function ReturnDetailScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Message customer"
                 >
-                  <Icon name="mail-outline" size={22} color={ACCENT} />
+                  <Icon name="mail-outline" size={22} color={COLOR.BRAND_COLOR} />
                 </Pressable>
               </View>
             </View>
@@ -1053,7 +976,7 @@ export default function ReturnDetailScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Message vendor"
                 >
-                  <Icon name="mail-outline" size={22} color={ACCENT} />
+                  <Icon name="mail-outline" size={22} color={COLOR.BRAND_COLOR} />
                 </Pressable>
               </View>
             </View>
@@ -1366,7 +1289,7 @@ export default function ReturnDetailScreen() {
                 <Icon
                   name={action.icon}
                   size={22}
-                  color={action.destructive ? '#C62828' : TEXT}
+                  color={action.destructive ? '#C62828' : COLOR.TEXT}
                   style={styles.sheetRowIcon}
                 />
                 <Text
@@ -1434,7 +1357,7 @@ export default function ReturnDetailScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: PAGE_BG,
+    backgroundColor: COLOR.NEUTRAL,
   },
   headerBar: {
     flexDirection: 'row',
@@ -1452,12 +1375,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: BLACK,
+    color: COLOR.DARK,
     letterSpacing: -0.4,
   },
   headerDate: {
     fontSize: 13,
-    color: MUTED,
+    color: COLOR.MUTED,
     paddingHorizontal: 16,
     marginTop: 4,
     marginBottom: 12,
@@ -1473,7 +1396,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: WHITE,
+    backgroundColor: COLOR.NEUTRAL,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#E2E2E6',
   },
@@ -1489,7 +1412,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: BLACK,
+    color: COLOR.DARK,
     marginTop: 16,
     marginBottom: 10,
   },
@@ -1508,13 +1431,13 @@ const styles = StyleSheet.create({
   linkText: {
     fontSize: 13,
     fontWeight: '700',
-    color: ACCENT,
+    color: COLOR.BRAND_COLOR,
   },
   linkArrow: {
     transform: [{ rotate: '45deg' }],
   },
   card: {
-    backgroundColor: WHITE,
+    backgroundColor: COLOR.NEUTRAL,
     borderRadius: 5,
     paddingVertical: 5,
     paddingHorizontal: 14,
@@ -1552,8 +1475,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: HAIR,
+    // borderBottomWidth: StyleSheet.hairlineWidth,
+    // borderBottomColor: COLOR.HAIR,
   },
   summaryRowLast: {
     borderBottomWidth: 0,
@@ -1565,7 +1488,7 @@ const styles = StyleSheet.create({
   summaryLabel: {
     flex: 1,
     fontSize: 11,
-    color: TEXT,
+    color: COLOR.TEXT,
   },
   summaryValue: {
     alignItems: 'flex-end',
@@ -1575,7 +1498,7 @@ const styles = StyleSheet.create({
   summaryValueText: {
     fontSize: 11,
     fontWeight: '700',
-    color: BLACK,
+    color: COLOR.DARK,
     textTransform: 'capitalize',
   },
   escrowStatusRow: {
@@ -1584,8 +1507,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
     paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: HAIR,
+    // borderBottomWidth: StyleSheet.hairlineWidth,
+    // borderBottomColor: COLOR.HAIR,
   },
   escrowAmountRow: {
     flexDirection: 'row',
@@ -1597,23 +1520,23 @@ const styles = StyleSheet.create({
   },
   escrowAmountLabel: {
     fontSize: 13,
-    color: MUTED,
+    color: COLOR.MUTED,
     fontWeight: '600',
   },
   escrowAmountValue: {
     fontSize: 15,
     fontWeight: '700',
-    color: BLACK,
+    color: COLOR.DARK,
     flexShrink: 0,
   },
   escrowStatusLabel: {
     fontSize: 13,
-    color: TEXT,
+    color: COLOR.TEXT,
     fontWeight: '600',
   },
   escrowCaption: {
     fontSize: 12,
-    color: MUTED,
+    color: COLOR.MUTED,
     lineHeight: 17,
     marginTop: 6,
     marginBottom: 4,
@@ -1643,12 +1566,12 @@ const styles = StyleSheet.create({
   },
   escrowBtnSecondary: {
     borderColor: '#D6D6DC',
-    backgroundColor: WHITE,
+    backgroundColor: COLOR.NEUTRAL,
   },
   escrowBtnSecondaryText: {
     fontSize: 13,
     fontWeight: '700',
-    color: TEXT,
+    color: COLOR.TEXT,
   },
   cancelledBanner: {
     flexDirection: 'row',
@@ -1676,7 +1599,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.45)',
   },
   cancelledModalCard: {
-    backgroundColor: WHITE,
+    backgroundColor: COLOR.NEUTRAL,
     borderRadius: 8,
     padding: 24,
     alignItems: 'center',
@@ -1685,19 +1608,19 @@ const styles = StyleSheet.create({
   cancelledModalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: BLACK,
+    color: COLOR.DARK,
     marginTop: 4,
   },
   cancelledModalBody: {
     fontSize: 14,
     lineHeight: 21,
-    color: MUTED,
+    color: COLOR.MUTED,
     textAlign: 'center',
   },
   cancelledModalReason: {
     fontSize: 13,
     lineHeight: 19,
-    color: TEXT,
+    color: COLOR.TEXT,
     textAlign: 'center',
     fontStyle: 'italic',
   },
@@ -1706,14 +1629,14 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 48,
     borderRadius: 5,
-    backgroundColor: ACCENT,
+    backgroundColor: COLOR.BRAND_COLOR,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cancelledModalBtnText: {
     fontSize: 15,
     fontWeight: '700',
-    color: WHITE,
+    color: COLOR.NEUTRAL,
   },
   customerHead: {
     flexDirection: 'row',
@@ -1721,8 +1644,8 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingBottom: 12,
     marginBottom: 4,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: HAIR,
+    // borderBottomWidth: StyleSheet.hairlineWidth,
+    // borderBottomColor: COLOR.HAIR,
   },
   customerTitleRow: {
     flex: 1,
@@ -1755,11 +1678,11 @@ const styles = StyleSheet.create({
   customerName: {
     fontSize: 15,
     fontWeight: '700',
-    color: BLACK,
+    color: COLOR.DARK,
   },
   customerEmail: {
     fontSize: 12,
-    color: MUTED,
+    color: COLOR.MUTED,
     marginTop: 2,
   },
   headIcon: {
@@ -1778,7 +1701,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#E5484D',
     borderWidth: 1,
-    borderColor: WHITE,
+    borderColor: COLOR.NEUTRAL,
   },
   kvRow: {
     flexDirection: 'row',
@@ -1791,7 +1714,7 @@ const styles = StyleSheet.create({
   kvLabel: {
     flex: 1,
     fontSize: 13,
-    color: MUTED,
+    color: COLOR.MUTED,
   },
   kvValueWrap: {
     flex: 1.4,
@@ -1801,7 +1724,7 @@ const styles = StyleSheet.create({
     flex: 1.4,
     fontSize: 13,
     fontWeight: '600',
-    color: TEXT,
+    color: COLOR.TEXT,
     textAlign: 'right',
   },
   kvAddress: {
@@ -1811,12 +1734,12 @@ const styles = StyleSheet.create({
     marginTop: 6,
     paddingTop: 6,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: HAIR,
+    borderTopColor: COLOR.HAIR,
   },
   shippingHeader: {
     fontSize: 12,
     fontWeight: '700',
-    color: MUTED,
+    color: COLOR.MUTED,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
     marginTop: 6,
@@ -1827,8 +1750,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: HAIR,
+    // borderBottomWidth: StyleSheet.hairlineWidth,
+    // borderBottomColor: COLOR.HAIR,
   },
   itemRowLast: {
     borderBottomWidth: 0,
@@ -1853,11 +1776,11 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: 14,
     fontWeight: '700',
-    color: BLACK,
+    color: COLOR.DARK,
   },
   itemVariant: {
     fontSize: 12,
-    color: MUTED,
+    color: COLOR.MUTED,
     marginTop: 2,
   },
   itemRight: {
@@ -1875,18 +1798,18 @@ const styles = StyleSheet.create({
   },
   qtyChipLabel: {
     fontSize: 11,
-    color: MUTED,
+    color: COLOR.MUTED,
     fontWeight: '600',
   },
   qtyChipValue: {
     fontSize: 12,
     fontWeight: '700',
-    color: BLACK,
+    color: COLOR.DARK,
   },
   itemPrice: {
     fontSize: 14,
     fontWeight: '700',
-    color: BLACK,
+    color: COLOR.DARK,
   },
   moneyRow: {
     flexDirection: 'row',
@@ -1896,20 +1819,20 @@ const styles = StyleSheet.create({
   },
   moneyLabel: {
     fontSize: 13,
-    color: TEXT,
+    color: COLOR.TEXT,
   },
   moneyLabelMuted: {
-    color: MUTED,
+    color: COLOR.MUTED,
   },
   moneyValue: {
     fontSize: 13,
     fontWeight: '600',
-    color: TEXT,
+    color: COLOR.TEXT,
   },
   moneyValueBold: {
     fontSize: 15,
     fontWeight: '800',
-    color: BLACK,
+    color: COLOR.DARK,
   },
   moneyDivider: {
     height: StyleSheet.hairlineWidth,
@@ -1937,7 +1860,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0D8A4A',
   },
   tlDotPending: {
-    backgroundColor: WHITE,
+    backgroundColor: COLOR.NEUTRAL,
     borderWidth: 2,
     borderColor: '#D6D6DC',
   },
@@ -1964,11 +1887,11 @@ const styles = StyleSheet.create({
   tlTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: BLACK,
+    color: COLOR.DARK,
     flexShrink: 1,
   },
   tlTitleMuted: {
-    color: MUTED,
+    color: COLOR.MUTED,
     fontWeight: '600',
   },
   tlDateRow: {
@@ -1978,11 +1901,11 @@ const styles = StyleSheet.create({
   },
   tlDate: {
     fontSize: 12,
-    color: MUTED,
+    color: COLOR.MUTED,
   },
   tlSubtitle: {
     fontSize: 12,
-    color: MUTED,
+    color: COLOR.MUTED,
     marginTop: 4,
   },
   actionBar: {
@@ -1995,7 +1918,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 16,
     paddingTop: 12,
-    backgroundColor: WHITE,
+    backgroundColor: COLOR.NEUTRAL,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#E2E2E6',
   },
@@ -2005,14 +1928,14 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: WHITE,
+    backgroundColor: COLOR.NEUTRAL,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#D6D6DC',
   },
   btnGhostText: {
     fontSize: 13,
     fontWeight: '700',
-    color: TEXT,
+    color: COLOR.TEXT,
   },
   btnPrimary: {
     flex: 1.2,
@@ -2020,15 +1943,15 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: ACCENT,
+    backgroundColor: COLOR.BRAND_COLOR,
   },
   btnPrimaryPressed: {
-    backgroundColor: ACCENT_PRESSED,
+    backgroundColor: COLOR.BRAND_COLOR_LITE,
   },
   btnPrimaryText: {
     fontSize: 14,
     fontWeight: '700',
-    color: WHITE,
+    color: COLOR.NEUTRAL,
   },
   btnAccept: {
     flex: 1,
@@ -2044,7 +1967,7 @@ const styles = StyleSheet.create({
   btnAcceptText: {
     fontSize: 13,
     fontWeight: '700',
-    color: WHITE,
+    color: COLOR.NEUTRAL,
   },
   btnReject: {
     flex: 1,
@@ -2060,7 +1983,7 @@ const styles = StyleSheet.create({
   btnRejectText: {
     fontSize: 13,
     fontWeight: '700',
-    color: WHITE,
+    color: COLOR.NEUTRAL,
   },
   sheetRoot: {
     flex: 1,
@@ -2071,7 +1994,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sheet: {
-    backgroundColor: WHITE,
+    backgroundColor: COLOR.NEUTRAL,
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     paddingHorizontal: 12,
@@ -2088,7 +2011,7 @@ const styles = StyleSheet.create({
   sheetTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: MUTED,
+    color: COLOR.MUTED,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
     paddingHorizontal: 8,
@@ -2114,7 +2037,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: '600',
-    color: TEXT,
+    color: COLOR.TEXT,
   },
   sheetRowIcon: {
     width: 22,
@@ -2131,7 +2054,7 @@ const styles = StyleSheet.create({
   sheetCloseText: {
     fontSize: 15,
     fontWeight: '600',
-    color: MUTED,
+    color: COLOR.MUTED,
   },
   headerEllipsis: {
     paddingVertical: 6,
