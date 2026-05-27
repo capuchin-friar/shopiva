@@ -19,11 +19,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { getStoredUser } from '../auth/session';
 import { fetchOwnerShops, fetchShopOrders } from '../api';
 import { set_orderList } from '../../redux/orders';
+import { ESCROW_STATUS_THEME, STATUS_THEME, PAY_THEME, COLOR } from '../utils/statusTheme';
 
-const PAGE_BG = '#F2F2F4';
-const BLACK = '#111111';
-const MUTED = '#8E8E93';
-const WHITE = '#FFFFFF';
 
 const FILTERS = [
   { key: 'all', label: 'All' },
@@ -32,68 +29,11 @@ const FILTERS = [
   { key: 'delivered', label: 'Delivered' },
 ];
 
-const STATUS_THEME = {
-  payment_received: {
-    bg: '#FFF4D6',
-    dot: '#B58100',
-    text: '#7A5800',
-    label: 'Payment received',
-  },
-  order_accepted: {
-    bg: '#FFF4D6',
-    dot: '#B58100',
-    text: '#7A5800',
-    label: 'Order accepted',
-  },
-  order_processing: {
-    bg: '#FFF0E0',
-    dot: '#C45C00',
-    text: '#7A3A00',
-    label: 'Processing',
-  },
-  order_shipping: {
-    bg: '#E0EAFF',
-    dot: '#2F5DDB',
-    text: '#1B3FA1',
-    label: 'Shipping',
-  },
-  order_out_for_delivery: {
-    bg: '#E0F2E9',
-    dot: '#08ccfd',
-    text: '#075646',
-    label: 'Out For Delivery',
-  },
-  order_delivered: {
-    bg: '#E0F2E9',
-    dot: '#0D8A4A',
-    text: '#0D5C2F',
-    label: 'Delivered',
-  },
-  order_confirmed: {
-    bg: '#fff3e3',
-    dot: '#eb8900',
-    text: '#a46000',
-    label: 'Order confirmed',
-  },
-  order_disputed: {
-    bg: '#fff3e3',
-    dot: '#eb8900',
-    text: '#a46000',
-    label: 'Order disputed',
-  },
-  order_cancellation: {
-    bg: '#FDE3E3',
-    dot: '#C62828',
-    text: '#9F1818',
-    label: 'Cancelled',
-  },
-};
-
-/** @param {unknown} raw */
 function statusThemeFor(raw) {
   const key = String(raw ?? '').toLowerCase().trim();
   if (STATUS_THEME[key]) return STATUS_THEME[key];
   if (key.includes('cancel')) return STATUS_THEME.order_cancellation;
+  if (key.includes('confirmed')) return STATUS_THEME.order_confirmed;
   if (key.includes('deliver') && !key.includes('out_for'))
     return STATUS_THEME.order_delivered;
   if (key.includes('out_for') || key.includes('out-for'))
@@ -107,11 +47,9 @@ function statusThemeFor(raw) {
   return STATUS_THEME.payment_received;
 }
 
-/**
- * @param {{ item: Record<string, unknown>; onPress: () => void }} p
- */
 function OrderCard({ item, onPress }) {
   const t = statusThemeFor(item.status);
+
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
@@ -127,7 +65,7 @@ function OrderCard({ item, onPress }) {
             {item.vendor ?? item.customer}
           </Text>
         </View>
-        <Icon name="chevron-forward" size={20} color={MUTED} />
+        <Icon name="chevron-forward" size={20} color={COLOR.MUTED} />
       </View>
 
       <View style={styles.grid}>
@@ -160,13 +98,6 @@ export default function OrderListScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { orderList } = useSelector(s => s.orderList);
-
-  /** @param {Record<string, unknown>} row */
-  function shopIdOf(row) {
-    const v = row.id ?? row.shopid ?? row.shop_id;
-    const n = Number(v);
-    return Number.isFinite(n) && n > 0 ? n : 0;
-  }
 
   useEffect(() => {
     let cancelled = false;
@@ -295,7 +226,7 @@ export default function OrderListScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: PAGE_BG,
+    backgroundColor: COLOR.BG,
   },
   centered: {
     flex: 1,
@@ -305,7 +236,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: MUTED,
+    color: COLOR.MUTED,
     textAlign: 'center',
   },
   errorText: {
@@ -323,12 +254,12 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: BLACK,
+    color: COLOR.DARK,
     letterSpacing: -0.5,
   },
   pageSubtitle: {
     fontSize: 14,
-    color: MUTED,
+    color: COLOR.MUTED,
     marginTop: 4,
     marginBottom: 18,
   },
@@ -353,16 +284,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   chipTextIdle: {
-    color: BLACK,
+    color: COLOR.DARK,
   },
   chipTextSelected: {
-    color: WHITE,
+    color: COLOR.NEUTRAL,
   },
   separator: {
     height: 12,
   },
   card: {
-    backgroundColor: WHITE,
+    backgroundColor: COLOR.NEUTRAL,
     borderRadius: 10,
     padding: 16,
     ...Platform.select({
@@ -398,11 +329,11 @@ const styles = StyleSheet.create({
   orderId: {
     fontSize: 16,
     fontWeight: '700',
-    color: BLACK,
+    color: COLOR.DARK,
   },
   vendorLine: {
     fontSize: 13,
-    color: MUTED,
+    color: COLOR.MUTED,
     marginTop: 2,
   },
   grid: {
@@ -420,7 +351,7 @@ const styles = StyleSheet.create({
   gridLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: MUTED,
+    color: COLOR.MUTED,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
     marginBottom: 6,
@@ -428,7 +359,7 @@ const styles = StyleSheet.create({
   gridValue: {
     fontSize: 15,
     fontWeight: '600',
-    color: BLACK,
+    color: COLOR.DARK,
   },
   statusDot: {
     width: 7,
