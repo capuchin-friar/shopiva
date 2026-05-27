@@ -29,8 +29,6 @@ import { connectChatSocket } from '../socket/chatSocket';
 import { set_returnInfo } from '../../redux/return';
 import { RETURN_STATUS_THEME, RETURN_PAY_THEME, COLOR } from '../utils/statusTheme';
 
-
-/** @param {unknown} meta */
 function parseEventMeta(meta) {
   if (meta == null) return {};
   if (typeof meta === 'object') return /** @type {Record<string, unknown>} */ (meta);
@@ -47,7 +45,6 @@ function parseEventMeta(meta) {
   return {};
 }
 
-/** @param {string | null | undefined} name */
 function initialsOf(name) {
   const parts = String(name ?? '')
     .trim()
@@ -175,7 +172,6 @@ function SectionLabel({ children }) {
   return <Text style={styles.sectionLabel}>{children}</Text>;
 }
 
-/** @param {{ icon: string; label: string; value?: React.ReactNode; last?: boolean }} p */
 function SummaryRow({ icon, label, value, last }) {
   return (
     <View style={[styles.summaryRow, last && styles.summaryRowLast]}>
@@ -194,7 +190,6 @@ function SummaryRow({ icon, label, value, last }) {
   );
 }
 
-/** @param {{ label: string; value: string; bold?: boolean; muted?: boolean }} p */
 function MoneyRow({ label, value, bold, muted }) {
   return (
     <View style={styles.moneyRow}>
@@ -213,7 +208,7 @@ export default function ReturnDetailScreen() {
   const insets = useSafeAreaInsets();
   const route = useRoute();
   const auth = useSelector(s => s.auth);
-  const order = /** @type {Record<string, unknown> | undefined} */ (
+  const return_ = (
     route.params?.returnItem
   );
   const [statusKey, setStatusKey] = useState(null);
@@ -296,9 +291,9 @@ export default function ReturnDetailScreen() {
   const closeActions = useCallback(() => setActionsOpen(false), []);
 
   const returnNumber = useMemo(() => {
-    const n = order?.orderId ?? order?.return_id ?? '1928';
+    const n = return_?.return_id ?? '1928';
     return String(n).replace(/^ORD-/i, '');
-  }, [order]);
+  }, [return_]);
 
   const [vendor_id, set_vendor_id] = useState(null);
   useEffect(() => {
@@ -364,7 +359,7 @@ export default function ReturnDetailScreen() {
             pressed && styles.pressed,
           ]}
           accessibilityRole="button"
-          accessibilityLabel="More order actions"
+          accessibilityLabel="More return actions"
         >
           <Icon name="ellipsis-horizontal" size={22} color={COLOR.TEXT} />
         </Pressable>
@@ -379,7 +374,6 @@ export default function ReturnDetailScreen() {
     return formatNaira(Number(n));
   }, []);
 
-  /** Vendor: delivery address from order + user. Customer: shop premises from {@link returnInfo.shop.location}. */
   const displayShipping = useMemo(() => {
     if (auth.activeRole === 'vendor') {
       const raw =
@@ -518,7 +512,7 @@ export default function ReturnDetailScreen() {
 
   const onRefund = () => {
     if (blockIfCancelled()) return;
-    Alert.alert('Refund order', `Refund order #${returnNumber}?`, [
+    Alert.alert('Refund return', `Refund return #${returnNumber}?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Refund', style: 'destructive', onPress: () => {} },
     ]);
@@ -528,8 +522,8 @@ export default function ReturnDetailScreen() {
     if(!statusKey)return;
     if (statusKey === "return_delivered") {
       Alert.alert(
-        "Cannot cancel order after delivery",
-        "This order has already been delivered. If there is an issue with the item, please raise a dispute instead.",
+        "Cannot cancel return after delivery",
+        "This return has already been delivered. If there is an issue with the item, please raise a dispute instead.",
         [
           {
             text: "Close",
@@ -540,7 +534,7 @@ export default function ReturnDetailScreen() {
             text: "Raise Dispute",
             onPress: () => {
               navigation.navigate("Open-dispute", {
-                orderId: order.id,
+                orderId: return_.order_id,
               });
             },
           })
@@ -558,7 +552,7 @@ export default function ReturnDetailScreen() {
       if (vendorId == null) {
         Alert.alert(
           'Cannot cancel',
-          'Unable to load the vendor for this order. Try again later.',
+          'Unable to load the vendor for this return. Try again later.',
         );
         return;
       }
@@ -602,47 +596,7 @@ export default function ReturnDetailScreen() {
         },
       });
     }
-  }, [auth.activeRole, blockIfCancelled, order.id, navigation, returnInfo, statusKey]);
-
-  const onOpenDispute = useCallback(() => {
-    if(returnInfo?.dispute){
-      navigation.navigate("Dispute-detail", {
-
-      })
-      return;
-    }
-    if (blockIfCancelled()) return;
-    if(auth.activeRole === "customer"){
-      if(statusKey !== "return_delivered"){
-        Alert.alert(
-          'Cannot open dispute at this stage',
-          'To dispute this order, you must confirm you received the order from the vendor first',
-          [{ text: 'OK' }],
-        );
-      }else if(statusKey === "return_delivered"){
-        const oid =
-          returnInfo?.return?.id ??
-          returnInfo?.return?.return_id ??
-          order?.orderId ??
-          order?.order_id;
-        navigation.navigate('Open-dispute', { orderId: oid });
-      }
-    }else{
-      if(statusKey !== "return_delivered"){
-        Alert.alert(
-          'Cannot open dispute at this stage',
-          'To dispute this order, the buyer must confirm he/she received the order from   you (vendor) first',
-          [{ text: 'OK' }],
-        );
-      }else if(statusKey === "return_delivered"){
-        Alert.alert(
-          'Buyer dispute',
-          'Disputes are opened by the buyer from their account after delivery is confirmed.',
-          [{ text: 'OK' }],
-        );
-      }
-    }
-  }, [auth.activeRole, blockIfCancelled, navigation, order, returnInfo, statusKey]);
+  }, [auth.activeRole, blockIfCancelled, return_.order_id, navigation, returnInfo, statusKey]);
 
   const onUpdateStatus = async () => {
     
@@ -752,7 +706,7 @@ export default function ReturnDetailScreen() {
     },
     {
       key: 'refund',
-      label: 'Refund order',
+      label: 'Refund return',
       icon: 'return-up-back-outline',
       onPress: () => {
         closeActions();
@@ -765,7 +719,7 @@ export default function ReturnDetailScreen() {
     !isReturnCancelled
       ? [
           {
-            key: 'cancel-order',
+            key: 'cancel-return',
             label: 'Cancel return',
             icon: 'close-circle-outline',
             onPress: () => {
@@ -796,14 +750,14 @@ export default function ReturnDetailScreen() {
   const actionBtn = () => {
     return (
       (auth.activeRole === 'customer')
-        ? statusKey === 'order_accepted'
-          ? 'Start Processing Order'
-          : statusKey === 'order_processing'
-          ? 'Start Shipping Order'
-          : statusKey === 'order_shipping'
+        ? statusKey === 'return_accepted'
+          ? 'Start Processing Return'
+          : statusKey === 'return_processing'
+          ? 'Start Shipping Return'
+          : statusKey === 'return_shipping'
           ? 'Notify Vendor For Pickup'
-          : statusKey === 'order_out_for_delivery'
-          ? 'Confirm Vendor Has Recieved The Order'
+          : statusKey === 'return_out_for_delivery'
+          ? 'Confirm Vendor Has Recieved The Return'
           : "Awaiting Vendor's Confirmation"
           :
       (auth.activeRole === 'vendor') 
@@ -876,7 +830,7 @@ export default function ReturnDetailScreen() {
                 <Icon name="close-circle-outline" size={20} color="#C62828" />
                 <Text style={styles.cancelledBannerText}>
                   {cancellationDetails?.message ??
-                    'This order has been cancelled.'}
+                    'This return has been cancelled.'}
                 </Text>
               </View>
             ) : null}
@@ -893,22 +847,6 @@ export default function ReturnDetailScreen() {
                 accessibilityLabel="Cancel return"
               >
                 <Text style={styles.escrowBtnCancelText}>Cancel return</Text>
-              </Pressable>
-              <Pressable
-                onPress={onOpenDispute}
-                style={({ pressed }) => [
-                  styles.escrowBtn,
-                  styles.escrowBtnSecondary,
-                  pressed && styles.pressed,
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel="Open dispute"
-              >
-                <Text style={styles.escrowBtnSecondaryText}>
-                  {
-                    returnInfo?.dispute ? "View dispute" : "Open dispute"
-                  }
-                </Text>
               </Pressable>
             </View>
             ) : null}
@@ -1273,7 +1211,7 @@ export default function ReturnDetailScreen() {
             ]}
           >
             <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>Order actions</Text>
+            <Text style={styles.sheetTitle}>Return actions</Text>
             {ORDER_ACTIONS.map(action => (
               <Pressable
                 key={action.key}
@@ -1328,10 +1266,10 @@ export default function ReturnDetailScreen() {
           />
           <View style={styles.cancelledModalCard}>
             <Icon name="close-circle-outline" size={44} color="#C62828" />
-            <Text style={styles.cancelledModalTitle}>Order cancelled</Text>
+            <Text style={styles.cancelledModalTitle}>Return cancelled</Text>
             <Text style={styles.cancelledModalBody}>
               {cancellationDetails?.message ??
-                'This order has been cancelled. No further actions are available.'}
+                'This return has been cancelled. No further actions are available.'}
             </Text>
             {cancellationDetails?.reason ? (
               <Text style={styles.cancelledModalReason}>
