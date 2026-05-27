@@ -140,68 +140,88 @@ export const COLOR = ({
 
 export const RETURN_STATUS_THEME = {
   return_initiated: {
-    bg: '#FFF4D6',
-    dot: '#B58100',
-    text: '#7A5800',
+    bg: '#FEFCE8',
+    dot: '#CA8A04',
+    text: '#854D0E',
     label: 'Return Initiated',
   },
+
   return_accepted: {
-    bg: '#FFF4D6',
-    dot: '#B58100',
-    text: '#7A5800',
+    bg: '#FEF3C7',
+    dot: '#D97706',
+    text: '#92400E',
     label: 'Return accepted',
   },
+
   return_processing: {
-    bg: '#FFF0E0',
-    dot: '#C45C00',
-    text: '#7A3A00',
+    bg: '#FFF7ED',
+    dot: '#EA580C',
+    text: '#9A3412',
     label: 'Processing',
   },
+
   return_shipping: {
-    bg: '#E0EAFF',
-    dot: '#2F5DDB',
-    text: '#1B3FA1',
+    bg: '#EFF6FF',
+    dot: '#2563EB',
+    text: '#1D4ED8',
     label: 'Shipping',
   },
+
   return_out_for_delivery: {
-    bg: '#E0F2E9',
-    dot: '#08ccfd',
-    text: '#075646',
+    bg: '#E0F2FE',
+    dot: '#0284C7',
+    text: '#075985',
     label: 'Out For Delivery',
   },
+
   return_delivered: {
-    bg: '#E0F2E9',
-    dot: '#0D8A4A',
-    text: '#0D5C2F',
+    bg: '#F0FDF4',
+    dot: '#22C55E',
+    text: '#166534',
     label: 'Delivered',
   },
+
   return_confirmed: {
-    bg: '#d8f6e7',
-    dot: '#00d567',
-    text: '#28ed7d',
+    bg: '#ECFEFF',
+    dot: '#0891B2',
+    text: '#155E75',
     label: 'Confirmed',
   },
+
   return_cancellation: {
-    bg: '#FDE3E3',
-    dot: '#C62828',
-    text: '#9F1818',
+    bg: '#F3F4F6',
+    dot: '#6B7280',
+    text: '#374151',
     label: 'Cancelled',
   },
 };
 
 export const RETURN_PAY_THEME = {
-  return_initiated: { bg: '#E0F2E9', dot: '#0D8A4A', text: '#0D5C2F', label: 'Paid' },
-  return_accepted: { bg: '#FFF4D6', dot: '#B58100', text: '#7A5800', label: 'Unpaid' },
-  return_processing: {
-    bg: '#EFEAFF',
-    dot: '#7C5CFC',
-    text: '#3F2BB8',
-    label: 'Refunded',
+  return_initiated: {
+    bg: '#FEFCE8',
+    dot: '#CA8A04',
+    text: '#854D0E',
+    label: 'Initiated',
   },
+
+  return_accepted: {
+    bg: '#EFF6FF',
+    dot: '#2563EB',
+    text: '#1D4ED8',
+    label: 'Accepted',
+  },
+
+  return_processing: {
+    bg: '#FFF7ED',
+    dot: '#EA580C',
+    text: '#9A3412',
+    label: 'Processing',
+  },
+
   return_shipping: {
-    bg: '#FDE3E3',
-    dot: '#C62828',
-    text: '#9F1818',
-    label: 'Cancelled',
+    bg: '#EEF2FF',
+    dot: '#6366F1',
+    text: '#3730A3',
+    label: 'Refunded',
   },
 };

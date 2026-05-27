@@ -19,11 +19,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { getStoredUser } from '../auth/session';
 import { fetchOwnerShops, fetchShopReturns } from '../api';
 import { set_returnList } from '../../redux/returns';
-
-const PAGE_BG = '#F2F2F4';
-const BLACK = '#111111';
-const MUTED = '#8E8E93';
-const WHITE = '#FFFFFF';
+import { RETURN_STATUS_THEME, RETURN_PAY_THEME, COLOR } from '../utils/statusTheme';
 
 const FILTERS = [
   { key: 'all', label: 'All' },
@@ -32,65 +28,20 @@ const FILTERS = [
   { key: 'delivered', label: 'Delivered' },
 ];
 
-const STATUS_THEME = {
-  return_initiated: {
-    bg: '#FFF4D6',
-    dot: '#B58100',
-    text: '#7A5800',
-    label: 'Payment received',
-  },
-  return_accepted: {
-    bg: '#FFF4D6',
-    dot: '#B58100',
-    text: '#7A5800',
-    label: 'Return accepted',
-  },
-  return_processing: {
-    bg: '#FFF0E0',
-    dot: '#C45C00',
-    text: '#7A3A00',
-    label: 'Processing',
-  },
-  return_shipping: {
-    bg: '#E0EAFF',
-    dot: '#2F5DDB',
-    text: '#1B3FA1',
-    label: 'Shipping',
-  },
-  return_out_for_delivery: {
-    bg: '#E0F2E9',
-    dot: '#08ccfd',
-    text: '#075646',
-    label: 'Out For Delivery',
-  },
-  return_delivered: {
-    bg: '#E0F2E9',
-    dot: '#0D8A4A',
-    text: '#0D5C2F',
-    label: 'Delivered',
-  },
-  return_cancellation: {
-    bg: '#FDE3E3',
-    dot: '#C62828',
-    text: '#9F1818',
-    label: 'Cancelled',
-  },
-};
-
 function statusThemeFor(raw) {
   const key = String(raw ?? '').toLowerCase().trim();
-  if (STATUS_THEME[key]) return STATUS_THEME[key];
-  if (key.includes('cancel')) return STATUS_THEME.return_cancellation;
+  if (RETURN_STATUS_THEME[key]) return RETURN_STATUS_THEME[key];
+  if (key.includes('cancel')) return RETURN_STATUS_THEME.return_cancellation;
   if (key.includes('deliver') && !key.includes('out_for'))
-    return STATUS_THEME.return_delivered;
+    return RETURN_STATUS_THEME.return_delivered;
   if (key.includes('out_for') || key.includes('out-for'))
-    return STATUS_THEME.return_out_for_delivery;
-  if (key.includes('ship')) return STATUS_THEME.return_shipping;
-  if (key.includes('process')) return STATUS_THEME.return_processing;
-  if (key.includes('accept')) return STATUS_THEME.return_accepted;
+    return RETURN_STATUS_THEME.return_out_for_delivery;
+  if (key.includes('ship')) return RETURN_STATUS_THEME.return_shipping;
+  if (key.includes('process')) return RETURN_STATUS_THEME.return_processing;
+  if (key.includes('accept')) return RETURN_STATUS_THEME.return_accepted;
   if (key.includes('initiated') || key.includes('pending') || key.includes('initiated'))
-    return STATUS_THEME.return_initiated;
-  return STATUS_THEME.return_initiated;
+    return RETURN_STATUS_THEME.return_initiated;
+  return RETURN_STATUS_THEME.return_initiated;
 }
 
 function ReturnCard({ item, onPress }) {
@@ -111,7 +62,7 @@ function ReturnCard({ item, onPress }) {
             {/* auth.activeRole === "vendor" ? item.customer : item.vendor */}
           </Text>
         </View>
-        <Icon name="chevron-forward" size={20} color={MUTED} />
+        <Icon name="chevron-forward" size={20} color={COLOR.MUTED} />
       </View>
 
       <View style={styles.grid}>
@@ -271,7 +222,7 @@ export default function ReturnListScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: PAGE_BG,
+    backgroundColor: COLOR.BG,
   },
   centered: {
     flex: 1,
@@ -281,7 +232,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: MUTED,
+    color: COLOR.MUTED,
     textAlign: 'center',
   },
   errorText: {
@@ -299,12 +250,12 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: BLACK,
+    color: COLOR.DARK,
     letterSpacing: -0.5,
   },
   pageSubtitle: {
     fontSize: 14,
-    color: MUTED,
+    color: COLOR.MUTED,
     marginTop: 4,
     marginBottom: 18,
   },
@@ -329,16 +280,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   chipTextIdle: {
-    color: BLACK,
+    color: COLOR.DARK,
   },
   chipTextSelected: {
-    color: WHITE,
+    color: COLOR.NEUTRAL,
   },
   separator: {
     height: 12,
   },
   card: {
-    backgroundColor: WHITE,
+    backgroundColor: COLOR.NEUTRAL,
     borderRadius: 10,
     padding: 16,
     ...Platform.select({
@@ -374,11 +325,11 @@ const styles = StyleSheet.create({
   orderId: {
     fontSize: 16,
     fontWeight: '700',
-    color: BLACK,
+    color: COLOR.DARK,
   },
   vendorLine: {
     fontSize: 13,
-    color: MUTED,
+    color: COLOR.MUTED,
     marginTop: 2,
   },
   grid: {
@@ -396,7 +347,7 @@ const styles = StyleSheet.create({
   gridLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: MUTED,
+    color: COLOR.MUTED,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
     marginBottom: 6,
@@ -404,7 +355,7 @@ const styles = StyleSheet.create({
   gridValue: {
     fontSize: 15,
     fontWeight: '600',
-    color: BLACK,
+    color: COLOR.DARK,
   },
   statusDot: {
     width: 7,
