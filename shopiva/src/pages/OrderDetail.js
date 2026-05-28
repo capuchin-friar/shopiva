@@ -1322,9 +1322,7 @@ export default function OrderDetailScreen() {
               styles.btnPrimary,
               pressed && styles.btnPrimaryPressed,
               {
-                backgroundColor: statusKey !== 'order_delivered' || statusKey !== "order_disputed" && auth.activeRole === 'customer' 
-                ? STATUS_THEME[statusKey]?.dot
-                : COLOR.BRAND_COLOR
+                backgroundColor: STATUS_THEME[statusKey]?.dot
               }
             ]}
           >
@@ -1346,7 +1344,9 @@ export default function OrderDetailScreen() {
           style={({ pressed }) => [
             styles.btnPrimary,
             pressed && styles.btnPrimaryPressed,
-            {backgroundColor: "#000"}
+            {
+              backgroundColor: STATUS_THEME[statusKey]?.dot
+            }
           ]}
           >
              <Text style={[styles.btnPrimaryText, {textTransform: "capitalize"}]}>
