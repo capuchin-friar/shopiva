@@ -702,7 +702,7 @@ export default function OrderDetailScreen() {
       actor_id: u.id,
       outcome: 'pending',
       notes: '',
-      recipient: orderInfo.order.customer_id,
+      recipient: auth.activeRole === "vendor" ? orderInfo?.order?.customer_id : orderInfo?.shop?.ownerid,
       meta: {},
     };
 
@@ -875,7 +875,7 @@ export default function OrderDetailScreen() {
           message = 'Click Here To Confirm Customer Has Received The Order';
           break;
         case 'order_confirmed':
-          message = 'Your Payout Will Be Processed Within 48 Hrs.';
+          message = 'Your Payout Will Be Processed Within 24 Hrs.';
           break;
         default: 
           message = "Awaiting Customer's Confirmation";
@@ -898,7 +898,7 @@ export default function OrderDetailScreen() {
           message = 'Escrow Will Now Release The Funds To The Customer';
           break;
         default: 
-          message = "Confirm That You Received Order";
+          message = "Confirm That You Received The Order";
       }
     }
 

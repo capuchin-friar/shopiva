@@ -66,7 +66,7 @@ const FINAL_DELIVERY_HANDLER_OPTIONS = [
   { label: 'Third-party logistics', value: 'third_party_logistics' },
   { label: 'Dispatch rider', value: 'dispatch_rider' },
   { label: 'Courier service', value: 'courier_service' },
-  { label: 'In-house / vendor team', value: 'vendor_team' },
+  { label: 'My team / Me', value: 'vendor_team' },
   { label: 'Customer pickup (at hub)', value: 'customer_pickup_hub' },
 ];
 

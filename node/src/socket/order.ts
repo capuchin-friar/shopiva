@@ -525,6 +525,7 @@ export const handleOrderConfirmation = async(
         const {
             order_id, event_type, stage, actor_type, actor_id, outcome, notes, meta, recipient, reason
         } = payload;
+        console.log(payload)
 
         const { rows } = await p.query(
             `
@@ -553,7 +554,7 @@ export const handleOrderConfirmation = async(
             await updateFulfillmentStatus(stage, order_id);
 
             const orderPayload = await broadcastOrderUpdate(
-                "order_confirmation",
+                "order_confirmed",
                 order_id,
                 actor_type,
                 actor_id,
