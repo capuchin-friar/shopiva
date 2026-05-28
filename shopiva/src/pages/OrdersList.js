@@ -60,7 +60,7 @@ function OrderCard({ item, onPress }) {
           <View style={[styles.statusDot, { backgroundColor: t.dot }]} />
         </View>
         <View style={styles.cardTitleCol}>
-          <Text style={styles.orderId}>{item.order_id}</Text>
+          <Text style={styles.orderId}>ORD-{item.order_id}</Text>
           <Text style={styles.vendorLine} numberOfLines={1}>
             {item.vendor ?? item.customer}
           </Text>

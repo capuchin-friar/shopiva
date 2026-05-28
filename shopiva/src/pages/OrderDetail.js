@@ -30,7 +30,6 @@ import { set_orderInfo } from '../../redux/order';
 import { ESCROW_STATUS_THEME, STATUS_THEME, PAY_THEME, COLOR } from '../utils/statusTheme';
 
 
-/** @param {unknown} meta */
 function parseEventMeta(meta) {
   if (meta == null) return {};
   if (typeof meta === 'object') return /** @type {Record<string, unknown>} */ (meta);
@@ -47,7 +46,6 @@ function parseEventMeta(meta) {
   return {};
 }
 
-/** @param {string | null | undefined} name */
 function initialsOf(name) {
   const parts = String(name ?? '')
     .trim()
@@ -69,25 +67,6 @@ function pickStr(obj, keys) {
   return '';
 }
 
-/**
- * Normalize a shipping address that may arrive as:
- *  - a plain string
- *  - a JSON-stringified object (jsonb cast to text from the API)
- *  - a parsed object with various key aliases
- * @param {unknown} input
- * @returns {{
- *   recipient: string;
- *   phone: string;
- *   email: string;
- *   street: string;
- *   street2: string;
- *   city: string;
- *   state: string;
- *   zip: string;
- *   country: string;
- *   text: string;
- * }}
- */
 function parseShippingAddress(input) {
   /** @type {Record<string, unknown> | null} */
   let obj = null;
@@ -194,7 +173,6 @@ function SectionLabel({ children }) {
   return <Text style={styles.sectionLabel}>{children}</Text>;
 }
 
-/** @param {{ icon: string; label: string; value?: React.ReactNode; last?: boolean }} p */
 function SummaryRow({ icon, label, value, last }) {
   return (
     <View style={[styles.summaryRow, last && styles.summaryRowLast]}>
@@ -213,7 +191,6 @@ function SummaryRow({ icon, label, value, last }) {
   );
 }
 
-/** @param {{ label: string; value: string; bold?: boolean; muted?: boolean }} p */
 function MoneyRow({ label, value, bold, muted }) {
   return (
     <View style={styles.moneyRow}>
@@ -232,7 +209,7 @@ export default function OrderDetailScreen() {
   const insets = useSafeAreaInsets();
   const route = useRoute();
   const auth = useSelector(s => s.auth);
-  const order = /** @type {Record<string, unknown> | undefined} */ (
+  const order = (
     route.params?.order
   );
   const [statusKey, setStatusKey] = useState(null);
@@ -603,7 +580,7 @@ export default function OrderDetailScreen() {
             onPress: () => {
               navigation.navigate("Open-dispute", {
                 orderId: order.id,
-              });
+              }); 
             },
           })
         ]
@@ -669,7 +646,9 @@ export default function OrderDetailScreen() {
   const onOpenDispute = useCallback(() => {
     if(orderInfo?.dispute){
       navigation.navigate("Dispute-detail", {
-
+        data: {
+          order_items: orderInfo.order_items
+        }
       })
       return;
     }

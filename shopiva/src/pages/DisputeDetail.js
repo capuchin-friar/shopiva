@@ -298,10 +298,10 @@ export default function DisputeDetailScreen() {
         
         <View style={styles.tableRow}>
           <Text style={[styles.tableCell, styles.tableHName]} numberOfLines={2}>
-            {dispute.name.name ?? '—'}
+            {dispute.name ?? '—'}
           </Text>
           <Text style={styles.tableCell}>
-            {dispute.units != null ? String(dispute.units) : '—'}
+            {dispute.qty != null ? String(dispute.qty) : '—'}
           </Text>
           <Text style={styles.tableCell}>
             {dispute.unit_price != null
@@ -496,7 +496,7 @@ export default function DisputeDetailScreen() {
                 <Text style={styles.tableHCell}>Unit</Text>
                 <Text style={styles.tableHCell}>Total</Text>
               </View>
-              {dispute.order_items.map((item, index) => renderOrderItems(item, index))}
+              {dispute?.metadata?.selected_items?.map((item, index) => renderOrderItems(item, index))}
             </>
           ) : (
             <View style={styles.noLineItemRow}>
