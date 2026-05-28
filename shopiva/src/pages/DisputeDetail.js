@@ -143,6 +143,7 @@ export default function DisputeDetailScreen() {
       navigation.setOptions({ headerRight: undefined });
       return undefined;
     }
+    
     navigation.setOptions({
       headerTitle: () => (
         <View style={[styles.statusRow, {flexDirection: "column"}]}>
