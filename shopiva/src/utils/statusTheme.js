@@ -86,7 +86,7 @@ export const STATUS_THEME = {
     label: 'Order disputed',
   },
 
-  order_cancellation: {
+  order_cancelled: {
     bg: '#F3F4F6',
     dot: '#6B7280',
     text: '#374151',

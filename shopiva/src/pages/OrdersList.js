@@ -32,7 +32,7 @@ const FILTERS = [
 function statusThemeFor(raw) {
   const key = String(raw ?? '').toLowerCase().trim();
   if (STATUS_THEME[key]) return STATUS_THEME[key];
-  if (key.includes('cancel')) return STATUS_THEME.order_cancellation;
+  if (key.includes('cancel')) return STATUS_THEME.order_cancelled;
   if (key.includes('confirmed')) return STATUS_THEME.order_confirmed;
   if (key.includes('deliver') && !key.includes('out_for'))
     return STATUS_THEME.order_delivered;

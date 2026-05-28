@@ -221,7 +221,7 @@ export default function OrderDetailScreen() {
     connectChatSocket();
   }, []);
 
-  const isOrderCancelled = statusKey === 'order_cancellation';
+  const isOrderCancelled = statusKey === 'order_cancelled';
 
   const cancellationDetails = useMemo(() => {
     if (!isOrderCancelled) return null;
@@ -233,7 +233,7 @@ export default function OrderDetailScreen() {
       const stage = String(e?.stage ?? '').toLowerCase();
       const type = String(e?.event_type ?? '').toLowerCase();
       return (
-        stage === 'order_cancellation' ||
+        stage === 'order_cancelled' ||
         type === 'cancellation' ||
         stage.includes('cancel')
       );
@@ -612,7 +612,7 @@ export default function OrderDetailScreen() {
         data: {
           order_id: orderInfo.order.id,
           event_type: 'cancellation',
-          stage: 'order_cancellation',
+          stage: 'order_cancelled',
           actor_type: 'customer',
           actor_id: u.id,
           outcome: 'success',
@@ -631,7 +631,7 @@ export default function OrderDetailScreen() {
         data: {
           order_id: orderInfo.order.id,
           event_type: 'cancellation',
-          stage: 'order_cancellation',
+          stage: 'order_cancelled',
           actor_type: 'vendor',
           actor_id: u.id,
           outcome: 'success',
@@ -877,6 +877,12 @@ export default function OrderDetailScreen() {
         case 'order_confirmed':
           message = 'Your Payout Will Be Processed Within 24 Hrs.';
           break;
+        case 'order_cancelled':
+          message = 'This order was cancelled';
+          break;
+        case 'order_rejected':
+          message = 'You Declined this order';
+          break;
         default: 
           message = "Awaiting Customer's Confirmation";
       }
@@ -896,6 +902,9 @@ export default function OrderDetailScreen() {
           break;
         case 'order_confirmed':
           message = 'Escrow Will Now Release The Funds To The Customer';
+          break;
+        case 'order_cancelled':
+          message = 'This order was cancelled';
           break;
         case 'order_rejected':
           message = 'Vendor Declined & cannot Fulfill this order';
@@ -988,9 +997,10 @@ export default function OrderDetailScreen() {
                 </Text>
               </View>
             ) : null}
-            {!isOrderCancelled && statusKey !== "order_confirmed" ? (
+            {!isOrderCancelled && (statusKey !== "order_confirmed"  && statusKey !== "order_rejected") ? (
             <View style={styles.escrowActions}>
-             { statusKey !== "order_disputed" &&<Pressable
+             { statusKey !== "order_disputed" &&
+             <Pressable
                 onPress={onCancelDelivery}
                 style={({ pressed }) => [
                   styles.escrowBtn,
@@ -1000,7 +1010,7 @@ export default function OrderDetailScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Cancel delivery"
               >
-                <Text style={styles.escrowBtnCancelText}>Cancel delivery</Text>
+                <Text style={styles.escrowBtnCancelText}>Cancel order</Text>
               </Pressable>}
               <Pressable
                 onPress={onOpenDispute}
@@ -1341,7 +1351,7 @@ export default function OrderDetailScreen() {
           </Pressable>
         )}
 
-        {!isOrderCancelled && auth.activeRole === 'customer' && statusKey !== "order_delivered" && statusKey !== "order_disputed" ? 
+        { auth.activeRole === 'customer' && statusKey !== "order_delivered" && statusKey !== "order_disputed" ? 
           <Pressable 
           disabled
           style={({ pressed }) => [
