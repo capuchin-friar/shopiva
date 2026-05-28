@@ -436,30 +436,45 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                   }
                   setLoading(!loading);
                   const u = await getStoredUser();
-                  const response = await emitSocketAck('order_acceptance', {
-                    ...data,
-                    meta: {
-                      ...(data.meta && typeof data.meta === 'object'
-                        ? data.meta
-                        : {}),
-                      vendor_confirmations: {
-                        items_in_stock: true,
-                        fulfill_on_time: true,
-                        performance_policy: true,
-                      },
-                      fulfillment_duration: fulfillmentDuration,
-                      fulfillment_duration_label:
-                        FULFILLMENT_TIMEFRAME_OPTIONS.find(
-                          o => o.value === fulfillmentDuration,
+                  
+
+                  async function AcceptSubmit() {
+                    const response = await emitSocketAck('order_acceptance', {
+                      ...data,
+                      meta: {
+                        ...(data.meta && typeof data.meta === 'object'
+                          ? data.meta
+                          : {}),
+                        vendor_confirmations: {
+                          items_in_stock: true,
+                          fulfill_on_time: true,
+                          performance_policy: true,
+                        },
+                        fulfillment_duration: fulfillmentDuration,
+                        fulfillment_duration_label: FULFILLMENT_TIMEFRAME_OPTIONS.find(
+                          o => o.value === fulfillmentDuration
                         )?.label ?? null,
-                    },
-                    notes: note,
-                    actor_id: u.id,
-                  });
-                  if (response.success) {
-                    dispatch(set_orderInfo(response.result));
-                    navigation.goBack();
+                      },
+                      notes: note,
+                      actor_id: u.id,
+                    });
+                    if (response.success) {
+                      dispatch(set_orderInfo(response.result));
+                      navigation.goBack();
+                    }
                   }
+                  Alert.alert(
+                    'Confirm order acceptance',
+                    'By accepting this order, you agree to deliver the item to the customer',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Confirm',
+                        style: 'default',
+                        onPress:  AcceptSubmit,
+                      },
+                    ],
+                  );
                 }}
                 style={({ pressed }) => [
                   styles.btnAccept,

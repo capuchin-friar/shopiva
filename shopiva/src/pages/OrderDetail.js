@@ -687,6 +687,14 @@ export default function OrderDetailScreen() {
   const onUpdateStatus = async () => {
     if (blockIfCancelled()) return;
     if (!orderInfo?.order) return;
+    if(statusKey === "order_disputed"){
+      navigation.navigate("Dispute-detail", {
+        data: {
+          order_items: orderInfo.order_items
+        }
+      });
+      return;
+    }
     const u = await getStoredUser();
     const base = {
       order_id: orderInfo.order.id,
@@ -843,7 +851,7 @@ export default function OrderDetailScreen() {
     //       : statusKey === 'order_shipping'
     //       ? 'Notify Buyer For Pickup'
     //       : statusKey === 'order_out_for_delivery'
-    //       ? 'Confirm Buyer Has Recieved The Order'
+    //       ? 'Confirm Buyer Has Received The Order'
     //       : statusKey === 'order_confirmed' ? 'Your payout will be processed within 48 hours.'
     //       : "Awaiting Buyer's Confirmation"
     //     : 
@@ -864,7 +872,7 @@ export default function OrderDetailScreen() {
           message = 'Click Here To Notify Customer For Pickup';
           break;
         case 'order_out_for_delivery':
-          message = 'Click Here To Confirm Customer Has Recieved The Order';
+          message = 'Click Here To Confirm Customer Has Received The Order';
           break;
         case 'order_confirmed':
           message = 'Your Payout Will Be Processed Within 48 Hrs.';
@@ -881,7 +889,7 @@ export default function OrderDetailScreen() {
           message = 'Vendor already started shipping';
           break;
         case 'order_shipping':
-          message = 'Vendor shipped Your Order';
+          message = 'Vendor Has shipped Your Order';
           break;
         case 'order_out_for_delivery':
           message = 'Your Order Is Out For Delivery';
@@ -890,7 +898,7 @@ export default function OrderDetailScreen() {
           message = 'Escrow Will Now Release The Funds To The Customer';
           break;
         default: 
-          message = "Awaiting Vendor's Confirmation To Process Order";
+          message = "Confirm That You Received Order";
       }
     }
 
@@ -1302,28 +1310,37 @@ export default function OrderDetailScreen() {
           </>
         )}
         {!isOrderCancelled && orderInfo?.order_events?.length > 1 &&  (
-          statusKey !== "order_delivered" && auth.activeRole === 'customer' ? '' : 
+          statusKey !== "order_delivered" && statusKey !== "order_disputed" && auth.activeRole === 'customer' ? '' : 
           <Pressable
             onPress={onUpdateStatus}
             // disabled={
-            //   statusKey !== 'order_delivered' && auth.activeRole === 'customer'
-            //     ? true
+            //   statusKey !== 'order_delivered' || statusKey !== "order_disputed" && auth.activeRole === 'customer'
+            //     ? true 
             //     : false
             // }
             style={({ pressed }) => [
               styles.btnPrimary,
               pressed && styles.btnPrimaryPressed,
+              {
+                backgroundColor: statusKey !== 'order_delivered' || statusKey !== "order_disputed" && auth.activeRole === 'customer' 
+                ? STATUS_THEME[statusKey]?.dot
+                : COLOR.BRAND_COLOR
+              }
             ]}
           >
             <Text style={styles.btnPrimaryText}>
               {
+                statusKey === "order_disputed" 
+                ?
+                "This Order Was Disputed, Click to View Dispute"
+                :
                 actionBtn()
               }
             </Text>
           </Pressable>
         )}
 
-        {!isOrderCancelled && auth.activeRole === 'customer' && statusKey !== "order_delivered" ? 
+        {!isOrderCancelled && auth.activeRole === 'customer' && statusKey !== "order_delivered" && statusKey !== "order_disputed" ? 
           <Pressable 
           disabled
           style={({ pressed }) => [
@@ -2026,7 +2043,8 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLOR.BRAND_COLOR,
+    // backgroundColor: "#000",
+    // backgroundColor: COLOR.BRAND_COLOR,
   },
   btnPrimaryPressed: {
     backgroundColor: COLOR.BRAND_COLOR_LITE,

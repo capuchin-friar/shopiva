@@ -758,7 +758,7 @@ export default function ReturnDetailScreen() {
     //       : statusKey === 'return_shipping'
     //       ? 'Notify Vendor For Pickup'
     //       : statusKey === 'return_out_for_delivery'
-    //       ? 'Confirm Vendor Has Recieved The Return'
+    //       ? 'Confirm Vendor Has Received The Return'
     //       : statusKey === 'return_confirmed' ? 'Your payout will be processed within 48 hours.'
     //       : "Awaiting Vendor's Confirmation"
     //     :
@@ -779,7 +779,7 @@ export default function ReturnDetailScreen() {
           message = 'Click Here To Notify Vendor For Pickup';
           break;
         case 'return_out_for_delivery':
-          message = 'Click Here To Confirm Vendor Has Recieved The Return';
+          message = 'Click Here To Confirm Vendor Has Received The Return';
           break;
         case 'return_confirmed':
           message = 'Your payout will be processed within 48 hours.';
@@ -1216,7 +1216,7 @@ export default function ReturnDetailScreen() {
                   : statusKey === 'return_shipping'
                   ? 'Notify Vendor For Pickup'
                   : statusKey === 'return_out_for_delivery'
-                  ? 'Confirm Vendor Has Recieved The Return'
+                  ? 'Confirm Vendor Has Received The Return'
                   : "Awaiting Vendor's Confirmation"
                 : ''}
               {auth.activeRole === 'vendor' ? 'Confirm delivery' : ''} */}

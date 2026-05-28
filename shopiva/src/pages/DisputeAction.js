@@ -35,18 +35,6 @@ import { set_disputeList } from "../../redux/disputes";
 
 const DEFAULT_RETURN_COUNTRY = "Nigeria";
 
-/**
- * @param {{
- *   confirmClaim: boolean;
- *   willReturnItem: boolean | null;
- *   roleForShipping: string | null;
- *   address1: string;
- *   address3: string;
- *   addressState: string;
- *   addressCountry: string;
- * }} values
- * @returns {Record<string, string>}
- */
 function validateAcceptanceForm(values) {
     const errors = {};
 

@@ -46,6 +46,7 @@ const ERROR_BG = '#FFEBEE';
 const EXPRESS_SHIPPING = 1000;
 
 const DISPUTE_REASONS = [
+  { label: 'Did not receive the order(s)', value: 'order_not_received' },
   { label: 'Item not as described', value: 'not_as_described' },
   { label: 'Wrong item received', value: 'wrong_item' },
   { label: 'Item is damaged', value: 'damaged_item' },
