@@ -92,6 +92,13 @@ export const STATUS_THEME = {
     text: '#374151',
     label: 'Cancelled',
   },
+
+  order_rejected: {
+    bg: '#FFF1F2',
+    dot: '#E11D48',
+    text: '#9F1239',
+    label: 'Order Rejected',
+  }
 };
 export const ESCROW_STATUS_THEME = {
   held: {

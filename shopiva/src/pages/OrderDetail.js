@@ -897,6 +897,9 @@ export default function OrderDetailScreen() {
         case 'order_confirmed':
           message = 'Escrow Will Now Release The Funds To The Customer';
           break;
+        case 'order_rejected':
+          message = 'Vendor Declined & cannot Fulfill this order';
+          break;
         default: 
           message = "Confirm That You Received The Order";
       }
