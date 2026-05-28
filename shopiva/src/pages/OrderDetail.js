@@ -1322,7 +1322,7 @@ export default function OrderDetailScreen() {
             </Pressable>
           </>
         )}
-        {!isOrderCancelled && orderInfo?.order_events?.length > 1 &&  (
+        { orderInfo?.order_events?.length > 1 &&  (
           statusKey !== "order_delivered" && statusKey !== "order_disputed" && auth.activeRole === 'customer' ? '' : 
           <Pressable
             onPress={onUpdateStatus}
@@ -1353,7 +1353,9 @@ export default function OrderDetailScreen() {
 
         { auth.activeRole === 'customer' && statusKey !== "order_delivered" && statusKey !== "order_disputed" ? 
           <Pressable 
-          disabled
+          onPress={e => {
+            if (blockIfCancelled()) return;
+          }}
           style={({ pressed }) => [
             styles.btnPrimary,
             pressed && styles.btnPrimaryPressed,
