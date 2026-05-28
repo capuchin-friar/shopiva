@@ -68,7 +68,6 @@ function pickStr(obj, keys) {
 }
 
 function parseShippingAddress(input) {
-  /** @type {Record<string, unknown> | null} */
   let obj = null;
 
   if (input && typeof input === 'object') {
@@ -835,22 +834,68 @@ export default function OrderDetailScreen() {
   }
 
   const actionBtn = () => {
-    return (
-      (auth.activeRole === 'vendor')
-        ? statusKey === 'order_accepted'
-          ? 'Start Processing Order'
-          : statusKey === 'order_processing'
-          ? 'Start Shipping Order'
-          : statusKey === 'order_shipping'
-          ? 'Notify Buyer For Pickup'
-          : statusKey === 'order_out_for_delivery'
-          ? 'Confirm Buyer Has Recieved The Order'
-          : statusKey === 'order_confirmed' ? 'Your payout will be processed within 48 hours.'
-          : "Awaiting Buyer's Confirmation"
-        : 
-      (auth.activeRole === 'customer') 
-      ? 'Confirm delivery' : ''
-    )
+    // return (
+    //   (auth.activeRole === 'vendor')
+    //     ? statusKey === 'order_accepted'
+    //       ? 'Start Processing Order'
+    //       : statusKey === 'order_processing'
+    //       ? 'Start Shipping Order'
+    //       : statusKey === 'order_shipping'
+    //       ? 'Notify Buyer For Pickup'
+    //       : statusKey === 'order_out_for_delivery'
+    //       ? 'Confirm Buyer Has Recieved The Order'
+    //       : statusKey === 'order_confirmed' ? 'Your payout will be processed within 48 hours.'
+    //       : "Awaiting Buyer's Confirmation"
+    //     : 
+    //   (auth.activeRole === 'customer') 
+    //   ? 'Confirm delivery' : ''
+    // );
+
+    let message;
+    if(auth.activeRole === 'vendor'){
+      switch(statusKey){
+        case 'order_accepted':
+          message = 'Click Here To Start Processing Order';
+          break;
+        case 'order_processing':
+          message = 'Click Here To Start Shipping Order';
+          break;
+        case 'order_shipping':
+          message = 'Click Here To Notify Customer For Pickup';
+          break;
+        case 'order_out_for_delivery':
+          message = 'Click Here To Confirm Customer Has Recieved The Order';
+          break;
+        case 'order_confirmed':
+          message = 'Your Payout Will Be Processed Within 48 Hrs.';
+          break;
+        default: 
+          message = "Awaiting Customer's Confirmation";
+      }
+    }else{
+      switch(statusKey){
+        case 'order_accepted':
+          message = 'Your Order is being processed';
+          break;
+        case 'order_processing':
+          message = 'Vendor already started shipping';
+          break;
+        case 'order_shipping':
+          message = 'Vendor shipped Your Order';
+          break;
+        case 'order_out_for_delivery':
+          message = 'Your Order Is Out For Delivery';
+          break;
+        case 'order_confirmed':
+          message = 'Escrow Will Now Release The Funds To The Customer';
+          break;
+        default: 
+          message = "Awaiting Vendor's Confirmation To Process Order";
+      }
+    }
+
+    return message
+  
   }
 
   return (
@@ -1290,7 +1335,7 @@ export default function OrderDetailScreen() {
              <Text style={[styles.btnPrimaryText, {textTransform: "capitalize"}]}>
               {
                 statusKey === "payment_received"?
-                "Awaiting Vendor's Approval" : statusKey?.split("_")?.join(" ")
+                "Awaiting Vendor's Approval" : actionBtn()
               }
             </Text>
           </Pressable>

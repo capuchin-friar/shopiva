@@ -748,21 +748,68 @@ export default function ReturnDetailScreen() {
     );
   }
   const actionBtn = () => {
-    return (
-      (auth.activeRole === 'customer')
-        ? statusKey === 'return_accepted'
-          ? 'Start Processing Return'
-          : statusKey === 'return_processing'
-          ? 'Start Shipping Return'
-          : statusKey === 'return_shipping'
-          ? 'Notify Vendor For Pickup'
-          : statusKey === 'return_out_for_delivery'
-          ? 'Confirm Vendor Has Recieved The Return'
-          : "Awaiting Vendor's Confirmation"
-          :
-      (auth.activeRole === 'vendor') 
-      ? 'Confirm delivery' : ''
-    )
+    // Alert.alert(JSON.stringify(statusKey))
+    // return (
+    //   (auth.activeRole === 'customer')
+    //     ? statusKey === 'return_accepted'
+    //       ? 'Start Processing Return'
+    //       : statusKey === 'return_processing'
+    //       ? 'Start Shipping Return'
+    //       : statusKey === 'return_shipping'
+    //       ? 'Notify Vendor For Pickup'
+    //       : statusKey === 'return_out_for_delivery'
+    //       ? 'Confirm Vendor Has Recieved The Return'
+    //       : statusKey === 'return_confirmed' ? 'Your payout will be processed within 48 hours.'
+    //       : "Awaiting Vendor's Confirmation"
+    //     :
+    //   (auth.activeRole === 'vendor') 
+    //   ? 'Confirm delivery' : ''
+    // );
+
+    let message;
+    if(auth.activeRole === 'customer'){
+      switch(statusKey){
+        case 'return_accepted':
+          message = 'Click Here To Start Processing Return';
+          break;
+        case 'return_processing':
+          message = 'Click Here To Start Shipping Return';
+          break;
+        case 'return_shipping':
+          message = 'Click Here To Notify Vendor For Pickup';
+          break;
+        case 'return_out_for_delivery':
+          message = 'Click Here To Confirm Vendor Has Recieved The Return';
+          break;
+        case 'return_confirmed':
+          message = 'Your payout will be processed within 48 hours.';
+          break;
+        default: 
+          message = "Awaiting Vendor's Confirmation";
+      }
+    }else{
+      switch(statusKey){
+        case 'return_accepted':
+          message = 'Return is being processed';
+          break;
+        case 'return_processing':
+          message = 'Buyer already shipping';
+          break;
+        case 'return_shipping':
+          message = 'Return has been shipped';
+          break;
+        case 'return_out_for_delivery':
+          message = 'Your return is out for delivery';
+          break;
+        case 'return_confirmed':
+          message = 'Escrow will refund the buyer';
+          break;
+        default: 
+          message = "Awaiting Buyer's Confirmation to process return";
+      }
+    }
+
+    return message
   }
   return (
     <View style={[styles.root, { paddingTop: 0 }]}>
@@ -1189,7 +1236,7 @@ export default function ReturnDetailScreen() {
              <Text style={[styles.btnPrimaryText, {textTransform: "capitalize"}]}>
               {
                 statusKey === "return_initiated"?
-                "Awaiting Customer's Approval" : statusKey?.split("_")?.join(" ")
+                "Awaiting Customer's Approval" : actionBtn()
               }
             </Text>
           </Pressable>

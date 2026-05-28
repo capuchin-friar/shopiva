@@ -42,6 +42,24 @@ const orderDetailOpt = {
   headerBackVisible: true,
   headerShadowVisible: false,
 }
+const returnOpt = {
+  headerShown: true,
+  title: 'Returns',
+  headerBackVisible: true,
+  headerShadowVisible: false,
+}
+const returnDetailOpt = {
+  headerShown: true,
+  title: 'Return detail',
+  headerBackVisible: true,
+  headerShadowVisible: false,
+}
+const returnStatusUpdateOpt = {
+  headerShown: true,
+  title: 'Return-action',
+  headerBackVisible: true,
+  headerShadowVisible: false,
+};
 /**
  * Orders tab: hub + nested orders and disputes stacks (customer).
  * Outer flow screens keep headers off so we do not nest two native-stack headers
@@ -52,20 +70,21 @@ export function ActivitiesStackScreen() {
     <ActivitiesStack.Navigator screenOptions={{ headerShown: false }}>
       <ActivitiesStack.Screen name="Activities" component={Activities} options={activityOptions} />
       <ActivitiesStack.Screen name="Orders" component={OrderListScreen} options={orderOpt} />
-      <ActivitiesStack.Screen name="Order-detail"  options={orderDetailOpt} component={OrderDetailScreen} />
-      
+      <ActivitiesStack.Screen name="Order-detail" component={OrderDetailScreen} options={orderDetailOpt}  />
       <ActivitiesStack.Screen name="Order-list" component={OrderDetailScreen} options={orderOpt} />
       <ActivitiesStack.Screen name="Order-action" component={OrderActionScreen} options={orderStatusUpdateOpt} />
-      <ActivitiesStack.Screen name="Disputes" component={DisputesListScreen} options={disputeOpt} />
+      
       <ActivitiesStack.Screen
         name="Open-dispute"
         component={OpenDispute}
         options={{ ...disputeOpt, title: 'Open dispute' }}
       />
-      <ActivitiesStack.Screen name="Dispute-detail" component={DisputeDetailScreen} options={orderOpt} />
-      <ActivitiesStack.Screen name="Returns" component={ReturnListScreen} options={orderOpt} />
-      <ActivitiesStack.Screen name="Return-detail" options={orderDetailOpt} component={ReturnDetailScreen} />
-      <ActivitiesStack.Screen name="Return-action" component={ReturnActionScreen} options={orderStatusUpdateOpt} />
+      <ActivitiesStack.Screen name="Disputes" component={DisputesListScreen} options={disputeOpt} />
+      <ActivitiesStack.Screen name="Dispute-detail" component={DisputeDetailScreen} options={{ headerShown: true, title: 'Dispute detail', headerBackVisible: true, headerShadowVisible: false}}  />
+      
+      <ActivitiesStack.Screen name="Returns" component={ReturnListScreen} options={returnOpt} />
+      <ActivitiesStack.Screen name="Return-detail" component={ReturnDetailScreen} options={returnDetailOpt} />
+      <ActivitiesStack.Screen name="Return-action" component={ReturnActionScreen} options={returnStatusUpdateOpt} />
     </ActivitiesStack.Navigator>
   );
 }
