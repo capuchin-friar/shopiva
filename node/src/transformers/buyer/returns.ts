@@ -20,47 +20,6 @@ export const returnsTransformer = async (
         return [];
     }
 
-    const orderPkIds = returnRows.map((o: { order_id: number }) => o.order_id);
-
-    const { rows: qtyRows } = await pool.query(
-        `SELECT order_id, COALESCE(SUM(units), 0)::int AS qty
-         FROM order_items
-         WHERE order_id = ANY($1::int[])
-         GROUP BY order_id`,
-        [orderPkIds]
-    );
-
-    const qtyByReturnPk = new Map<number, number>(
-        qtyRows.map((r: { order_id: number; qty: number }) => [
-            r.order_id,
-            Number(r.qty),
-        ])
-    );
-    const linkedOrderIds = returnRows.map(
-        (o: { order_id: string }) => (o.order_id),
-    );
-    const { rows: amountRows } = await pool.query(
-        `SELECT id, total_paid, amount_paid
-         FROM orders
-         WHERE id = ANY($1::int[])`,
-        [linkedOrderIds]
-    );
-    const amountByOrderRef = new Map<string, number>(
-        amountRows.map(
-            (r: {
-                id: string | number;
-                total_paid: string | number;
-                amount_paid: string | number;
-            }) => {
-                console.log(r);
-                return [
-                    String(r.id),
-                    Number(r.amount_paid ?? 0),
-                ]
-            }
-        )
-    )
-
     const { rows: userRows } = await pool.query(
         `SELECT fname, lname, email, phone
          FROM users
