@@ -7,7 +7,7 @@ import type { OrderListRow } from "../../models/business/product.js";
  */
 export const returnsTransformer = async (
     customerId: number | string
-): Promise<OrderListRow[]> => {
+): Promise<any> => {
     const pool = await db();
     const cid = String(customerId);
 
@@ -79,12 +79,20 @@ export const returnsTransformer = async (
     const customer_email = u?.email ?? "";
     const customer_phone = u?.phone ?? "";
 
-    return returnRows.map((o: Record<string, unknown>): OrderListRow => {
+    return await Promise.all(returnRows.map(async(o: Record<string, unknown>): Promise<OrderListRow> => {
         const id = Number(o.order_id);
-        const qty = qtyByReturnPk.get(id) ?? 0;
-        const linkedRef = String(o.order_id ?? "");
-        const amount = amountByOrderRef.get(linkedRef) ?? 0;
-
+        
+        const {rows} = await pool.query(
+            `SELECT metadata
+            FROM disputes
+            WHERE order_id = $1`,
+            [o.order_id]
+        );
+        const {
+            metadata
+        } = rows[0];
+        let qty = metadata.selected_items.reduce((acc: any, cur: any) => acc + cur.qty, 0);
+        let amount = metadata.selected_items.reduce((acc: any, cur: any) => acc + cur.total_price, 0);
         return {
             return_id: Number(o.id),
             order_id: id,
@@ -104,5 +112,7 @@ export const returnsTransformer = async (
             customer_lat: null,
             customer_lng: null,
         };
-    });
+
+    }));
+
 };
