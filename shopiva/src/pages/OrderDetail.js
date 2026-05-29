@@ -303,8 +303,8 @@ export default function OrderDetailScreen() {
   }, [orderInfo]);
 
   useEffect(() => {
+    dispatch(set_orderInfo(null));
     if (auth.activeRole === 'customer') {
-      dispatch(set_orderInfo(null));
       (async () => {
         await connectChatSocket();
         fetchBuyerOrder(route.params.order.order_id)
@@ -837,7 +837,7 @@ export default function OrderDetailScreen() {
       : []),
   ];
 
-  if (!orderInfo || orderInfo === {}) {
+  if (orderInfo === null) {
     return (
       <>
         <View
@@ -1334,7 +1334,7 @@ export default function OrderDetailScreen() {
             </Pressable>
           </>
         )}
-        { orderInfo?.order_events?.length > 1 &&  (
+        {orderInfo?.order_events?.length > 1 &&  (
           statusKey !== "order_delivered" && statusKey !== "order_disputed" && auth.activeRole === 'customer' ? '' : 
           <Pressable
             onPress={onUpdateStatus}
@@ -1363,7 +1363,7 @@ export default function OrderDetailScreen() {
           </Pressable>
         )}
 
-        { auth.activeRole === 'customer' && statusKey !== "order_delivered" && statusKey !== "order_disputed" ? 
+        {auth.activeRole === 'customer' && statusKey !== "order_delivered" && statusKey !== "order_disputed" ? 
           <Pressable 
           onPress={e => {
             if (blockIfCancelled()) return;

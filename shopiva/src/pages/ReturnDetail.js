@@ -27,7 +27,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { getStoredUser } from '../auth/session';
 import { connectChatSocket } from '../socket/chatSocket';
 import { set_returnInfo } from '../../redux/return';
-import { RETURN_STATUS_THEME, RETURN_PAY_THEME, COLOR } from '../utils/statusTheme';
+import { RETURN_STATUS_THEME, RETURN_PAY_THEME, COLOR, STATUS_THEME } from '../utils/statusTheme';
 
 function parseEventMeta(meta) {
   if (meta == null) return {};
@@ -221,7 +221,7 @@ export default function ReturnDetailScreen() {
     connectChatSocket();
   }, []);
 
-  const isReturnCancelled = statusKey === 'return_cancellation';
+  const isReturnCancelled = statusKey === 'return_cancelled';
 
   const cancellationDetails = useMemo(() => {
     if (!isReturnCancelled) return null;
@@ -233,7 +233,7 @@ export default function ReturnDetailScreen() {
       const stage = String(e?.stage ?? '').toLowerCase();
       const type = String(e?.event_type ?? '').toLowerCase();
       return (
-        stage === 'return_cancellation' ||
+        stage === 'return_cancelled' ||
         type === 'cancellation' ||
         stage.includes('cancel')
       );
@@ -310,8 +310,8 @@ export default function ReturnDetailScreen() {
   }, [returnInfo]);
 
   useEffect(() => {
+    dispatch(set_returnInfo(null));
     if (auth.activeRole === 'customer') {
-      dispatch(set_returnInfo(null));
       (async () => {
         await connectChatSocket();
         fetchBuyerReturn(route.params.returnItem.return_id)
@@ -569,7 +569,7 @@ export default function ReturnDetailScreen() {
         data: {
           return_id: returnInfo.return.id,
           event_type: 'cancellation',
-          stage: 'return_cancellation',
+          stage: 'return_cancelled',
           actor_type: 'customer',
           actor_id: u.id,
           outcome: 'success',
@@ -588,7 +588,7 @@ export default function ReturnDetailScreen() {
         data: {
           return_id: returnInfo.return.id,
           event_type: 'cancellation',
-          stage: 'return_cancellation',
+          stage: 'return_cancelled',
           actor_type: 'vendor',
           actor_id: u.id,
           outcome: 'success',
@@ -733,7 +733,7 @@ export default function ReturnDetailScreen() {
       : []),
   ];
 
-  if (!returnInfo) {
+  if (returnInfo === null) {
     return (
       <>
         <View
@@ -749,24 +749,6 @@ export default function ReturnDetailScreen() {
     );
   }
   const actionBtn = () => {
-    // Alert.alert(JSON.stringify(statusKey))
-    // return (
-    //   (auth.activeRole === 'customer')
-    //     ? statusKey === 'return_accepted'
-    //       ? 'Start Processing Return'
-    //       : statusKey === 'return_processing'
-    //       ? 'Start Shipping Return'
-    //       : statusKey === 'return_shipping'
-    //       ? 'Notify Vendor For Pickup'
-    //       : statusKey === 'return_out_for_delivery'
-    //       ? 'Confirm Vendor Has Received The Return'
-    //       : statusKey === 'return_confirmed' ? 'Your payout will be processed within 48 hours.'
-    //       : "Awaiting Vendor's Confirmation"
-    //     :
-    //   (auth.activeRole === 'vendor') 
-    //   ? 'Confirm delivery' : ''
-    // );
-
     let message;
     if(auth.activeRole === 'customer'){
       switch(statusKey){
@@ -1192,15 +1174,15 @@ export default function ReturnDetailScreen() {
             </Pressable>
           </>
         )}
-        {!isReturnCancelled && returnInfo?.return_events?.length > 1 &&  (
-          statusKey == "delivered" && auth.activeRole === 'vendor' ? '' : 
+        {returnInfo?.return_events?.length > 1 &&  (
+          statusKey == "return_delivered" && auth.activeRole === 'vendor' ? '' : 
           <Pressable
             onPress={onUpdateStatus}
-            disabled={
-              statusKey === 'delivered' && auth.activeRole === 'vendor'
-                ? true
-                : false
-            }
+            // disabled={
+            //   statusKey === 'delivered' && auth.activeRole === 'vendor'
+            //     ? true
+            //     : false
+            // }
             style={({ pressed }) => [
               styles.btnPrimary,
               pressed && styles.btnPrimaryPressed,
@@ -1210,29 +1192,20 @@ export default function ReturnDetailScreen() {
               {
                 actionBtn()
               }
-              {/* {auth.activeRole === 'customer'
-                ? statusKey === 'return_accepted'
-                  ? 'Start Processing Return'
-                  : statusKey === 'return_processing'
-                  ? 'Start Shipping Return'
-                  : statusKey === 'return_shipping'
-                  ? 'Notify Vendor For Pickup'
-                  : statusKey === 'return_out_for_delivery'
-                  ? 'Confirm Vendor Has Received The Return'
-                  : "Awaiting Vendor's Confirmation"
-                : ''}
-              {auth.activeRole === 'vendor' ? 'Confirm delivery' : ''} */}
             </Text>
           </Pressable>
         )}
 
-        {!isReturnCancelled && auth.activeRole === 'vendor' && statusKey == "delivered" ? 
+        {auth.activeRole === 'vendor' && statusKey !== "return_delivered" && statusKey !== "return_disputed" ? 
           <Pressable 
           disabled
           style={({ pressed }) => [
             styles.btnPrimary,
             pressed && styles.btnPrimaryPressed,
-            {backgroundColor: "#000"}
+            {
+              backgroundColor: STATUS_THEME[statusKey]?.dot
+            }
+            // {backgroundColor: "#000"}
           ]}
           >
              <Text style={[styles.btnPrimaryText, {textTransform: "capitalize"}]}>
@@ -1930,7 +1903,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: COLOR.BRAND_COLOR,
+    // backgroundColor: COLOR.BRAND_COLOR,
   },
   btnPrimaryPressed: {
     backgroundColor: COLOR.BRAND_COLOR_LITE,

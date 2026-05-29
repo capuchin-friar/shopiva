@@ -447,38 +447,53 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                                     );
                                     return;
                                 }
-                                setLoading(!loading);
-                                const u = await getStoredUser();
-                                const response = await emitSocketAck(
-                                    "return_acceptance",
-                                    {
-                                        ...data,
-                                        meta: {
-                                            ...(data.meta &&
-                                                typeof data.meta === "object"
-                                                ? data.meta
-                                                : {}),
-                                            vendor_confirmations: {
-                                                fulfill_on_time: true,
-                                                performance_policy: true,
-                                            },
-                                            fulfillment_duration:
-                                                fulfillmentDuration,
-                                            fulfillment_duration_label:
-                                                FULFILLMENT_TIMEFRAME_OPTIONS.find(
-                                                    (o) =>
-                                                        o.value ===
+                                
+                                
+
+                                async function AcceptReturnHandler() {
+                                    setLoading(!loading);
+                                    const u = await getStoredUser();
+                                    const response = await emitSocketAck(
+                                        "return_acceptance",
+                                        {
+                                            ...data,
+                                            meta: {
+                                                ...(data.meta &&
+                                                    typeof data.meta === "object"
+                                                    ? data.meta
+                                                    : {}),
+                                                vendor_confirmations: {
+                                                    fulfill_on_time: true,
+                                                    performance_policy: true,
+                                                },
+                                                fulfillment_duration: fulfillmentDuration,
+                                                fulfillment_duration_label: FULFILLMENT_TIMEFRAME_OPTIONS.find(
+                                                    (o) => o.value ===
                                                         fulfillmentDuration
                                                 )?.label ?? null,
-                                        },
-                                        notes: note,
-                                        actor_id: u.id,
+                                            },
+                                            notes: note,
+                                            actor_id: u.id,
+                                        }
+                                    );
+                                    if (response.success) {
+                                        dispatch(set_returnInfo(response.result));
+                                        navigation.goBack();
                                     }
+                                };
+
+                                Alert.alert(
+                                    'Confirm order acceptance',
+                                    'By accepting this order, you agree to deliver the item to the customer',
+                                    [
+                                    { text: 'Cancel', style: 'cancel' },
+                                    {
+                                        text: 'Confirm',
+                                        style: 'default',
+                                        onPress:  AcceptReturnHandler,
+                                    },
+                                    ],
                                 );
-                                if (response.success) {
-                                    dispatch(set_returnInfo(response.result));
-                                    navigation.goBack();
-                                }
                             }}
                             style={({ pressed }) => [
                                 styles.btnAccept,
