@@ -304,6 +304,7 @@ export default function OrderDetailScreen() {
 
   useEffect(() => {
     if (auth.activeRole === 'customer') {
+      dispatch(set_orderInfo(null));
       (async () => {
         await connectChatSocket();
         fetchBuyerOrder(route.params.order.order_id)
@@ -836,7 +837,7 @@ export default function OrderDetailScreen() {
       : []),
   ];
 
-  if (!orderInfo) {
+  if (!orderInfo || orderInfo === {}) {
     return (
       <>
         <View

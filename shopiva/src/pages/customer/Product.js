@@ -51,6 +51,7 @@ export default function ProductScreen({ route, navigation }) {
   const vendor = route.params?.vendor;
   const category = route.params?.category ?? 'fashion';
   const routeProduct = route.params?.product;
+  const shopId = route.params?.shop_id;
   const routeProductId = route.params?.productId;
 
   const [qty, setQty] = useState(1);
@@ -227,11 +228,12 @@ export default function ProductScreen({ route, navigation }) {
       ...p,
       title: name,
       uri,
+      shop_id: shopId,
       priceUsd,
       currency: 'NGN',
       description: typeof d?.description === 'string' ? d.description : p.description,
     };
-  }, [routeProduct, d, hasVariants, selectedVariant]);
+  }, [routeProduct, shopId, d, hasVariants, selectedVariant]);
 
   const product = mergedProduct;
 
@@ -581,6 +583,8 @@ export default function ProductScreen({ route, navigation }) {
       image: imageUri,
       unitPrice: checkoutUnitPrice,
       qty,
+      shop_id: shopId,
+      productId: product.id,
       inventoryId: selectedInventoryId ?? undefined,
       variantLabel: variantSummaryText || undefined,
       cartItemId:
@@ -589,11 +593,13 @@ export default function ProductScreen({ route, navigation }) {
           : undefined,
     };
 
-    navigation.navigate('cart-checkout', {
+    navigation.navigate('Cart-checkout', {
       checkoutSource: 'product',
       checkoutLines: [buyLine],
     });
   }, [
+    product.id,
+    product.shop_id,
     ensureReadyForCartOrCheckout,
     selectedLineInCart,
     cartLineForSelection,
@@ -783,7 +789,7 @@ export default function ProductScreen({ route, navigation }) {
               <Text style={styles.price}>{priceDisplayLabel}</Text>
               {hasVariants && !selectedVariant ? (
                 <Text style={styles.variantPriceRangeHint} numberOfLines={2}>
-                  Choose a variant to see the exact price
+                  Choose an option [variant] to see the exact price
                 </Text>
               ) : null}
             </View>
@@ -796,7 +802,7 @@ export default function ProductScreen({ route, navigation }) {
           </View>
           {hasVariants && attrKeys.length ? (
             <View style={styles.variantPickersBlock}>
-              <Text style={styles.variantPickersTitle}>Variant</Text>
+              <Text style={styles.variantPickersTitle}>Options (variant)</Text>
               <ProductVariantCardPicker
                 attrKeys={attrKeys}
                 variants={variantsForUi}

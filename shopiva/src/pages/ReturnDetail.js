@@ -311,6 +311,7 @@ export default function ReturnDetailScreen() {
 
   useEffect(() => {
     if (auth.activeRole === 'customer') {
+      dispatch(set_returnInfo(null));
       (async () => {
         await connectChatSocket();
         fetchBuyerReturn(route.params.returnItem.return_id)
@@ -1104,7 +1105,7 @@ export default function ReturnDetailScreen() {
           <MoneyRow
             label="Shipping Cost"
             value={
-              returnInfo?.return?.return_shipping_fee &&
+              // returnInfo?.return?.return_shipping_fee &&
               fmt(returnInfo?.return?.return_shipping_fee)
             }
             muted
@@ -1114,7 +1115,8 @@ export default function ReturnDetailScreen() {
           <MoneyRow
             label="Total"
             value={fmt(
-              returnInfo?.return?.return_shipping_fee &&
+              // returnInfo?.return?.return_shipping_fee &&
+                returnInfo.return_items&&
                 returnInfo.return_items.reduce(
                   (acc, curr) => acc + parseInt(curr.total_price),
                   0,

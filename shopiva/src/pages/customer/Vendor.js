@@ -80,11 +80,12 @@ function mapStorefrontProductToTile(p, index) {
   const gender = String(p.gender ?? 'Male');
   const subCategory = String(p.subCategory ?? p.subcategory ?? 'general').toLowerCase();
   const type = String(p.type ?? subCategory).toLowerCase();
-
+  const shop_id = String(p.shop_id ?? "");
   return {
     key: id,
     title,
     uri,
+    shop_id,
     hasVariants,
     minPrice,
     maxPrice,
@@ -138,7 +139,7 @@ function FilterChipSection({ title, options, value, onChange, embedded }) {
   );
 }
 
-function ProductTile({ product, width, navigation, vendor, category }) {
+function ProductTile({ product, width, shop, navigation, vendor, category }) {
   return (
     <TouchableOpacity
       style={[styles.tile, { width }]}
@@ -148,6 +149,7 @@ function ProductTile({ product, width, navigation, vendor, category }) {
           vendor,
           category: category ?? 'fashion',
           productId: String(product.key),
+          shop_id: shop.id,
           product: {
             id: product.key,
             key: product.key,
@@ -195,7 +197,6 @@ function ProductTile({ product, width, navigation, vendor, category }) {
 export default function VendorShopScreen({ route, navigation }) {
   const vendor = route.params?.vendor;
   const category = route.params?.category ?? 'fashion';
-  const shopId = vendor?.id ?? 0;
   const shopName = vendor?.name?.trim() || 'Shop';
   const insets = useSafeAreaInsets();
 
@@ -250,6 +251,7 @@ export default function VendorShopScreen({ route, navigation }) {
           getStorefrontShop(slug).catch(() => ({ shop: {}, shopPolicies: null })),
           getStorefrontProducts(slug),
         ]);
+        
         if (cancelled) return;
         const shop = shopRes.shop && typeof shopRes.shop === 'object' ? shopRes.shop : {};
         setShopMeta(/** @type {Record<string, unknown>} */ (shop));
@@ -451,6 +453,7 @@ export default function VendorShopScreen({ route, navigation }) {
                   navigation={navigation}
                   vendor={vendor}
                   category={category}
+                  shop={shopMeta}
                 />
               ))}
             </View>
