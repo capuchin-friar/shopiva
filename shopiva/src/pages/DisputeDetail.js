@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -169,14 +170,39 @@ export default function DisputeDetailScreen() {
 
   const closeActions = () => setActionsOpen(false);
 
-  const onAcceptOffer = () => {
-    if(dispute.status === "responded")return;
-    navigation.navigate("Dispute-action", {
-      action: "acceptance",
-      data: {
-        dispute_id: dispute.id
-      }
-    })
+  const makeCall = async (phoneNumber: String) => {
+    const url = `tel:${phoneNumber}`;
+
+    const supported = await Linking.canOpenURL(url);
+
+    if (supported) {
+      await Linking.openURL(url);
+    }
+  };
+
+  const onAcceptOffer = async() => {
+    if(dispute.status === "escalated"){
+      await makeCall("09047263571");
+      return;
+    }
+
+    if(dispute.status === "resolved"){
+      navigation.navigate("Return-detail", {
+        data: {
+          dispute_id: dispute.id
+        }
+      });
+      return;
+    }
+    //  dispute.status
+    if (dispute.status === "open") {
+      navigation.navigate("Dispute-action", {
+        action: "acceptance",
+        data: {
+          dispute_id: dispute.id
+        }
+      })
+    }
   };
 
   const onSubmitEvidenceFab = () => {
@@ -579,16 +605,17 @@ export default function DisputeDetailScreen() {
 
       </ScrollView>
 
-      {auth.activeRole === "vendor" && !isResolved ? (
+      {(
         <View style={[styles.fabBar, { bottom: 0, paddingBottom: 4 }]}>
           <Pressable
             style={({ pressed }) => [styles.fabAccept, pressed && styles.fabPressed]}
             onPress={onAcceptOffer}
+            // disabled={dispute.status === "escalated"};
           >
-            <Icon name="checkmark-circle" size={20} color={WHITE} />
+            {dispute.status === "open" && <Icon name="checkmark-circle" size={20} color={WHITE} />}
             <Text style={styles.fabAcceptText}>{
               dispute.status === "open"?
-              "Accept claim" : dispute?.response?.will_return_item ? "Return processing" : "Refund processing" 
+              "Accept claim" : dispute.status === "resolved"? "Click here to view Return" : "Dispute Escalated, Contact Support!" 
             }</Text>
           </Pressable>
           
@@ -602,7 +629,7 @@ export default function DisputeDetailScreen() {
             </Pressable>
           }
           </View>
-      ) : null}
+      )}
     </View>
   );
 }
