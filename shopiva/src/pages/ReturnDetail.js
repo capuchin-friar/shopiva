@@ -27,7 +27,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { getStoredUser } from '../auth/session';
 import { connectChatSocket } from '../socket/chatSocket';
 import { set_returnInfo } from '../../redux/return';
-import { RETURN_STATUS_THEME, RETURN_PAY_THEME, COLOR, STATUS_THEME } from '../utils/statusTheme';
+import { RETURN_STATUS_THEME, RETURN_PAY_THEME, COLOR } from '../utils/statusTheme';
 
 function parseEventMeta(meta) {
   if (meta == null) return {};
@@ -208,18 +208,19 @@ export default function ReturnDetailScreen() {
   const insets = useSafeAreaInsets();
   const route = useRoute();
   const auth = useSelector(s => s.auth);
-  const return_ = (
-    route.params?.returnItem
-  );
+  // const return_ = (
+  //   route.params?.returnItem
+  // );
   const [statusKey, setStatusKey] = useState(null);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [cancelledModalOpen, setCancelledModalOpen] = useState(false);
   const { returnInfo } = useSelector(s => s.returnInfo);
   const dispatch = useDispatch();
 
-  useEffect(() => {
-    connectChatSocket();
-  }, []);
+  // useEffect(() => {
+  //   connectChatSocket();
+  //   console.log("return_:", return_);
+  // }, [return_]);
 
   const isReturnCancelled = statusKey === 'return_cancelled';
 
@@ -291,15 +292,16 @@ export default function ReturnDetailScreen() {
   const closeActions = useCallback(() => setActionsOpen(false), []);
 
   const returnNumber = useMemo(() => {
-    const n = return_?.return_id ?? '1928';
+    const n = returnInfo?.return?.id ?? '1928';
     return String(n).replace(/^ORD-/i, '');
-  }, [return_]);
+  }, [returnInfo]);
 
   const [vendor_id, set_vendor_id] = useState(null);
   useEffect(() => {
+    if(!returnInfo)return;
     (async () => {
-      const owners = await fetchShopOwner(returnInfo.return.shop_id);
-      set_vendor_id(owners[0].id);
+      const owners = await fetchShopOwner(returnInfo?.return?.shop_id);
+      set_vendor_id(owners[0]?.id);
     })();
   }, [returnInfo, route]);
 
@@ -315,8 +317,8 @@ export default function ReturnDetailScreen() {
       (async () => {
         await connectChatSocket();
         fetchBuyerReturn(route.params.returnItem.return_id)
-          .then(({ return: ret }) => {
-            dispatch(set_returnInfo(ret));
+          .then(({return: result}) => {
+            dispatch(set_returnInfo(result));
           })
           .catch(err => console.log(err));
       })();
@@ -327,8 +329,8 @@ export default function ReturnDetailScreen() {
         let shop = await fetchOwnerShops(userId);
         let sid = shop[0].id;
         fetchShopReturnDetail(sid, route.params.returnItem.return_id, userId)
-          .then(({ return: ret }) => {
-            dispatch(set_returnInfo(ret));
+          .then(({return: result}) => {
+            dispatch(set_returnInfo(result));
           })
           .catch(err => console.log(err));
       })();
@@ -597,7 +599,7 @@ export default function ReturnDetailScreen() {
         },
       });
     }
-  }, [auth.activeRole, blockIfCancelled, return_.order_id, navigation, returnInfo, statusKey]);
+  }, [auth.activeRole, blockIfCancelled, navigation, returnInfo, statusKey]);
 
   const onUpdateStatus = async () => {
     
@@ -786,6 +788,9 @@ export default function ReturnDetailScreen() {
           break;
         case 'return_confirmed':
           message = 'Escrow will refund the buyer';
+          break;
+        case 'return_delivered':
+          message = 'Confirm You received the delivery';
           break;
         default: 
           message = "Awaiting Buyer's Confirmation to process return";
@@ -1175,7 +1180,7 @@ export default function ReturnDetailScreen() {
           </>
         )}
         {returnInfo?.return_events?.length > 1 &&  (
-          statusKey == "return_delivered" && auth.activeRole === 'vendor' ? '' : 
+          statusKey !== "return_delivered" && auth.activeRole === 'vendor' ? '' : 
           <Pressable
             onPress={onUpdateStatus}
             // disabled={
@@ -1186,6 +1191,9 @@ export default function ReturnDetailScreen() {
             style={({ pressed }) => [
               styles.btnPrimary,
               pressed && styles.btnPrimaryPressed,
+              {
+                backgroundColor: RETURN_STATUS_THEME[statusKey]?.dot
+              }
             ]}
           >
             <Text style={styles.btnPrimaryText}>
@@ -1196,26 +1204,25 @@ export default function ReturnDetailScreen() {
           </Pressable>
         )}
 
-        {auth.activeRole === 'vendor' && statusKey !== "return_delivered" && statusKey !== "return_disputed" ? 
+        {auth.activeRole === 'vendor' && statusKey !== "return_delivered"? 
           <Pressable 
-          disabled
-          style={({ pressed }) => [
-            styles.btnPrimary,
-            pressed && styles.btnPrimaryPressed,
-            {
-              backgroundColor: STATUS_THEME[statusKey]?.dot
-            }
-            // {backgroundColor: "#000"}
-          ]}
-          >
-             <Text style={[styles.btnPrimaryText, {textTransform: "capitalize"}]}>
+            disabled
+            style={({ pressed }) => [
+              styles.btnPrimary,
+              pressed && styles.btnPrimaryPressed,
               {
-                statusKey === "return_initiated"?
-                "Awaiting Customer's Approval" : actionBtn()
+                backgroundColor: RETURN_STATUS_THEME[statusKey]?.dot
               }
-            </Text>
-          </Pressable>
-         : ''}
+            ]}
+          >
+            <Text style={[styles.btnPrimaryText, {textTransform: "capitalize"}]}>
+            {
+              statusKey === "return_initiated"?
+              "Awaiting Customer's Approval" : actionBtn()
+            }
+          </Text>
+        </Pressable>
+        : ''}
       </View>
 
       <Modal

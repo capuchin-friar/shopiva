@@ -26,17 +26,17 @@ import { set_returnInfo } from "../../redux/return";
 import { useDispatch } from "react-redux";
 import { fetchShopOwner } from "../api";
 
-const VendorRejectReason = [
-    { label: 'out of stock', value: 'out_of_stock' },
-    { label: 'incorrect price', value: 'incorrect_price' },
-    { label: 'cannot deliver', value: 'cannot_deliver' },
-    { label: 'product damaged', value: 'product_damaged' },
-    { label: 'store unavailable', value: 'store_unavailable' },
-    { label: 'suspected fraud', value: 'suspected_fraud' },
-    { label: 'shipping delay', value: 'shipping_delay' },
-    { label: 'duplicate return', value: 'duplicate_return' },
-    { label: 'product discontinued', value: 'product_discontinued' },
-    { label: 'other', value: 'other' }
+const CustomerCannotCompleteReturnReason = [
+  { label: 'item unavailable for pickup', value: 'item_unavailable_for_pickup' },
+  { label: 'unable to reach pickup location', value: 'unable_to_reach_pickup_location' },
+  { label: 'courier did not arrive', value: 'courier_did_not_arrive' },
+  { label: 'item lost after return request', value: 'item_lost_after_return_request' },
+  { label: 'item damaged further', value: 'item_damaged_further' },
+//   { label: 'incorrect pickup details', value: 'incorrect_pickup_details' },
+  { label: 'return no longer needed', value: 'return_no_longer_needed' },
+  { label: 'personal emergency', value: 'personal_emergency' },
+//   { label: 'suspected fraud', value: 'suspected_fraud' },
+  { label: 'other', value: 'other' }
 ];
 
 /** Used when vendor commits to a delivery / ship-by window. */
@@ -66,14 +66,14 @@ const FINAL_DELIVERY_HANDLER_OPTIONS = [
     { label: "Third-party logistics", value: "third_party_logistics" },
     { label: "Dispatch rider", value: "dispatch_rider" },
     { label: "Courier service", value: "courier_service" },
-    { label: "In-house / vendor team", value: "vendor_team" },
+    { label: 'My team / Me', value: 'vendor_team' },
     { label: "Vendor pickup (at hub)", value: "vendor_pickup_hub" },
 ];
 
 const MAX_DELIVERY_EVIDENCE = 8;
 const MIN_DELIVERY_EVIDENCE = 2;
 
-const CANCEL_ORDER_REASONS = [
+const CANCEL_RETURN_REASONS = [
     { label: "Changed my mind / Returned by mistake", value: "changed_mind" },
     { label: "Shipping is taking too long", value: "delayed_shipping" },
     { label: "Vendor asked me to cancel", value: "vendor_requested_cancel" },
@@ -203,7 +203,7 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                                 itemTextStyle={styles.itemTextStyle}
                                 inputSearchStyle={styles.inputSearchStyle}
                                 iconStyle={styles.iconStyle}
-                                data={VendorRejectReason}
+                                data={CustomerCannotCompleteReturnReason}
                                 search
                                 maxHeight={280}
                                 labelField="label"
@@ -483,8 +483,8 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                                 };
 
                                 Alert.alert(
-                                    'Confirm order acceptance',
-                                    'By accepting this order, you agree to deliver the item to the customer',
+                                    'Confirm return acceptance',
+                                    'By accepting this return, you agree to deliver the item to the customer',
                                     [
                                     { text: 'Cancel', style: 'cancel' },
                                     {
@@ -605,7 +605,7 @@ function Processing({ data }) {
                         Estimated ship time
                     </Text>
                     <Text style={styles.processingFieldHint}>
-                        When do you plan to hand this order to the carrier? This
+                        When do you plan to hand this return to the carrier? This
                         helps set vendor expectations.
                     </Text>
                     <Dropdown
@@ -725,7 +725,7 @@ function Shipping({ data }) {
         if (shippingMethod == null || shippingMethod === "") {
             Alert.alert(
                 "Shipping method",
-                "Select how this order is being returned to the vendor."
+                "Select how this return is being returned to the vendor."
             );
             return false;
         }
@@ -1226,7 +1226,7 @@ function MarkAsDelivered({ data }) {
         if (!confirmed) {
             Alert.alert(
                 "Confirmation required",
-                "Confirm that the order was returned to the vendor."
+                "Confirm that the return was returned to the vendor."
             );
             return;
         }
@@ -1275,7 +1275,7 @@ function MarkAsDelivered({ data }) {
                         Mark as delivered
                     </Text>
                     <Text style={styles.processingSectionSubtitle}>
-                        Confirm the vendor has received this return order.
+                        Confirm the vendor has received this return return.
                     </Text>
                     <View style={styles.processingChecklist}>
                         <ConfirmCheckbox
@@ -1364,7 +1364,7 @@ function MarkAsDelivered({ data }) {
                     onPress={() => {
                         Alert.alert(
                             "Confirm delivery",
-                            "Mark this order as returned for the vendor?",
+                            "Mark this return as returned for the vendor?",
                             [
                                 { text: "Cancel", style: "cancel" },
                                 {
@@ -1423,7 +1423,7 @@ function ConfirmDelivery({data}) {
         if(!v)return;
         setLoading(!loading)
         const u = await getStoredUser();
-        const response = await emitSocketAck("return_confirmation", {
+        const response = await emitSocketAck("return_confirmed", {
             ...data,
             outcome: "success",
             actor_id: u.id,
@@ -1665,7 +1665,7 @@ function VendorCancelReturn({ data }) {
                         itemTextStyle={styles.itemTextStyle}
                         inputSearchStyle={styles.inputSearchStyle}
                         iconStyle={styles.iconStyle}
-                        data={VendorRejectReason}
+                        data={CustomerCannotCompleteReturnReason}
                         search
                         maxHeight={320}
                         labelField="label"
@@ -1944,7 +1944,7 @@ function CancelReturn({ data }) {
                         selectedTextStyle={styles.selectedTextStyle}
                         itemTextStyle={styles.processingDropdownItem}
                         iconStyle={styles.iconStyle}
-                        data={CANCEL_ORDER_REASONS}
+                        data={CANCEL_RETURN_REASONS}
                         maxHeight={320}
                         labelField="label"
                         valueField="value"
