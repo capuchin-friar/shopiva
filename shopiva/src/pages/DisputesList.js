@@ -103,7 +103,7 @@ function DisputeCard({ item, onPress }) {
         <View style={[styles.metaCol, styles.metaColLast]}>
           <Text style={styles.metaLabel}>Status</Text>
           <View style={[styles.statusPill, { backgroundColor: t.pillBg }]}>
-            <Text style={[styles.statusPillText, { color: t.pillText }]}>
+            <Text style={[styles.statusPillText, { color: t.pillText, textTransform: "capitalize" }]}>
               {statusLabel(item.status)}
             </Text>
           </View>

@@ -37,7 +37,8 @@ const RETURN_SOCKET_EVENTS = [
 
 const DISPUTE_SOCKET_EVENTS = [
   'raise_dispute', 
-  'dispute_acceptance'
+  'dispute_acceptance',
+  'dispute_escalation'
 ];
 
 /** @param {unknown} res */

@@ -1182,7 +1182,7 @@ export default function OrderDetailScreen() {
 
         {/* <SectionLabel>Items</SectionLabel> */}
         <View style={styles.card}>
-          {Array.isArray(orderInfo.order_items) &&
+          {Array.isArray(orderInfo?.order_items) &&
             orderInfo.order_items.map((it, i) => (
               <View
                 key={String(it.id ?? i)}
@@ -1236,8 +1236,8 @@ export default function OrderDetailScreen() {
           <MoneyRow
             label="Subtotal"
             value={
-              Array.isArray(orderInfo.order_items) &&
-              orderInfo.order_items.reduce(
+              Array.isArray(orderInfo?.order_items) &&
+              orderInfo?.order_items?.reduce(
                 (acc, curr) => acc + parseInt(curr.total_price),
                 0,
               )
