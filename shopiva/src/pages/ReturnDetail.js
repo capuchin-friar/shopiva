@@ -316,7 +316,7 @@ export default function ReturnDetailScreen() {
     if (auth.activeRole === 'customer') {
       (async () => {
         await connectChatSocket();
-        fetchBuyerReturn(route.params.returnItem.return_id)
+        fetchBuyerReturn(route.params?.returnItem?.return_id ?? route.params.returnId)
           .then(({return: result}) => {
             dispatch(set_returnInfo(result));
           })
@@ -328,7 +328,7 @@ export default function ReturnDetailScreen() {
         let { id: userId } = await getStoredUser();
         let shop = await fetchOwnerShops(userId);
         let sid = shop[0].id;
-        fetchShopReturnDetail(sid, route.params.returnItem.return_id, userId)
+        fetchShopReturnDetail(sid, route.params?.returnItem?.return_id ?? route.params.returnId, userId)
           .then(({return: result}) => {
             dispatch(set_returnInfo(result));
           })

@@ -19,7 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { formatNaira } from '../utils/formatNaira';
 import { fetchBuyerDispute } from '../api/buyer';
-import { fetchOwnerShops, fetchShopDispute } from '../api';
+import { fetchOwnerShops, fetchReturnId, fetchShopDispute } from '../api';
 import { getStoredUser } from '../auth/session';
 import { connectChatSocket, emitSocketAck } from '../socket/chatSocket';
 import { set_disputeInfo } from '../../redux/dispute';
@@ -40,14 +40,14 @@ const LINE_PENDING = '#E0E0E0';
 const DOT_PENDING = '#D8D8D8';
 
 const STATUS_DISPLAY = {
-  open: 'Open',
-  under_review: 'Under review',
+  open: 'Opened',
+  escalated: 'Escalated',
   resolved: 'Resolved',
 };
 
 const STATUS_PILL = {
   open: { bg: '#FFF3E0', fg: '#C45C00' },
-  under_review: { bg: '#E3F2FD', fg: '#1565C0' },
+  escalated: { bg: '#E3F2FD', fg: '#1565C0' },
   resolved: { bg: '#E8F5E9', fg: '#2E7D32' },
 };
 
@@ -170,38 +170,40 @@ export default function DisputeDetailScreen() {
 
   const closeActions = () => setActionsOpen(false);
 
-  const makeCall = async (phoneNumber: String) => {
-    const url = `tel:${phoneNumber}`;
+  const makeCall = async (phoneNumber) => {
+    try {
+      const url = `tel:${phoneNumber}`;
 
-    const supported = await Linking.canOpenURL(url);
-
-    if (supported) {
       await Linking.openURL(url);
+    } catch (error) {
+      Alert.alert('Error', 'Unable to open phone dialer');
+      console.log(error);
     }
   };
 
   const onAcceptOffer = async() => {
+    console.log("dispute:", dispute)
     if(dispute.status === "escalated"){
-      await makeCall("09047263571");
+
+      await makeCall(9047263572);
       return;
     }
 
     if(dispute.status === "resolved"){
-      navigation.navigate("Return-detail", {
-        data: {
-          dispute_id: dispute.id
-        }
-      });
+      let id = await fetchReturnId(dispute.order_id, auth.activeRole);
+      navigation.navigate("Return-detail",{
+        returnId: id.id,
+      })
       return;
     }
-    //  dispute.status
     if (dispute.status === "open") {
       navigation.navigate("Dispute-action", {
         action: "acceptance",
         data: {
           dispute_id: dispute.id
         }
-      })
+      });
+      return;
     }
   };
 
@@ -608,7 +610,9 @@ export default function DisputeDetailScreen() {
       {(
         <View style={[styles.fabBar, { bottom: 0, paddingBottom: 4 }]}>
           <Pressable
-            style={({ pressed }) => [styles.fabAccept, pressed && styles.fabPressed]}
+            style={({ pressed }) => [styles.fabAccept, pressed && styles.fabPressed, {
+              backgroundColor: STATUS_PILL[dispute.status]?.fg
+            }]}
             onPress={onAcceptOffer}
             // disabled={dispute.status === "escalated"};
           >

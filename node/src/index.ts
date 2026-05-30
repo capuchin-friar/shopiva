@@ -20,6 +20,7 @@ import { getJwtSecret } from "./middleware/auth.js";
 import handleSocketConnection from "./services/socket.js";
 import { attachSocketServer } from "./services/socketBroadcast.js";
 import { Server, type Socket } from "socket.io";
+import { db } from "./config/database.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Load .env from node project root so it matches Next (same secret regardless of cwd)
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
@@ -80,6 +81,19 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 app.get("/api-docs.json", (req, res) => {
     res.setHeader("Content-Type", "application/json");
     res.send(swaggerSpec);
+});
+app.get("/return/:orderId", async (req, res) => {
+  const { orderId } = req.params;
+
+  const pool = await db();
+
+  const { rows } = await pool.query(
+    "SELECT id FROM returns WHERE order_id = $1",
+    [orderId]
+  );
+  console.log("id:", rows[0])
+
+  res.json({ok: true, id: rows[0]});
 });
 
 // Routes
