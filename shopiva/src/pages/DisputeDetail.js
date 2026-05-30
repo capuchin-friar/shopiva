@@ -190,10 +190,12 @@ export default function DisputeDetailScreen() {
     }
 
     if(dispute.status === "resolved"){
+      setLoading(true)
       let id = await fetchReturnId(dispute.order_id, auth.activeRole);
+      setLoading(false)
       navigation.navigate("Return-detail",{
         returnId: id.id,
-      })
+      });
       return;
     }
     if (dispute.status === "open") {
