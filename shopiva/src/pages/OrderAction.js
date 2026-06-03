@@ -1400,7 +1400,10 @@ function ConfirmDelivery({ data }) {
     });
     if (response.success) {
       dispatch(set_orderInfo(response.result));
-      navigation.goBack();
+      navigation.navigate("Review", {
+        shop: response.result.shop
+      })
+      // navigation.goBack();
     }
   };
 
@@ -1475,7 +1478,7 @@ function ConfirmDelivery({ data }) {
               onPress={() => {
                 Alert.alert(
                   'Confirm order',
-                  'Submit this shipping update for the customer?',
+                  'Once you confirm, the escrow funds will be released to the vendor.',
                   [
                     { text: 'Cancel', style: 'cancel' },
                     {
