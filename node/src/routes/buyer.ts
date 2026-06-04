@@ -16,6 +16,7 @@ import {
   PostBuyerCartController,
 } from "../controllers/buyer/cart.js";
 import { PostBuyerCheckoutConfirmPaymentController } from "../controllers/buyer/checkout.js";
+import { PostBuyerReviewController } from "../controllers/buyer/review.js";
 
 const BuyerRouter = express.Router();
 // /buyer/cart/${productId}/shopId
@@ -35,5 +36,6 @@ BuyerRouter.get("/buyer/disputes", verifyToken, GetBuyerDisputesController);
 BuyerRouter.get("/buyer/disputes/:disputeId", verifyToken, GetBuyerDisputeByIdController);
 BuyerRouter.post("/buyer/disputes", verifyToken, CreateBuyerDisputeController);
 BuyerRouter.post("/buyer/disputes/from-orders", verifyToken, BackfillBuyerDisputesFromOrdersController);
+BuyerRouter.post("/buyer/review", verifyToken, PostBuyerReviewController);
 
 export default BuyerRouter;

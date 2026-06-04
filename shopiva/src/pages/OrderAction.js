@@ -1400,8 +1400,10 @@ function ConfirmDelivery({ data }) {
     });
     if (response.success) {
       dispatch(set_orderInfo(response.result));
+      console.log("response - result",response.result);
       navigation.navigate("Review", {
-        shop: response.result.shop
+        shop: response.result.shop,
+        order: response.result.order
       })
       // navigation.goBack();
     }

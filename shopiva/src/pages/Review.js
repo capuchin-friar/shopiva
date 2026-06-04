@@ -20,7 +20,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useSelector } from 'react-redux';
 import { getStoredUser } from '../auth/session';
 import dayjs from 'dayjs';
-
+import { createReview } from '../api';
 
 const PAGE_BG = '#F5F5F5';
 const WHITE = '#FFFFFF';
@@ -33,13 +33,13 @@ const LINE_DONE = '#C5E075';
 const LINE_PENDING = '#E0E0E0';
 const DOT_PENDING = '#D8D8D8';
 
-
 const ReviewSubmissionScreen = ({ navigation }) => {
   const [rating, setRating] = useState(0);
   const [reviewType, setReviewType] = useState('');
   const [comment, setComment] = useState('');
+  // const [image_urls, set_image_urls] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { shop } = useRoute()?.params;
+  const { shop, order } = useRoute()?.params;
   const user = getStoredUser();
 
   const reviewOptions = [
@@ -54,91 +54,43 @@ const ReviewSubmissionScreen = ({ navigation }) => {
     { id: 'best', label: 'Best', icon: 'heart-outline', color: '#00a8ff' },
   ];
 
-  const handleSubmit = () => {
-    if (rating === 0) {
-      Alert.alert(
-        'Rating Required',
-        'Please provide a rating by selecting stars',
-      );
-      return;
-    }
+  const handleSubmit = async () => {
+    try {
+      if (rating === 0) {
+        Alert.alert(
+          'Rating Required',
+          'Please provide a rating by selecting stars',
+        );
+        return;
+      }
+      if (!reviewType) {
+        Alert.alert('Review Type Required', 'Please select a review type');
+        return;
+      }
 
-    if (!reviewType) {
-      Alert.alert('Review Type Required', 'Please select a review type');
-      return;
-    }
-
-    if (comment.trim().length < 10) {
-      Alert.alert(
-        'Comment Too Short',
-        'Please provide a more detailed comment (at least 10 characters)',
-      );
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    fetch(`https://cs-node.vercel.app/review`, {
-      method: 'post',
-
-      headers: {
-        'Content-Type': 'Application/json',
-      },
-      body: JSON.stringify({
-        shop_id: shop?.shop_id,
-        product_id: product?.product_id,
-        buyer_id: user?.user_id,
-        review: reviewType,
-        date: new Date(),
-        comment,
+      setIsSubmitting(true);
+      await createReview({
+        shop_id: shop.id,
+        customer_id: order.customer_id,
+        order_id: order.id,
         rating,
-      }),
-    })
-      .then(async result => {
-        let response = await result.json();
-        setIsSubmitting(false);
-
-        Alert.alert('Review Submitted', 'Thank you for your feedback!', [
-          {
-            text: 'OK',
-            onPress: () =>
-              navigation.navigate('product', { data: product, reviewed: true }),
-          },
-        ]);
-      })
-      .catch(err => {
-        Alert.alert('Network error, please try again.');
-        setIsSubmitting(false);
-        console.log(err);
+        review_tag: reviewType,
+        comment,
+        // image_urls,
       });
+      navigation.pop(2);
+    } catch (error) {
+      console.log('error: ', error);
+    }
   };
-
-
-  function MetaCell({ label, value, valueIsLink }) {
-    return (
-      <View style={styles.metaCell}>
-        <Text style={styles.metaCaps}>{label}</Text>
-        {valueIsLink ? (
-          <Text style={styles.metaLink} numberOfLines={1}>
-            {value}
-          </Text>
-        ) : (
-          <Text style={[styles.metaStrong, {textTransform: "capitalize"}]} numberOfLines={2}>
-            {value}
-          </Text>
-        )}
-      </View>
-    );
-  }
-  
 
   const selectedReviewOption = reviewOptions.find(
     option => option.id === reviewType,
   );
 
   useEffect(() => {
-    console.log('review params---product:', shop);
-  },  [shop]);
+    console.log('review params---order:', order);
+  }, [order]);
 
   return (
     <KeyboardAvoidingView
@@ -169,36 +121,40 @@ const ReviewSubmissionScreen = ({ navigation }) => {
           contentContainerStyle={styles.scrollContainer}
           showsVerticalScrollIndicator={false}
         >
-          <View style={[styles.card, styles.cardSpaced]}>
-            <View style={styles.noteHeader}>
-              {
-                shop?.logo ?
-                ""
-                :
-                <Icon name={'storefront-outline'} size={25} color={MUTED} />
-              }
-              <Text style={styles.noteTitle}>{shop.name}</Text>
-            </View>
-            {/* <Text style={styles.noteBody}>{dispute.description}</Text> */}
-          </View>
-          <View style={styles.card}>
-            <View style={styles.metaGrid}>
-              <MetaCell
-                label="Joined "
-                value={dayjs().to(dayjs(shop?.createdat))}
-              />
-              {/* <MetaCell
-                label="Total Reviews"
-                value={dayjs().to(dayjs(shop?.review_count))}
-              /> */}
-              {/* <MetaCell
-                label="Completed Order(s)"
-                value={shop?.order_count}
-                valueIsLink
-              /> */}
-            </View>
-          </View> 
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+              backgroundColor: 'rgba(13, 148, 136, 0.25)',
+              borderWidth: 1,
+              borderColor: 'rgba(13, 148, 136, 0.25)',
+              borderRadius: 5,
+              padding: 14,
+              marginVertical: 6,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: 18,
+                marginRight: 8,
+              }}
+            >
+              ℹ️
+            </Text>
 
+            <Text
+              style={{
+                flex: 1,
+                fontSize: 14,
+                lineHeight: 20,
+                color: '#000',
+              }}
+            >
+              Your feedback helps other buyers make informed decisions and helps
+              vendors improve their services. Please rate your experience with
+              this order.
+            </Text>
+          </View>
           <View style={styles.ratingSection}>
             <Text style={styles.sectionTitle}>Overall Rating</Text>
             <View style={styles.starContainer}>
@@ -252,7 +208,9 @@ const ReviewSubmissionScreen = ({ navigation }) => {
           </View>
 
           <View style={styles.commentSection}>
-            <Text style={styles.sectionTitle}>Share your experience</Text>
+            <Text style={styles.sectionTitle}>
+              Share your experience (Optional)
+            </Text>
             <TextInput
               style={styles.commentInput}
               multiline
@@ -283,6 +241,15 @@ const ReviewSubmissionScreen = ({ navigation }) => {
             ) : (
               <Text style={styles.submitButtonText}>Submit Review</Text>
             )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.cancelButton]}
+            onPress={e => {
+              navigation.navigate('Activities');
+            }}
+            disabled={isSubmitting}
+          >
+            <Text style={styles.submitButtonText}>Cancel</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -326,7 +293,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: BLACK,
-    marginBottom: -10
+    marginBottom: -10,
   },
   noteBody: {
     fontSize: 15,
@@ -512,7 +479,11 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 16,
+    padding: 8,
+    display: 'flex',
+    flexDirection: 'row-reverse',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     backgroundColor: '#f8f9fa',
     borderTopWidth: 1,
     borderTopColor: '#e0e0e0',
@@ -524,8 +495,9 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     backgroundColor: '#0D9488',
-    borderRadius: 12,
+    borderRadius: 5,
     padding: 18,
+    width: '60%',
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -541,6 +513,56 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
   },
+  cancelButton: {
+    backgroundColor: 'grey',
+    borderRadius: 5,
+    width: '35%',
+    padding: 18,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  cancelButtonDisabled: {
+    opacity: 0.7,
+  },
+  cancelButtonText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
 });
 
 export default ReviewSubmissionScreen;
+
+// <View style={[styles.card, styles.cardSpaced]}>
+//   <View style={styles.noteHeader}>
+//     {
+//       shop?.logo ?
+//       ""
+//       :
+//       <Icon name={'storefront-outline'} size={25} color={MUTED} />
+//     }
+//     <Text style={styles.noteTitle}>{shop.name}</Text>
+//   </View>
+//   {/* <Text style={styles.noteBody}>{dispute.description}</Text> */}
+// </View>
+// <View style={styles.card}>
+//   <View style={styles.metaGrid}>
+//     <MetaCell
+//       label="Joined "
+//       value={dayjs().to(dayjs(shop?.createdat))}
+//     />
+//     <MetaCell
+//       label="Total Reviews"
+//       value={dayjs().to(dayjs(shop?.review_count))}
+//     />
+//     <MetaCell
+//       label="Completed Order(s)"
+//       value={shop?.order_count}
+//       valueIsLink
+//     />
+//   </View>
+// </View>

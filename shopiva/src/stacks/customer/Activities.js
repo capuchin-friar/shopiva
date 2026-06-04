@@ -60,6 +60,12 @@ const returnStatusUpdateOpt = {
   headerBackVisible: true,
   headerShadowVisible: false,
 };
+const reviewOpt = {
+  headerShown: true,
+  title: 'Review Screen',
+  headerBackVisible: false,
+  headerShadowVisible: false,
+}
 /**
  * Orders tab: hub + nested orders and disputes stacks (customer).
  * Outer flow screens keep headers off so we do not nest two native-stack headers
@@ -79,7 +85,7 @@ export function ActivitiesStackScreen() {
         component={OpenDispute}
         options={{ ...disputeOpt, title: 'Open dispute' }}
       />
-      <ActivitiesStack.Screen name="Review" component={ReviewSubmissionScreen} />
+      <ActivitiesStack.Screen name="Review" options={reviewOpt} component={ReviewSubmissionScreen} />
       
       <ActivitiesStack.Screen name="Disputes" component={DisputesListScreen} options={disputeOpt} />
       <ActivitiesStack.Screen name="Dispute-detail" component={DisputeDetailScreen} options={{ headerShown: true, title: 'Dispute detail', headerBackVisible: true, headerShadowVisible: false}}  />
