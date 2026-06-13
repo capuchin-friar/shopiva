@@ -21,7 +21,9 @@ import { useAuth } from '../../hooks/useAuth';
 import { ShopOverflowMenu } from '../../components/ShopOverflowMenu';
 import ShopPolicyViewerModal from '../../components/ShopPolicyViewerModal';
 import ProductVariantCardPicker from '../../components/ProductVariantCardPicker';
-import ProductReviewsSection, { RatingStars } from '../../components/ProductReviewsSection';
+import ProductReviewsSection, {
+  RatingStars,
+} from '../../components/ProductReviewsSection';
 import { getStorefrontProduct } from '../../api/storefront';
 import {
   formatAttributeLabel,
@@ -33,7 +35,12 @@ import {
 } from '../../utils/storefrontProductDetail';
 import { normalizeStorefrontProductDetail } from '../../utils/storefrontProductNormalize';
 import { extractCustomerPolicySections } from '../../utils/shopPoliciesForCustomer';
-import { addBuyerCartLine, deleteBuyerCartLine, fetchBuyerCart, patchBuyerCartLine } from '../../api/buyer';
+import {
+  addBuyerCartLine,
+  deleteBuyerCartLine,
+  fetchBuyerCart,
+  patchBuyerCartLine,
+} from '../../api/buyer';
 import { formatNaira } from '../../utils/formatNaira';
 
 const { width: WINDOW_W } = Dimensions.get('window');
@@ -55,6 +62,7 @@ export default function ProductScreen({ route, navigation }) {
   const routeProductId = route.params?.productId;
 
   const [qty, setQty] = useState(1);
+  const [loading, setLoading] = useState(false);
   const [overflowMenuOpen, setOverflowMenuOpen] = useState(false);
   const [imgIndex, setImgIndex] = useState(0);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -62,16 +70,29 @@ export default function ProductScreen({ route, navigation }) {
   /** Bumped to retry GET /storefront/product/:id without changing route params. */
   const [detailRetryToken, setDetailRetryToken] = useState(0);
   /** Storefront product detail DTO from GET /storefront/product/:id */
-  const [detailProduct, setDetailProduct] = useState(/** @type {Record<string, unknown> | null} */ (null));
-  const [shopPolicies, setShopPolicies] = useState(/** @type {Record<string, unknown> | null} */ (null));
-  const [productReviews, setProductReviews] = useState(/** @type {unknown[]} */ ([]));
-  const [reviewMetrics, setReviewMetrics] = useState(/** @type {Record<string, unknown> | null} */ (null));
+  const [detailProduct, setDetailProduct] = useState(
+    /** @type {Record<string, unknown> | null} */ (null),
+  );
+  const [shopPolicies, setShopPolicies] = useState(
+    /** @type {Record<string, unknown> | null} */ (null),
+  );
+  const [productReviews, setProductReviews] = useState(
+    /** @type {unknown[]} */ ([]),
+  );
+  const [reviewMetrics, setReviewMetrics] = useState(
+    /** @type {Record<string, unknown> | null} */ (null),
+  );
   /** Vendors publish delivery policy only; opened from the ⋮ menu. */
-  const [deliveryPolicyModalVisible, setDeliveryPolicyModalVisible] = useState(false);
+  const [deliveryPolicyModalVisible, setDeliveryPolicyModalVisible] =
+    useState(false);
   /** Resolved variant when all attribute axes are chosen (null until complete + in stock). */
-  const [selectedVariant, setSelectedVariant] = useState(/** @type {Record<string, unknown> | null} */ (null));
+  const [selectedVariant, setSelectedVariant] = useState(
+    /** @type {Record<string, unknown> | null} */ (null),
+  );
   /** Per-axis selection for `hasVariants` products (values are attribute string or null). */
-  const [selectedAttrs, setSelectedAttrs] = useState(/** @type {Record<string, string | null>} */ ({}));
+  const [selectedAttrs, setSelectedAttrs] = useState(
+    /** @type {Record<string, string | null>} */ ({}),
+  );
   /** Cart line for the currently selected inventory row (if any). */
   const [cartLineForSelection, setCartLineForSelection] = useState(
     /** @type {{ cartItemId: number; qty: number } | null} */ (null),
@@ -80,27 +101,32 @@ export default function ProductScreen({ route, navigation }) {
   const [toastVisible, setToastVisible] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const toastOpacity = useRef(new Animated.Value(0)).current;
-  const toastHideTimerRef = useRef(/** @type {ReturnType<typeof setTimeout> | null} */ (null));
+  const toastHideTimerRef = useRef(
+    /** @type {ReturnType<typeof setTimeout> | null} */ (null),
+  );
   /* MVP: wishlist / save-for-later disabled
   const [saved, setSaved] = useState(false);
   */
 
   const shopName = vendor?.name?.trim() || 'Shop';
-  const productIdParam = routeProductId ?? routeProduct?.id ?? routeProduct?.key;
+  const productIdParam =
+    routeProductId ?? routeProduct?.id ?? routeProduct?.key;
   const hasNumericProductId = useMemo(() => {
     const s = productIdParam != null ? String(productIdParam).trim() : '';
     return s.length > 0 && !Number.isNaN(Number(s));
   }, [productIdParam]);
 
   const bumpDetailRetry = useCallback(() => {
-    setDetailRetryToken((n) => n + 1);
+    setDetailRetryToken(n => n + 1);
   }, []);
 
   useEffect(() => {
     const pid = productIdParam != null ? String(productIdParam).trim() : '';
     if (!pid || Number.isNaN(Number(pid))) {
       setDetailProduct(null);
-      setDetailError(pid ? 'This product link uses an invalid id.' : 'Missing product id.');
+      setDetailError(
+        pid ? 'This product link uses an invalid id.' : 'Missing product id.',
+      );
       setShopPolicies(null);
       setProductReviews([]);
       setReviewMetrics(null);
@@ -116,7 +142,9 @@ export default function ProductScreen({ route, navigation }) {
         const normalized = normalizeStorefrontProductDetail(data);
         if (!normalized) {
           setDetailProduct(null);
-          setDetailError('The server returned product data we could not read. Try again in a moment.');
+          setDetailError(
+            'The server returned product data we could not read. Try again in a moment.',
+          );
           setShopPolicies(null);
           setProductReviews([]);
           setReviewMetrics(null);
@@ -124,10 +152,20 @@ export default function ProductScreen({ route, navigation }) {
           setDetailProduct(normalized);
           setDetailError('');
           const sp = data.shopPolicies;
-          setShopPolicies(sp && typeof sp === 'object' ? /** @type {Record<string, unknown>} */ (sp) : null);
-          setProductReviews(Array.isArray(data.productReviews) ? data.productReviews : []);
+          setShopPolicies(
+            sp && typeof sp === 'object'
+              ? /** @type {Record<string, unknown>} */ (sp)
+              : null,
+          );
+          setProductReviews(
+            Array.isArray(data.productReviews) ? data.productReviews : [],
+          );
           const rm = data.reviewMetrics;
-          setReviewMetrics(rm && typeof rm === 'object' ? /** @type {Record<string, unknown>} */ (rm) : null);
+          setReviewMetrics(
+            rm && typeof rm === 'object'
+              ? /** @type {Record<string, unknown>} */ (rm)
+              : null,
+          );
         }
       } catch (e) {
         if (!cancelled) {
@@ -149,7 +187,9 @@ export default function ProductScreen({ route, navigation }) {
   const d = detailProduct;
   const variants = useMemo(() => {
     const raw = d?.variants;
-    return Array.isArray(raw) ? raw.filter((x) => x && typeof x === 'object') : [];
+    return Array.isArray(raw)
+      ? raw.filter(x => x && typeof x === 'object')
+      : [];
   }, [d?.variants]);
 
   /** Ensure at least one attribute axis so buyers can complete selection (covers empty `attributes` from API). */
@@ -162,9 +202,12 @@ export default function ProductScreen({ route, navigation }) {
           attributes: { option: `Option ${i + 1}` },
         }));
     /** Coerce attribute values to strings so chip labels and equality checks match API numbers/objects. */
-    return base.map((v) => {
+    return base.map(v => {
       if (!v || typeof v !== 'object') return v;
-      const raw = v.attributes && typeof v.attributes === 'object' ? /** @type {Record<string, unknown>} */ ({ ...v.attributes }) : {};
+      const raw =
+        v.attributes && typeof v.attributes === 'object'
+          ? /** @type {Record<string, unknown>} */ ({ ...v.attributes })
+          : {};
       const attributes = /** @type {Record<string, string>} */ ({});
       for (const k of Object.keys(raw)) {
         attributes[k] = String(raw[k] ?? '').trim();
@@ -179,7 +222,10 @@ export default function ProductScreen({ route, navigation }) {
    */
   const hasVariants = Boolean(d?.hasVariants) && variantsForUi.length > 0;
 
-  const rawVariantAttrKeys = useMemo(() => variantAttributeKeys(variantsForUi), [variantsForUi]);
+  const rawVariantAttrKeys = useMemo(
+    () => variantAttributeKeys(variantsForUi),
+    [variantsForUi],
+  );
   /** Omit price/stock-like keys from attributes so tiles show only buyer-facing options (color, material, …). */
   const attrKeys = useMemo(() => {
     const filtered = filterVariantDisplayAttrKeys(rawVariantAttrKeys);
@@ -203,13 +249,20 @@ export default function ProductScreen({ route, navigation }) {
       setSelectedVariant(null);
       return;
     }
-    const resolved = resolveVariantSelection(variantsForUi, attrKeys, selectedAttrs);
+    const resolved = resolveVariantSelection(
+      variantsForUi,
+      attrKeys,
+      selectedAttrs,
+    );
     setSelectedVariant(resolved);
   }, [hasVariants, variantsForUi, attrKeys, selectedAttrs]);
 
   const mergedProduct = useMemo(() => {
     const p = routeProduct || {};
-    const imgs = d && Array.isArray(d.images) ? d.images.filter((x) => typeof x === 'string' && x.trim()) : [];
+    const imgs =
+      d && Array.isArray(d.images)
+        ? d.images.filter(x => typeof x === 'string' && x.trim())
+        : [];
     const name = String(d?.name ?? p.title ?? 'Product').trim() || 'Product';
     const uri =
       (typeof p.uri === 'string' && p.uri.trim() ? p.uri : null) ||
@@ -219,7 +272,9 @@ export default function ProductScreen({ route, navigation }) {
     if (!hasVariants && d) {
       priceUsd = Number(d.price) || 0;
     } else if (hasVariants && selectedVariant) {
-      const pv = getVariantRowPrice(/** @type {Record<string, unknown>} */ (selectedVariant));
+      const pv = getVariantRowPrice(
+        /** @type {Record<string, unknown>} */ (selectedVariant),
+      );
       priceUsd = Number.isFinite(pv) ? pv : 0;
     } else if (typeof p.priceUsd === 'number') {
       priceUsd = p.priceUsd;
@@ -231,13 +286,17 @@ export default function ProductScreen({ route, navigation }) {
       shop_id: shopId,
       priceUsd,
       currency: 'NGN',
-      description: typeof d?.description === 'string' ? d.description : p.description,
+      description:
+        typeof d?.description === 'string' ? d.description : p.description,
     };
   }, [routeProduct, shopId, d, hasVariants, selectedVariant]);
 
   const product = mergedProduct;
 
-  const policySections = useMemo(() => extractCustomerPolicySections(shopPolicies), [shopPolicies]);
+  const policySections = useMemo(
+    () => extractCustomerPolicySections(shopPolicies),
+    [shopPolicies],
+  );
 
   const selectedInventoryId = useMemo(() => {
     if (!d) return null;
@@ -258,34 +317,47 @@ export default function ProductScreen({ route, navigation }) {
     if (!d) {
       if (hasVariants) {
         const nums = variantsForUi
-          .map((v) => getVariantRowPrice(/** @type {Record<string, unknown>} */ (v)))
-          .filter((n) => Number.isFinite(n) && n > 0);
+          .map(v =>
+            getVariantRowPrice(/** @type {Record<string, unknown>} */ (v)),
+          )
+          .filter(n => Number.isFinite(n) && n > 0);
         if (!nums.length) return '—';
         const lo = Math.min(...nums);
         const hi = Math.max(...nums);
-        return lo === hi ? formatNaira(lo) : `${formatNaira(lo)} – ${formatNaira(hi)}`;
+        return lo === hi
+          ? formatNaira(lo)
+          : `${formatNaira(lo)} – ${formatNaira(hi)}`;
       }
       const fallback = Number(routeProduct?.priceUsd);
-      return Number.isFinite(fallback) && fallback > 0 ? formatNaira(fallback) : '—';
+      return Number.isFinite(fallback) && fallback > 0
+        ? formatNaira(fallback)
+        : '—';
     }
     if (!hasVariants) return formatNaira(Number(d.price) || 0);
     if (selectedVariant) {
-      const vp = getVariantRowPrice(/** @type {Record<string, unknown>} */ (selectedVariant));
+      const vp = getVariantRowPrice(
+        /** @type {Record<string, unknown>} */ (selectedVariant),
+      );
       return Number.isFinite(vp) ? formatNaira(vp) : '—';
     }
     const nums = variantsForUi
-      .map((v) => getVariantRowPrice(/** @type {Record<string, unknown>} */ (v)))
-      .filter((n) => Number.isFinite(n) && n > 0);
+      .map(v => getVariantRowPrice(/** @type {Record<string, unknown>} */ (v)))
+      .filter(n => Number.isFinite(n) && n > 0);
     if (!nums.length) return '—';
     const lo = Math.min(...nums);
     const hi = Math.max(...nums);
-    return lo === hi ? formatNaira(lo) : `${formatNaira(lo)} – ${formatNaira(hi)}`;
+    return lo === hi
+      ? formatNaira(lo)
+      : `${formatNaira(lo)} – ${formatNaira(hi)}`;
   }, [d, hasVariants, selectedVariant, variantsForUi, routeProduct?.priceUsd]);
 
   const applyVariantPick = useCallback(
-    (v) => {
+    v => {
       if (!v || typeof v !== 'object') return;
-      const a = v.attributes && typeof v.attributes === 'object' ? /** @type {Record<string, unknown>} */ (v.attributes) : {};
+      const a =
+        v.attributes && typeof v.attributes === 'object'
+          ? /** @type {Record<string, unknown>} */ (v.attributes)
+          : {};
       const next = /** @type {Record<string, string | null>} */ ({});
       for (const k of attrKeys) {
         const raw = a[k];
@@ -306,11 +378,15 @@ export default function ProductScreen({ route, navigation }) {
     const ma = Number(m?.average_rating ?? m?.averageRating ?? 0) || 0;
     const sumFromList = () =>
       list.reduce((s, r) => {
-        const row = r && typeof r === 'object' ? /** @type {Record<string, unknown>} */ (r) : {};
+        const row =
+          r && typeof r === 'object'
+            ? /** @type {Record<string, unknown>} */ (r)
+            : {};
         return s + (Number(row.rating) || 0);
       }, 0);
     if (mc > 0 && ma > 0) return { count: mc, avg: ma };
-    if (mc > 0 && list.length) return { count: mc, avg: sumFromList() / list.length };
+    if (mc > 0 && list.length)
+      return { count: mc, avg: sumFromList() / list.length };
     if (mc > 0) return { count: mc, avg: 0 };
     if (!list.length) return { count: 0, avg: 0 };
     const sum = sumFromList();
@@ -319,8 +395,10 @@ export default function ProductScreen({ route, navigation }) {
 
   const galleryUrls = useMemo(() => {
     const imgs =
-      d && Array.isArray(d.images) ? d.images.filter((x) => typeof x === 'string' && x.trim()) : [];
-    if (imgs.length) return imgs.map((x) => String(x).trim());
+      d && Array.isArray(d.images)
+        ? d.images.filter(x => typeof x === 'string' && x.trim())
+        : [];
+    if (imgs.length) return imgs.map(x => String(x).trim());
     const u = typeof product?.uri === 'string' ? product.uri.trim() : '';
     return u ? [u] : [];
   }, [d, product?.uri]);
@@ -329,12 +407,12 @@ export default function ProductScreen({ route, navigation }) {
     setImgIndex(0);
   }, [galleryUrls.length, productIdParam]);
 
-  const bumpQty = useCallback((delta) => {
-    setQty((q) => Math.min(99, Math.max(1, q + delta)));
+  const bumpQty = useCallback(delta => {
+    setQty(q => Math.min(99, Math.max(1, q + delta)));
   }, []);
 
   const showCartToast = useCallback(
-    (message) => {
+    message => {
       if (toastHideTimerRef.current) {
         clearTimeout(toastHideTimerRef.current);
         toastHideTimerRef.current = null;
@@ -376,7 +454,7 @@ export default function ProductScreen({ route, navigation }) {
       const res = await fetchBuyerCart();
       const lines = Array.isArray(res.lines) ? res.lines : [];
       const inv = selectedInventoryId;
-      const hit = lines.find((l) => {
+      const hit = lines.find(l => {
         if (!l || typeof l !== 'object') return false;
         const r = /** @type {Record<string, unknown>} */ (l);
         const iid = Number(r.inventoryId ?? r.inventory_id);
@@ -390,7 +468,10 @@ export default function ProductScreen({ route, navigation }) {
       const cartItemId = Number(r.cartItemId ?? r.cart_item_id);
       const q = Number(r.qty ?? r.quantity ?? 1);
       if (Number.isFinite(cartItemId) && cartItemId > 0) {
-        setCartLineForSelection({ cartItemId, qty: Number.isFinite(q) && q > 0 ? q : 1 });
+        setCartLineForSelection({
+          cartItemId,
+          qty: Number.isFinite(q) && q > 0 ? q : 1,
+        });
       } else {
         setCartLineForSelection(null);
       }
@@ -415,12 +496,14 @@ export default function ProductScreen({ route, navigation }) {
 
   const performAddToCart = useCallback(
     /** @returns {Promise<boolean>} */
-    async (inventoryId) => {
+    async inventoryId => {
       setCartToggleBusy(true);
       try {
         let cartOpts = /** @type {{ unitPrice?: number }} */ ({});
         if (hasVariants && selectedVariant) {
-          const vp = getVariantRowPrice(/** @type {Record<string, unknown>} */ (selectedVariant));
+          const vp = getVariantRowPrice(
+            /** @type {Record<string, unknown>} */ (selectedVariant),
+          );
           if (Number.isFinite(vp)) cartOpts = { unitPrice: vp };
         } else if (d && !hasVariants) {
           const p = Number(d.price) || 0;
@@ -433,7 +516,10 @@ export default function ProductScreen({ route, navigation }) {
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         if (msg.toLowerCase().includes('unauthorized') || msg.includes('401')) {
-          Alert.alert('Sign in required', 'Please sign in to add items to your cart.');
+          Alert.alert(
+            'Sign in required',
+            'Please sign in to add items to your cart.',
+          );
         } else {
           Alert.alert('Cart', msg);
         }
@@ -467,7 +553,10 @@ export default function ProductScreen({ route, navigation }) {
 
   const requireVariantSelection = useCallback(() => {
     if (hasVariants && !selectedVariant) {
-      Alert.alert('Please select a variant', 'Choose all options for this product before continuing.');
+      Alert.alert(
+        'Please select a variant',
+        'Choose all options for this product before continuing.',
+      );
       return true;
     }
     return false;
@@ -475,9 +564,13 @@ export default function ProductScreen({ route, navigation }) {
 
   const variantSummaryText = useMemo(() => {
     if (!hasVariants || !selectedVariant) return '';
-    const a = selectedVariant.attributes && typeof selectedVariant.attributes === 'object' ? selectedVariant.attributes : {};
+    const a =
+      selectedVariant.attributes &&
+      typeof selectedVariant.attributes === 'object'
+        ? selectedVariant.attributes
+        : {};
     return Object.keys(a)
-      .map((k) => `${formatAttributeLabel(k)}: ${a[k]}`)
+      .map(k => `${formatAttributeLabel(k)}: ${a[k]}`)
       .join(' · ');
   }, [hasVariants, selectedVariant]);
 
@@ -488,13 +581,17 @@ export default function ProductScreen({ route, navigation }) {
     }
     if (!hasVariants) return Number(d.price) || 0;
     if (selectedVariant) {
-      const pv = getVariantRowPrice(/** @type {Record<string, unknown>} */ (selectedVariant));
+      const pv = getVariantRowPrice(
+        /** @type {Record<string, unknown>} */ (selectedVariant),
+      );
       return Number.isFinite(pv) ? pv : 0;
     }
     return 0;
   }, [d, hasVariants, selectedVariant, routeProduct?.priceUsd]);
 
-  const anyVariantInStock = variantsForUi.some((v) => isVariantPurchasable(/** @type {Record<string, unknown>} */ (v)));
+  const anyVariantInStock = variantsForUi.some(v =>
+    isVariantPurchasable(/** @type {Record<string, unknown>} */ (v)),
+  );
 
   const noSimpleStock =
     !hasVariants &&
@@ -511,12 +608,16 @@ export default function ProductScreen({ route, navigation }) {
         'Product',
         detailLoading
           ? 'Still loading this product. Try again in a moment.'
-          : detailError.trim() || 'Product details are not available. Pull down to refresh or tap Try again above.',
+          : detailError.trim() ||
+              'Product details are not available. Pull down to refresh or tap Try again above.',
       );
       return false;
     }
     if (hasVariants && !anyVariantInStock) {
-      Alert.alert('Out of stock', 'No variant of this product is in stock right now.');
+      Alert.alert(
+        'Out of stock',
+        'No variant of this product is in stock right now.',
+      );
       return false;
     }
     if (noSimpleStock) {
@@ -525,7 +626,10 @@ export default function ProductScreen({ route, navigation }) {
     }
     if (requireVariantSelection()) return false;
     if (selectedInventoryId == null) {
-      Alert.alert('Cart', 'This product cannot be added right now. Check your options or try again later.');
+      Alert.alert(
+        'Cart',
+        'This product cannot be added right now. Check your options or try again later.',
+      );
       return false;
     }
     if (!loggedIn) {
@@ -553,32 +657,50 @@ export default function ProductScreen({ route, navigation }) {
   const handleBuyNow = useCallback(async () => {
     if (!ensureReadyForCartOrCheckout()) return;
 
+    setLoading(true);
     if (selectedLineInCart && cartLineForSelection) {
       if (cartLineForSelection.qty !== qty) {
         setCartToggleBusy(true);
         try {
           await patchBuyerCartLine(cartLineForSelection.cartItemId, qty);
           await syncCartMembership();
+          setLoading(false)
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
-          if (msg.toLowerCase().includes('unauthorized') || msg.includes('401')) {
-            Alert.alert('Sign in required', 'Please sign in to update your cart.');
+          if (
+            msg.toLowerCase().includes('unauthorized') ||
+            msg.includes('401')
+          ) {
+            Alert.alert(
+              'Sign in required',
+              'Please sign in to update your cart.',
+            );
           } else {
             Alert.alert('Cart', msg);
           }
+          setLoading(false)
           return;
         } finally {
           setCartToggleBusy(false);
+          setLoading(false)
         }
       }
+      setLoading(false)
     } else {
       const ok = await performAddToCart(selectedInventoryId);
+      setLoading(false)
       if (!ok) return;
     }
 
-    const imageUri = (galleryUrls[0] || (typeof product?.uri === 'string' ? product.uri.trim() : '')) || '';
+    const imageUri =
+      galleryUrls[0] ||
+      (typeof product?.uri === 'string' ? product.uri.trim() : '') ||
+      '';
     const buyLine = {
-      key: selectedInventoryId != null ? `inv-${selectedInventoryId}` : `product-${String(productIdParam ?? '')}`,
+      key:
+        selectedInventoryId != null
+          ? `inv-${selectedInventoryId}`
+          : `product-${String(productIdParam ?? '')}`,
       title,
       image: imageUri,
       unitPrice: checkoutUnitPrice,
@@ -588,7 +710,9 @@ export default function ProductScreen({ route, navigation }) {
       inventoryId: selectedInventoryId ?? undefined,
       variantLabel: variantSummaryText || undefined,
       cartItemId:
-        selectedLineInCart && cartLineForSelection && Number.isFinite(cartLineForSelection.cartItemId)
+        selectedLineInCart &&
+        cartLineForSelection &&
+        Number.isFinite(cartLineForSelection.cartItemId)
           ? cartLineForSelection.cartItemId
           : undefined,
     };
@@ -620,7 +744,10 @@ export default function ProductScreen({ route, navigation }) {
     return (
       <View style={[styles.fallback, { paddingTop: insets.top + 24 }]}>
         <Text style={styles.fallbackText}>Product unavailable.</Text>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.fallbackBtn}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.fallbackBtn}
+        >
           <Text style={styles.fallbackBtnText}>Go back</Text>
         </TouchableOpacity>
       </View>
@@ -640,23 +767,38 @@ export default function ProductScreen({ route, navigation }) {
     return (
       <View style={[styles.fallback, { paddingTop: insets.top + 24 }]}>
         <Text style={styles.fallbackText}>{detailError}</Text>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.fallbackBtn}>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={styles.fallbackBtn}
+        >
           <Text style={styles.fallbackBtnText}>Go back</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
+
   return (
     <View style={styles.root}>
+      {
+        loading && <Spinner />
+      }
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.scrollInner, { paddingBottom: insets.bottom + 88 }]}
+        contentContainerStyle={[
+          styles.scrollInner,
+          { paddingBottom: insets.bottom + 88 },
+        ]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           hasNumericProductId ? (
-            <RefreshControl refreshing={detailLoading} onRefresh={bumpDetailRetry} tintColor={PURPLE} colors={[PURPLE]} />
+            <RefreshControl
+              refreshing={detailLoading}
+              onRefresh={bumpDetailRetry}
+              tintColor={PURPLE}
+              colors={[PURPLE]}
+            />
           ) : undefined
         }
       >
@@ -672,7 +814,9 @@ export default function ProductScreen({ route, navigation }) {
           </TouchableOpacity>
           <View style={styles.vendorLeft}>
             <View style={styles.vendorAvatar}>
-              <Text style={styles.vendorAvatarLetter}>{shopName.charAt(0).toUpperCase()}</Text>
+              <Text style={styles.vendorAvatarLetter}>
+                {shopName.charAt(0).toUpperCase()}
+              </Text>
             </View>
             <View style={styles.vendorTextCol}>
               <Text style={styles.vendorName} numberOfLines={1}>
@@ -709,10 +853,14 @@ export default function ProductScreen({ route, navigation }) {
             <Icon name="ellipsis-vertical" size={22} color="#000000" />
           </TouchableOpacity>
         </View>
-
         {!d && !detailLoading && detailError.trim() ? (
-          <View style={styles.detailFailBanner} accessibilityLabel={`Product details error: ${detailError}`}>
-            <Text style={styles.detailFailTitle}>Could not load full product details</Text>
+          <View
+            style={styles.detailFailBanner}
+            accessibilityLabel={`Product details error: ${detailError}`}
+          >
+            <Text style={styles.detailFailTitle}>
+              Could not load full product details
+            </Text>
             <Text style={styles.detailFailText}>{detailError}</Text>
             {hasNumericProductId ? (
               <TouchableOpacity
@@ -727,7 +875,6 @@ export default function ProductScreen({ route, navigation }) {
             ) : null}
           </View>
         ) : null}
-
         <View style={styles.heroWrap}>
           {galleryUrls.length > 0 ? (
             <>
@@ -741,7 +888,9 @@ export default function ProductScreen({ route, navigation }) {
                   <TouchableOpacity
                     style={[styles.heroChevron, styles.heroChevronLeft]}
                     onPress={() =>
-                      setImgIndex((i) => (i - 1 + galleryUrls.length) % galleryUrls.length)
+                      setImgIndex(
+                        i => (i - 1 + galleryUrls.length) % galleryUrls.length,
+                      )
                     }
                     hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                   >
@@ -749,7 +898,9 @@ export default function ProductScreen({ route, navigation }) {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.heroChevron, styles.heroChevronRight]}
-                    onPress={() => setImgIndex((i) => (i + 1) % galleryUrls.length)}
+                    onPress={() =>
+                      setImgIndex(i => (i + 1) % galleryUrls.length)
+                    }
                     hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                   >
                     <Icon name="chevron-forward" size={28} color="#000000" />
@@ -763,7 +914,6 @@ export default function ProductScreen({ route, navigation }) {
             </View>
           )}
         </View>
-
         <View style={styles.titleBlock}>
           <View style={styles.titleRow}>
             <Text style={styles.productTitle} numberOfLines={2}>
@@ -779,7 +929,10 @@ export default function ProductScreen({ route, navigation }) {
                 <Icon name={saved ? 'heart' : 'heart-outline'} size={22} color="#000000" />
               </TouchableOpacity>
               */}
-              <TouchableOpacity style={styles.iconCircle} accessibilityLabel="Share">
+              <TouchableOpacity
+                style={styles.iconCircle}
+                accessibilityLabel="Share"
+              >
                 <Icon name="share-outline" size={22} color="#000000" />
               </TouchableOpacity>
             </View>
@@ -794,9 +947,15 @@ export default function ProductScreen({ route, navigation }) {
               ) : null}
             </View>
             <View style={styles.priceReviewsCol}>
-              <RatingStars rating={reviewStats.avg} size={15} emptyColor="#CCC" />
+              <RatingStars
+                rating={reviewStats.avg}
+                size={15}
+                emptyColor="#CCC"
+              />
               <Text style={styles.ratingsCount}>
-                {reviewStats.count === 1 ? '1 review' : `${reviewStats.count} reviews`}
+                {reviewStats.count === 1
+                  ? '1 review'
+                  : `${reviewStats.count} reviews`}
               </Text>
             </View>
           </View>
@@ -817,18 +976,24 @@ export default function ProductScreen({ route, navigation }) {
             </View>
           ) : null}
         </View>
-
         <Text style={styles.quantityLabel}>Quantity</Text>
         <View style={styles.qtyPill}>
-          <TouchableOpacity style={styles.qtyBtn} onPress={() => bumpQty(-1)} hitSlop={{ top: 8, bottom: 8 }}>
+          <TouchableOpacity
+            style={styles.qtyBtn}
+            onPress={() => bumpQty(-1)}
+            hitSlop={{ top: 8, bottom: 8 }}
+          >
             <Icon name="remove" size={22} color="#000000" />
           </TouchableOpacity>
           <Text style={styles.qtyValue}>{qty}</Text>
-          <TouchableOpacity style={styles.qtyBtn} onPress={() => bumpQty(1)} hitSlop={{ top: 8, bottom: 8 }}>
+          <TouchableOpacity
+            style={styles.qtyBtn}
+            onPress={() => bumpQty(1)}
+            hitSlop={{ top: 8, bottom: 8 }}
+          >
             <Icon name="add" size={22} color="#000000" />
           </TouchableOpacity>
         </View>
-
         <TouchableOpacity
           style={[
             styles.addCart,
@@ -846,13 +1011,19 @@ export default function ProductScreen({ route, navigation }) {
             }
           }}
           accessibilityRole="button"
-          accessibilityLabel={selectedLineInCart ? 'Remove from cart' : 'Add to cart'}
+          accessibilityLabel={
+            selectedLineInCart ? 'Remove from cart' : 'Add to cart'
+          }
         >
-          <Text style={[styles.addCartText, selectedLineInCart && styles.addCartTextOutlined]}>
+          <Text
+            style={[
+              styles.addCartText,
+              selectedLineInCart && styles.addCartTextOutlined,
+            ]}
+          >
             {selectedLineInCart ? 'Remove from cart' : 'Add to cart'}
           </Text>
         </TouchableOpacity>
-
         <TouchableOpacity
           style={styles.buyNow}
           activeOpacity={0.88}
@@ -864,12 +1035,17 @@ export default function ProductScreen({ route, navigation }) {
           accessibilityLabel="Buy now and go to checkout"
         >
           <Text style={styles.buyNowText}>Buy now</Text>
-          <Icon name="bag-check-outline" size={22} color="#FFFFFF" style={styles.buyNowIcon} />
+          <Icon
+            name="bag-check-outline"
+            size={22}
+            color="#FFFFFF"
+            style={styles.buyNowIcon}
+          />
         </TouchableOpacity>
-
         <Text style={styles.sectionHeading}>Description</Text>
         <Text style={styles.descriptionBody}>
-          {typeof product?.description === 'string' && product.description.trim()
+          {typeof product?.description === 'string' &&
+          product.description.trim()
             ? product.description.trim()
             : 'No description provided for this product.'}
         </Text>
@@ -877,14 +1053,12 @@ export default function ProductScreen({ route, navigation }) {
           <Icon name="link-outline" size={18} color="#000000" />
           <Text style={styles.visitPillText}>{`Visit ${shopName}`}</Text>
         </TouchableOpacity>
-
         <ProductReviewsSection
           reviews={productReviews}
           reviewMetrics={reviewMetrics}
           loading={detailLoading}
         />
       </ScrollView>
-
       <ShopPolicyViewerModal
         visible={deliveryPolicyModalVisible}
         onClose={() => setDeliveryPolicyModalVisible(false)}
@@ -892,13 +1066,15 @@ export default function ProductScreen({ route, navigation }) {
         clauses={policySections.delivery}
         emptyMessage="This vendor has not published a delivery policy on Shopiva yet."
       />
-
       <ShopOverflowMenu
         visible={overflowMenuOpen}
         onClose={() => setOverflowMenuOpen(false)}
         title={title}
         subtitle={`${priceDisplayLabel} · ${shopName}`}
-        headerImageUri={galleryUrls[0] || (typeof product?.uri === 'string' ? product.uri.trim() : '')}
+        headerImageUri={
+          galleryUrls[0] ||
+          (typeof product?.uri === 'string' ? product.uri.trim() : '')
+        }
         fallbackLetter={title.charAt(0).toUpperCase() || 'P'}
         onDeliveryPolicy={() => {
           setOverflowMenuOpen(false);
@@ -910,7 +1086,10 @@ export default function ProductScreen({ route, navigation }) {
         }}
         onFollow={() => {
           setOverflowMenuOpen(false);
-          Alert.alert('Shopiva', 'Following shops will be available in a future update.');
+          Alert.alert(
+            'Shopiva',
+            'Following shops will be available in a future update.',
+          );
         }}
         onNotInterested={() => {
           setOverflowMenuOpen(false);
@@ -918,14 +1097,19 @@ export default function ProductScreen({ route, navigation }) {
         }}
         onReport={() => {
           setOverflowMenuOpen(false);
-          Alert.alert('Report product', 'Thanks for the report. Our team will review it.');
+          Alert.alert(
+            'Report product',
+            'Thanks for the report. Our team will review it.',
+          );
         }}
         reportLabel="Report product"
       />
-
       {toastVisible ? (
         <View
-          style={[styles.toastWrap, { paddingBottom: Math.max(insets.bottom, 12) + 8 }]}
+          style={[
+            styles.toastWrap,
+            { paddingBottom: Math.max(insets.bottom, 12) + 8 },
+          ]}
           pointerEvents="none"
         >
           <Animated.View style={[styles.toastPill, { opacity: toastOpacity }]}>
@@ -933,9 +1117,32 @@ export default function ProductScreen({ route, navigation }) {
           </Animated.View>
         </View>
       ) : null}
+     
     </View>
   );
 }
+
+
+  function Spinner() {
+    return (
+      <>
+        <View
+          style={{
+            height: '100%',
+            width: '100%',
+            position: 'absolute',
+            top: 0,
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000,
+          }}
+        >
+          <ActivityIndicator size="large" color="green" />
+        </View>
+      </>
+    );
+  }
 
 const styles = StyleSheet.create({
   root: {
