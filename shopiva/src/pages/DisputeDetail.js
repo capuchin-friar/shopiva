@@ -182,9 +182,7 @@ export default function DisputeDetailScreen() {
   };
 
   const onAcceptOffer = async() => {
-    console.log("dispute:", dispute)
     if(dispute.status === "escalated"){
-
       await makeCall(9047263572);
       return;
     }
@@ -199,6 +197,7 @@ export default function DisputeDetailScreen() {
       return;
     }
     if (dispute.status === "open") {
+      if(isCustomer)return;
       navigation.navigate("Dispute-action", {
         action: "acceptance",
         data: {
@@ -376,7 +375,23 @@ export default function DisputeDetailScreen() {
 
   const fabBottom = Math.max(insets.bottom, 12) + 8;
   const scrollBottomPad = fabBottom + 72;
+  const getButtonText = () => {
+    if (dispute.status === "resolved") {
+      return "Click here to view Return";
+    }
 
+    if (dispute.status === "escalated") {
+      return "Dispute Escalated, Contact Support!";
+    }
+
+    if (dispute.status === "open") {
+      return isCustomer
+        ? "Awaiting vendor's response"
+        : "Accept claim";
+    }
+
+    return "";
+  };
   return (
     <View style={styles.root}>
       {loading && <Spinner />}
@@ -620,12 +635,12 @@ export default function DisputeDetailScreen() {
           >
             {dispute.status === "open" && <Icon name="checkmark-circle" size={20} color={WHITE} />}
             <Text style={styles.fabAcceptText}>{
-              dispute.status === "open"?
-              "Accept claim" : dispute.status === "resolved"? "Click here to view Return" : "Dispute Escalated, Contact Support!" 
+              getButtonText()
             }</Text>
           </Pressable>
           
           {
+            !isCustomer &&
             dispute.status === "open" && 
             <Pressable
               style={({ pressed }) => [styles.fabMore, pressed && styles.fabPressed]}
