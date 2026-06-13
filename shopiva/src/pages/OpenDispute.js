@@ -742,7 +742,23 @@ export default function OpenDispute() {
             <Text style={styles.btnSecondaryText}>Cancel</Text>
           </Pressable>
           <Pressable
-            onPress={submit}
+            onPress={e => {
+              Alert.alert(
+                'Confirm Dispute',
+                'Are you sure you want to Dispute the selected Orders',
+                [
+                  {
+                    text: 'Confirm',
+                    onPress: submit,
+                    style: "destructive"
+                  },
+                  {
+                    text: 'Cancel',
+                    style: 'cancel',
+                  },
+                ]
+              );
+            }}
             disabled={submitting}
             style={({ pressed }) => [
               styles.btnPrimary,
