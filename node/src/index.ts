@@ -21,6 +21,10 @@ import handleSocketConnection from "./services/socket.js";
 import { attachSocketServer } from "./services/socketBroadcast.js";
 import { Server, type Socket } from "socket.io";
 import { db } from "./config/database.js";
+import { escrow } from "./services/escrow.js";
+import nodeCron from "node-cron";
+import { paystack } from "./services/paystack.js";
+import { error } from "console";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Load .env from node project root so it matches Next (same secret regardless of cwd)
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
@@ -108,6 +112,56 @@ const server = app.listen(process.env.PORT, () => {
     console.log(`Swagger docs at http://localhost:${process.env.PORT}/api-docs`);
     const secretLen = (process.env.JWT_SECRET ?? "").trim().replace(/^"|"$/g, "").length;
     console.log(`JWT_SECRET loaded: ${secretLen > 0 ? "yes" : "NO - fix .env"}`);
+
+   nodeCron.schedule("*/30 * * * *", async () => {
+        const pool = await db();
+
+        const {
+            rows: payouts
+        } = await pool.query(
+            `SELECT * FROM shop_payouts WHERE status = $1`, ["pending"]
+        )
+        
+        for (const payout of payouts) {
+            try {
+
+                let sid = payout.shop_id;
+                let ref = paystack.generateRefId();
+                const {
+                    rows: [shop_payout_accounts]
+                } = await pool.query(
+                    `SELECT * FROM shop_payout_accounts WHERE shop_id = $1`, [sid]
+                );
+
+                await escrow.update({
+                    status: "processing",
+                    id: payout.order_id
+                });
+
+                const {
+                    status, message, data
+                } = await paystack.initiateTransfer({
+                    amount: Number(payout.net_amount),
+                    recipient: shop_payout_accounts.provider_recipient_id,
+                    reason: `Shopiva Payout for Order #${payout.order_id}`,
+                    reference: ref
+                })as any;
+
+                if (status && message === "Transfer has been queued") {
+                    await escrow.finalize({
+                        status: "queued",
+                        transfer_reference: ref,
+                        id: payout.order_id
+                    });
+                }
+
+            } catch (error) {
+                await payout.update({
+                    status: "failed"
+                });
+            }
+        }
+    });
 });
 
 
@@ -187,3 +241,8 @@ io.on("connection", (client: any) => {
     handleSocketConnection(client as Socket & { user: { id: string } });
 
 })
+
+export const getIo = () => {
+    if(!io) throw error("Socket is not available now");
+    return io;
+}

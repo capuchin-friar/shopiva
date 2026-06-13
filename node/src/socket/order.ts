@@ -525,8 +525,6 @@ export const handleOrderConfirmation = async(
         const {
             order_id, event_type, stage, actor_type, actor_id, outcome, notes, meta, recipient, reason
         } = payload;
-        console.log(payload)
-
         const { rows } = await p.query(
             `
                 INSERT INTO order_events
@@ -550,8 +548,8 @@ export const handleOrderConfirmation = async(
         );
 
         if(rows.length > 0){
-            
             await updateFulfillmentStatus(stage, order_id);
+            await createNewShopPayout(order_id);
 
             const orderPayload = await broadcastOrderUpdate(
                 "order_confirmed",
@@ -580,7 +578,7 @@ export const handleOrderConfirmation = async(
             }
         }
     } catch (error) {
-        console.error("Error handling order acceptance:", error);
+        console.error("Error handling order confirmation:", error);
         if(typeof ack === 'function') {
             ack({
                 success: false,
@@ -720,7 +718,7 @@ async function updateShipping(delivery_duration: unknown, order_id: unknown){
 }
 
 async function updateShippingMethod(shipping_method: unknown, tracking_number: unknown, order_id: unknown){
-    console.log(order_id)
+
     const pool = await db();
     return (
         await pool.query(
@@ -773,6 +771,45 @@ async function createRefund(
         [order_id, buyer_id, vendor_id, trimmedReason, amount, status],
     );
     return rows[0] ?? null;
+}
+
+async function createNewShopPayout(order_id: any){
+    const pool = await db();
+    const {
+        rows: [order]
+    } = await pool.query(
+        `SELECT * FROM orders WHERE id = $1`, [order_id]
+    )
+
+    const shop_id = order.shop_id;
+    const gross_amount = Number(order.total_paid);
+    const commission_amount = Number(
+        (gross_amount * 0.03).toFixed(2)
+    );
+    const net_amount = Number(
+        (gross_amount - commission_amount).toFixed(2)
+    );
+
+   
+    await pool.query(
+        `
+            INSERT INTO shop_payouts (
+                id,
+                order_id,
+                shop_id,
+                gross_amount,
+                commission_amount,
+                net_amount,
+                status,
+                created_at,
+                updated_at
+            )
+            VALUES (
+                DEFAULT, $1, $2, $3, $4, $5, $6, NOW(), NOW()
+            )
+        `,
+        [order_id, shop_id, gross_amount, commission_amount, net_amount, 'pending'],
+    );
 }
 
 // export const handleOrderEscrow = async(payload: any) => {

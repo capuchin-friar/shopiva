@@ -280,8 +280,8 @@ export default function SettingsPayoutScreen() {
 
   const bankDisplay = payoutField(payout, 'bank_name', 'bankName');
   const acctName = payoutField(payout, 'account_name', 'accountName');
-  const last4 = payoutField(payout, 'account_number_last4', 'accountNumberLast4').replace(/\D/g, '');
-  const masked = last4 ? `****${last4}` : '—';
+  const last4 = payoutField(payout, 'account_number', 'accountNumber').replace(/\D/g, '');
+  const masked = last4 ? `****${last4.slice(-4)}` : '—';
   const status = payoutField(payout, 'status', 'status').toLowerCase() || '—';
 
   if (!Number.isFinite(userId) || userId <= 0) {

@@ -6,7 +6,13 @@ import { db } from "../../config/database.js";
 import type { NewOrder } from "../../types/paystack.js";
 import { OrderHandler } from "../../services/webhook/paystack.js";
 import { paystack } from "../../services/paystack.js";
+import { getIo } from "../../index.js";
+import { ordersTransformer as buyerOrdersTransformer } from "../../transformers/buyer/orders.js";
+import { ordersTransformer as vendorOrdersTransformer } from "../../transformers/business/orders.js";
+import { GetShopOwnerByShopIdService } from "../../services/business/shop.js";
 const secret = process.env.PAYSTACK_SECRET_KEY;
+
+
 
 export async function PaystackWebhookController(req: Request, res: Response): Promise<void> {
 
@@ -15,6 +21,9 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
       res.status(500).send("Missing Paystack secret");
       return;
     }
+
+    const io = getIo();
+
   
     // Get raw body from express.raw() middleware
     const rawBody = req.body as Buffer;
@@ -181,7 +190,22 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
 
     }));
 
+
+    io.to(`user:${customer_id}`)
+    .emit(
+      "payment_received",{ list: await buyerOrdersTransformer(customer_id) }
+    );
+
+    for(let order of orders){
+      const shop_id = order.shop_id;
+      const {id: vid} = await GetShopOwnerByShopIdService(shop_id);
+      io.to(`user:${vid}`)
+      .emit(
+        "payment_received",{ list: await vendorOrdersTransformer(shop_id) }
+      );
+    }
     res.status(200).json({ success: true, message: "Webhook processed successfully" });
+
   } catch (error) {
     console.log(error)
     res.status(500).send("Webhook error");

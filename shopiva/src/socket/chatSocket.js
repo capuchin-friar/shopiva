@@ -18,6 +18,7 @@ let socketSingleton = null;
 let connectPromise = null;
 
 const ORDER_SOCKET_EVENTS = [
+  'payment_received',
   'order_acceptance',
   'order_processing',
   'order_shipping',
@@ -47,7 +48,10 @@ const DISPUTE_SOCKET_EVENTS = [
 export async function applyOrderSocketPayload(res) {
   if (!res || typeof res !== 'object') return;
   const payload = /** @type {Record<string, unknown>} */ (res);
-  store.dispatch(set_orderInfo(payload.result))
+  console.log("testing payment_received: ", payload);
+  if (payload?.result) {
+    store.dispatch(set_orderInfo(payload.result))
+  }
   store.dispatch(set_orderList(payload.list))
 }
 

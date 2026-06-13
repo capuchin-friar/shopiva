@@ -472,7 +472,7 @@ export class shop{
             rowCount
         } = await (await db()).query(
             `
-                INSERT INTO shop_payout_accounts(shop_id, provider, country_code, currency, bank_name, bank_code, account_name, account_number_last4, provider_recipient_id, provider_account_id, status, verification_method, created_at, updated_at)
+                INSERT INTO shop_payout_accounts(shop_id, provider, country_code, currency, bank_name, bank_code, account_name, account_number, provider_recipient_id, provider_account_id, status, verification_method, created_at, updated_at)
 
                 VALUES($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
             `,
@@ -516,7 +516,7 @@ export class shop{
                 bank_name = $1,
                 bank_code = $2,
                 account_name = $3,
-                account_number_last4 = $4,
+                account_number = $4,
                 provider_recipient_id = $5,
                 provider_account_id = $6,
                 status = $7,
@@ -553,7 +553,7 @@ export class shop{
                 bank_name,
                 bank_code,
                 account_name,
-                account_number_last4,
+                account_number,
                 provider_recipient_id,
                 provider_account_id,
                 status,
