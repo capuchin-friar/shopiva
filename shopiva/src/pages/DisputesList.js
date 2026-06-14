@@ -247,7 +247,7 @@ export default function DisputesListScreen() {
     <View style={[styles.root, {paddingTop: 15}]}>
       <FlatList
         data={data}
-        keyExtractor={(item) => String(item.id)}
+        keyExtractor={(item) => String(item?.id)}
         renderItem={renderItem}
         ListHeaderComponent={listHeader}
         contentContainerStyle={[
