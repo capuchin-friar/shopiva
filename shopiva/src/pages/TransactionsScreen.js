@@ -171,18 +171,20 @@ export default function TransactionsScreen() {
     try {
       if (activeRole === 'vendor') {
         const shopListRaw = await fetchOwnerShops(uid);
-        const normalized = (Array.isArray(shopListRaw) ? shopListRaw : [])
-          .map(normalizeShop)
-          .filter((x) => x != null);
-        setShops(/** @type {typeof shops} */ (normalized));
+        const s = shopListRaw[0];
+        // console.log("shop:", shopListRaw);
+        // const normalized = (Array.isArray(shopListRaw) ? shopListRaw : [])
+        //   .map(normalizeShop)
+        //   .filter((x) => x != null);
+        // setShops(/** @type {typeof shops} */ (normalized));
 
-        const shopForTx =
-          normalized.find((s) => s.id === selectedShop?.id) ?? normalized[0] ?? null;
-        if (shopForTx && (selectedShop?.id !== shopForTx.id || !selectedShop)) {
-          setSelectedShop(shopForTx);
-        }
+        // const shopForTx =
+        //   normalized.find((s) => s.id === selectedShop?.id) ?? normalized[0] ?? null;
+        // if (shopForTx && (selectedShop?.id !== shopForTx.id || !selectedShop)) {
+        // }
+        setSelectedShop(s);
 
-        if (!shopForTx) {
+        if (!s) {
           setRows([]);
           setSummary((s) => ({
             ...s,
@@ -196,8 +198,12 @@ export default function TransactionsScreen() {
           return;
         }
 
-        const { overview, transactions } = await fetchShopTransactions(shopForTx.id, uid);
+        const { overview, transactions } = await fetchShopTransactions(s.id, uid);
         const o = overview && typeof overview === 'object' ? overview : {};
+
+        console.log("shop overview:", o);
+        console.log("shop transactions:", transactions);
+
         const earnings = Number(o.total_earnings ?? 0);
         const escrow = Number(o.pending_escrow ?? 0);
         const withdrawn = Number(o.total_withdrawal ?? 0);
