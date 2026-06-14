@@ -644,13 +644,23 @@ export default function OrderDetailScreen() {
     }
   }, [auth.activeRole, blockIfCancelled, navigation, order.id, orderInfo, statusKey]);
 
-  const onOpenDispute = useCallback(() => {
+  const onOpenDispute = useCallback(async() => {
     if(orderInfo?.dispute){
+      const [vendor] = await fetchShopOwner(orderInfo.shop.id);
+      console.log("vendor:",vendor)
+      dispatch(set_disputeInfo({
+        ...orderInfo.dispute,
+        order: orderInfo.order,
+        vendor,
+        customer: orderInfo.customer,
+        order_event: orderInfo.order_event,
+        order_items: orderInfo.order_items
+      }));
+      // Alert.alert(JSON.stringify(orderInfo.dispute));
       navigation.navigate("Dispute-detail", {
-        data: {
-          order_items: orderInfo.order_items
-        }
-      })
+        dispute: orderInfo.dispute,
+        disputeId: orderInfo.dispute.id,
+      });
       return;
     }
     if (blockIfCancelled()) return;
