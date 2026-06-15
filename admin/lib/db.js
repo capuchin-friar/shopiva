@@ -4,7 +4,7 @@ let pool;
 
 export function getPool() {
   if (!pool) {
-    const connectionString = process.env.DATABASE_URL || process.env.NEXT_PUBLIC_DATABASE_URL;
+    const connectionString = process.env.DATABASE_URL || process.env.NEXT_PUBLIC_DATABASE_URL || null;
     pool = new Pool(
       connectionString
         ? { connectionString }

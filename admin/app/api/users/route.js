@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getPool } from '../../../../lib/db';
+import { getPool } from '../../../lib/db';
 
 export async function GET(request) {
   try {
@@ -9,8 +9,8 @@ export async function GET(request) {
     const email = url.searchParams.get('email') || undefined;
     const phone = url.searchParams.get('phone') || undefined;
 
-    const where: string[] = [];
-    const params: any[] = [];
+    const where = [];
+    const params = [];
     let idx = 1;
 
     if (role && role !== 'All') {
@@ -31,7 +31,7 @@ export async function GET(request) {
     }
 
     const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
-    const sql = `SELECT id, fname, lname, email, phone, role, COALESCE(location->>'city','') as city, createdAt, lastLogin FROM users ${whereClause} ORDER BY createdAt DESC LIMIT 100`;
+    const sql = `SELECT id, fname, lname, email, phone, role, COALESCE((location::jsonb)->>'city','') as city, createdAt, lastLogin FROM users ${whereClause} ORDER BY createdAt DESC LIMIT 100`;
 
     const pool = getPool();
     const { rows } = await pool.query(sql, params);
