@@ -1,0 +1,102 @@
+.users-page {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  color: #1b1b1b;
+}
+
+.users-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 18px;
+}
+
+.users-summary h1 {
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+.users-summary p {
+  margin: 8px 0 0;
+  color: #5f5f5f;
+  max-width: 620px;
+}
+
+.users-count {
+  font-size: 0.95rem;
+  color: #333;
+}
+
+.users-filters {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.users-filters label {
+  display: block;
+  margin-bottom: 8px;
+  color: #555;
+}
+
+.users-filters select {
+  width: 180px;
+  padding: 10px 12px;
+  border: 1px solid #d8d8d8;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.users-filters input {
+  width: 180px;
+  padding: 10px 12px;
+  border: 1px solid #d8d8d8;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.users-table-card {
+  background: #fff;
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.06);
+}
+
+.users-table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  color: #555;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.users-table th,
+.users-table td {
+  text-align: left;
+  padding: 14px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.users-table th {
+  font-weight: 600;
+  color: #333;
+  background: #fafafa;
+}
+
+.users-table tr:hover {
+  background: #fafafa;
+}
+
+.empty-row {
+  text-align: center;
+  color: #777;
+  padding: 24px 0;
+}
