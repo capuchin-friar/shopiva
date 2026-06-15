@@ -103,7 +103,7 @@ function DisputeCard({ item, onPress }) {
         <View style={[styles.metaCol, styles.metaColLast]}>
           <Text style={styles.metaLabel}>Status</Text>
           <View style={[styles.statusPill, { backgroundColor: t.pillBg }]}>
-            <Text style={[styles.statusPillText, { color: t.pillText }]}>
+            <Text style={[styles.statusPillText, { color: t.pillText, textTransform: "capitalize" }]}>
               {statusLabel(item.status)}
             </Text>
           </View>
@@ -247,7 +247,7 @@ export default function DisputesListScreen() {
     <View style={[styles.root, {paddingTop: 15}]}>
       <FlatList
         data={data}
-        keyExtractor={(item) => String(item.id)}
+        keyExtractor={(item) => String(item?.id)}
         renderItem={renderItem}
         ListHeaderComponent={listHeader}
         contentContainerStyle={[

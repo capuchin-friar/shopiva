@@ -147,18 +147,14 @@ export default function CartCheckoutScreen({ navigation }) {
   const [city, setCity] = useState('');
   const [zip, setZip] = useState('');
   const [country] = useState('Nigeria');
-  const [delivery, setDelivery] = useState(/** @type {'standard' | 'express'} */ ('standard'));
+  const [delivery, setDelivery] = useState(('standard'));
 
   const [touchedSubmit, setTouchedSubmit] = useState(false);
   const [formBanner, setFormBanner] = useState('');
   const [orderSummaryOpen, setOrderSummaryOpen] = useState(false);
   const [isPaying, setIsPaying] = useState(false);
   const [bottomToast, setBottomToast] = useState('');
-  const toastTimerRef = useRef(/** @type {ReturnType<typeof setTimeout> | null} */ (null));
-
-  useEffect(() => {
-    console.log("route:", route)
-  }, [route])
+  const toastTimerRef = useRef((null));
 
   useFocusEffect(
     useCallback(() => {
@@ -172,8 +168,10 @@ export default function CartCheckoutScreen({ navigation }) {
           .map((row, i) => normalizeCheckoutLine(row, i))
           .filter((x) => x != null);
         if (!cancelled) {
+
           setCheckoutLines(/** @type {typeof checkoutLines} */ (normalized));
           setCartLoading(false);
+          console.log("route:", normalized)
         }
         return () => {
           cancelled = true;

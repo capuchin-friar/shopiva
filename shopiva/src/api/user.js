@@ -39,6 +39,25 @@ export async function fetchCurrentUser() {
   return r.user;
 }
 
+/** Current profile (same shape as middleware `authenticateUser`). */
+export async function fetchReturnId(orderId, role) {
+  // const normalizedRole =
+  //   String(role ?? '').trim().toLowerCase() === 'vendor' ? 'entrepreneur' : 'customer';
+  const res = await apiFetchAuth(`/return/${orderId}`, {
+    method: 'GET',
+    // body: JSON.stringify({ role: normalizedRole }),
+  });
+  const data = await res.json().catch(() => ({}));
+  console.log("data: ", data)
+  if (!res.ok) {
+    return { ok: false, message: pickError(data, res) };
+  }
+  return {
+    ok: true,
+    id: data.id.id
+  };
+}
+
 /**
  * @param {number} userId
  * @param {string} role – app roles: `customer` | `vendor` (API may still expect `entrepreneur` for vendor)

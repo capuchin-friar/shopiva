@@ -35,18 +35,6 @@ import { set_disputeList } from "../../redux/disputes";
 
 const DEFAULT_RETURN_COUNTRY = "Nigeria";
 
-/**
- * @param {{
- *   confirmClaim: boolean;
- *   willReturnItem: boolean | null;
- *   roleForShipping: string | null;
- *   address1: string;
- *   address3: string;
- *   addressState: string;
- *   addressCountry: string;
- * }} values
- * @returns {Record<string, string>}
- */
 function validateAcceptanceForm(values) {
     const errors = {};
 
@@ -100,53 +88,6 @@ function FieldError({ message }) {
     return <Text style={styles.fieldErrorText}>{message}</Text>;
 }
 
-const VendorRejectReason = [
-    { label: 'out of stock', value: 'out_of_stock' },
-    { label: 'incorrect price', value: 'incorrect_price' },
-    { label: 'cannot deliver', value: 'cannot_deliver' },
-    { label: 'product damaged', value: 'product_damaged' },
-    { label: 'store unavailable', value: 'store_unavailable' },
-    { label: 'suspected fraud', value: 'suspected_fraud' },
-    { label: 'shipping delay', value: 'shipping_delay' },
-    { label: 'duplicate order', value: 'duplicate_order' },
-    { label: 'product discontinued', value: 'product_discontinued' },
-    { label: 'other', value: 'other' }
-];
-
-/** Used when vendor commits to a delivery / ship-by window. */
-const FULFILLMENT_TIMEFRAME_OPTIONS = [
-    { label: 'Within 24 hours (today)', value: '24_hrs' },
-    { label: 'Within 48 hours (tomorrow)', value: '48_hrs' },
-    { label: 'Within 72 hours (3 days)', value: '72_hrs' },
-    { label: 'Within 96 hours (4 days)', value: '96_hrs' },
-];
-
-const SHIPPING_METHOD_OPTIONS = [
-    { label: 'Third-party logistics partner', value: 'third_party_logistics' },
-    { label: 'Dispatch rider', value: 'dispatch_rider' },
-    { label: 'Courier service', value: 'courier_service' },
-    { label: 'Bus transport / waybill', value: 'bus_waybill' },
-    { label: 'Self delivery', value: 'self_delivery' },
-    // { label: 'Customer pickup', value: 'customer_pickup' },
-];
-
-/** Carrier-assisted methods need a tracking / reference ID; self delivery does not. */
-function shippingUsesTrackingId(method) {
-    return method != null && method !== "self_delivery";
-}
-
-/** Who handles the final mile when marking out for delivery. */
-const FINAL_DELIVERY_HANDLER_OPTIONS = [
-    { label: "Third-party logistics", value: "third_party_logistics" },
-    { label: "Dispatch rider", value: "dispatch_rider" },
-    { label: "Courier service", value: "courier_service" },
-    { label: "In-house / vendor team", value: "vendor_team" },
-    { label: "Customer pickup (at hub)", value: "customer_pickup_hub" },
-];
-
-const MAX_DELIVERY_EVIDENCE = 8;
-const MIN_DELIVERY_EVIDENCE = 2;
-
 const CANCEL_ORDER_REASONS = [
     { label: "Changed my mind / Ordered by mistake", value: "changed_mind" },
     { label: "Shipping is taking too long", value: "delayed_shipping" },
@@ -172,10 +113,6 @@ export default function DisputeActionScreen() {
         <>
             {
                 action === "acceptance" && <Acceptance acceptance_value={acceptance_value} data={data} updateAccptance={updateAccptance} />
-            }
-
-            {
-                action === "denial" && <Processing data={data} />
             }
         </>
     );
@@ -550,39 +487,52 @@ function Acceptance({ data }) {
                             }
                             setShowErrors(false);
                             setLoading(true);
-                            const u = await getStoredUser();
-                            const returnAddress =
-                                willReturnItem && roleForShipping
-                                    ? {
-                                          address1: address1.trim(),
-                                          address2: address2.trim(),
-                                          address3: address3.trim(),
-                                          state: addressState.trim(),
-                                          country:
-                                              addressCountry.trim() ||
-                                              DEFAULT_RETURN_COUNTRY,
-                                      }
-                                    : null;
-                            const response = await emitSocketAck(
-                                "dispute_acceptance",
-                                {
-                                    
-                                    ...data,
-                                    response: {
-                                        will_return_item: willReturnItem,
-                                        return_shipping_role: roleForShipping,
-                                        return_address: returnAddress,
+                            Alert.alert(
+                                'Confirm dispute acceptance',
+                                'By accepting this claim, you agree to resolve the dispute between you & your customer via RETURN',
+                                [
+                                    { text: 'Cancel', style: 'cancel' },
+                                    {
+                                        text: 'Confirm',
+                                        style: 'default',
+                                        onPress:  AcceptClaim,
                                     },
-                                    notes: note,
-                                    actor_id: u.id,
-                                }
+                                ],
                             );
-                            if (response.success) {
-                                console.log(response)
-                                dispatch(set_disputeInfo(response.dispute.vendor.vdi));
-                                dispatch(set_disputeList(response.dispute.vendor.vdl));
+                           
+                            async function AcceptClaim() {
+                                const u = await getStoredUser();
+                                const returnAddress = willReturnItem && roleForShipping
+                                    ? {
+                                        address1: address1.trim(),
+                                        address2: address2.trim(),
+                                        address3: address3.trim(),
+                                        state: addressState.trim(),
+                                        country: addressCountry.trim() ||
+                                            DEFAULT_RETURN_COUNTRY,
+                                    }
+                                    : null;
+                                const response = await emitSocketAck(
+                                    "dispute_acceptance",
+                                    {
+                                        status: "resolved",
+                                        ...data,
+                                        response: {
+                                            will_return_item: willReturnItem,
+                                            return_shipping_role: roleForShipping,
+                                            return_address: returnAddress,
+                                        },
+                                        notes: note,
+                                        actor_id: u.id,
+                                    }
+                                );
+                                if (response.success) {
+                                    console.log(response);
+                                    dispatch(set_disputeInfo(response.dispute.vendor.vdi));
+                                    dispatch(set_disputeList(response.dispute.vendor.vdl));
 
-                                navigation.goBack();
+                                    navigation.goBack();
+                                }
                             }
                         }}
                         style={({ pressed }) => [
@@ -596,268 +546,6 @@ function Acceptance({ data }) {
             </View>
         </>
     )
-}
-
-/** Customer cancels before / during fulfillment (escrow cancel delivery). */
-function CancelOrder({ data }) {
-    const insets = useSafeAreaInsets();
-    const dispatch = useDispatch();
-    const navigation = useNavigation();
-
-    const [cancelReason, setCancelReason] = useState(null);
-    const [otherReason, setOtherReason] = useState("");
-    const [confirmCancel, setConfirmCancel] = useState(false);
-    const [submitting, setSubmitting] = useState(false);
-
-    const postShipment = Boolean(data?.post_shipment);
-    const orderTotal = Number(data?.order_total ?? 0);
-    const restockingFee = Number(data?.restocking_fee ?? 0);
-    const refundAmount = Math.max(0, orderTotal - restockingFee);
-
-    useEffect(() => {
-        connectChatSocket();
-    }, []);
-
-    const validate = () => {
-        if (!cancelReason) {
-            Alert.alert(
-                "Reason required",
-                "Select why you are cancelling this order."
-            );
-            return false;
-        }
-        if (cancelReason === "other" && !otherReason.trim()) {
-            Alert.alert(
-                "Details required",
-                "Briefly describe your reason for cancelling."
-            );
-            return false;
-        }
-        if (!confirmCancel) {
-            Alert.alert(
-                "Confirmation required",
-                "Confirm that you want to cancel this order."
-            );
-            return false;
-        }
-        return true;
-    };
-
-    const submitCancellation = async () => {
-        if (!validate()) return;
-        setSubmitting(true);
-        try {
-            const u = await getStoredUser();
-            const reason =
-                cancelReason === "other"
-                    ? otherReason.trim()
-                    : cancelReason;
-            const response = await emitSocketAck("order_cancelled", {
-                ...data,
-                meta: {
-                    ...(data.meta && typeof data.meta === "object"
-                        ? data.meta
-                        : {}),
-                    reason,
-                    cancel_reason_code: cancelReason,
-                    post_shipment: postShipment,
-                    order_total: orderTotal,
-                    restocking_fee: restockingFee,
-                    refund_amount: refundAmount,
-                },
-                notes:
-                    cancelReason === "other"
-                        ? otherReason.trim()
-                        : "",
-                outcome: "success",
-                actor_id: u.id,
-            });
-            if (response.success) {
-                dispatch(set_orderInfo(response.result));
-                navigation.goBack();
-            } else {
-                Alert.alert(
-                    "Cancellation failed",
-                    response?.message ||
-                        response?.error ||
-                        "Could not cancel this order. Try again."
-                );
-            }
-        } catch (e) {
-            Alert.alert(
-                "Cancellation failed",
-                e instanceof Error ? e.message : String(e)
-            );
-        } finally {
-            setSubmitting(false);
-        }
-    };
-
-    const onPressConfirm = () => {
-        if (!validate()) return;
-
-        if (postShipment) {
-            Alert.alert(
-                "Cancel delivery",
-                `The vendor has already packed and shipped your order.\n\nA restocking fee of ₦${restockingFee.toLocaleString()} may be deducted from your refund.\n\nEstimated refund: ₦${refundAmount.toLocaleString()}`,
-                [
-                    { text: "Keep order", style: "cancel" },
-                    {
-                        text: "Confirm cancellation",
-                        style: "destructive",
-                        onPress: submitCancellation,
-                    },
-                    {
-                        text: "Raise dispute instead",
-                        onPress: () =>
-                            navigation.navigate("Open-dispute", {
-                                orderId: data?.order_id,
-                            }),
-                    },
-                ]
-            );
-            return;
-        }
-
-        Alert.alert(
-            "Cancel order",
-            "Are you sure you want to cancel this order?",
-            [
-                { text: "Keep order", style: "cancel" },
-                {
-                    text: "Confirm cancellation",
-                    style: "destructive",
-                    onPress: submitCancellation,
-                },
-            ]
-        );
-    };
-
-    return (
-        <View style={[styles.cnt, styles.processingRoot]}>
-            <ScrollView
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={[
-                    styles.processingScrollContent,
-                    styles.acceptanceScrollPaddingBottom,
-                    { paddingTop: 15 },
-                ]}
-            >
-                <View style={styles.processingCard}>
-                    <Text style={styles.processingSectionTitle}>
-                        Order cancellation
-                    </Text>
-                    <Text style={styles.processingSectionSubtitle}>
-                        {postShipment
-                            ? "This order is already in transit. Cancelling may reduce your refund."
-                            : "Tell us why you want to cancel. The vendor will be notified."}
-                    </Text>
-                </View>
-
-                {postShipment ? (
-                    <View
-                        style={[
-                            styles.processingCard,
-                            styles.acceptDisclaimerCard,
-                            {backgroundColor: "#fff"}
-                        ]}
-                    >
-                        <Text style={styles.acceptIntroText}>
-                            Restocking fee (est.): ₦
-                            {restockingFee.toLocaleString()}
-                            {"\n"}
-                            Estimated refund: ₦
-                            {refundAmount.toLocaleString()}
-                        </Text>
-                    </View>
-                ) : null}
-
-                <View style={styles.processingCard}>
-                    <Text style={styles.processingFieldLabel}>
-                        Cancellation reason
-                    </Text>
-                    <Text style={styles.processingFieldHint}>
-                        Select the option that best describes your situation.
-                    </Text>
-                    <Dropdown
-                        style={styles.processingDropdown}
-                        containerStyle={styles.dropdownContainer}
-                        placeholderStyle={styles.placeholderStyle}
-                        selectedTextStyle={styles.selectedTextStyle}
-                        itemTextStyle={styles.processingDropdownItem}
-                        iconStyle={styles.iconStyle}
-                        data={CANCEL_ORDER_REASONS}
-                        maxHeight={320}
-                        labelField="label"
-                        valueField="value"
-                        placeholder="Select reason"
-                        value={cancelReason}
-                        onChange={(item) => setCancelReason(item.value)}
-                    />
-                </View>
-
-                {cancelReason === "other" ? (
-                    <View style={styles.processingCard}>
-                        <Text style={styles.processingFieldLabel}>
-                            Other reason
-                        </Text>
-                        <TextInput
-                            style={[
-                                styles.textInput,
-                                styles.textInputMultiline,
-                                styles.acceptanceFormInput,
-                            ]}
-                            multiline
-                            placeholder="Describe why you are cancelling…"
-                            value={otherReason}
-                            onChangeText={setOtherReason}
-                        />
-                    </View>
-                ) : null}
-
-                <View style={styles.processingCard}>
-                    <View style={styles.processingChecklist}>
-                        <ConfirmCheckbox
-                            checked={confirmCancel}
-                            onToggle={setConfirmCancel}
-                            label="I understand this order will be cancelled and I may receive a partial refund depending on order status."
-                            rowStyle={styles.processingCheckboxRow}
-                        />
-                    </View>
-                </View>
-            </ScrollView>
-
-            <View
-                style={[
-                    styles.actionBar,
-                    { paddingBottom: Math.max(insets.bottom, 12) },
-                ]}
-            >
-                <Pressable
-                    onPress={() => navigation.goBack()}
-                    disabled={submitting}
-                    style={({ pressed }) => [
-                        styles.btnSecondary,
-                        pressed && styles.btnSecondaryPressed,
-                    ]}
-                >
-                    <Text style={styles.btnSecondaryText}>Keep order</Text>
-                </Pressable>
-                <Pressable
-                    onPress={onPressConfirm}
-                    disabled={submitting}
-                    style={({ pressed }) => [
-                        styles.btnReject,
-                        pressed && styles.btnRejectPressed,
-                    ]}
-                >
-                    <Text style={styles.btnRejectText}>
-                        {submitting ? "Cancelling…" : "Confirm cancellation"}
-                    </Text>
-                </Pressable>
-            </View>
-        </View>
-    );
 }
 
 function Spinner() {

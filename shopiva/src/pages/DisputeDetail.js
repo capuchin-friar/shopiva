@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Image,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -17,12 +19,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { formatNaira } from '../utils/formatNaira';
 import { fetchBuyerDispute } from '../api/buyer';
-import { fetchOwnerShops, fetchShopDispute } from '../api';
+import { fetchOwnerShops, fetchReturnId, fetchShopDispute } from '../api';
 import { getStoredUser } from '../auth/session';
-import { connectChatSocket } from '../socket/chatSocket';
+import { connectChatSocket, emitSocketAck } from '../socket/chatSocket';
 import { set_disputeInfo } from '../../redux/dispute';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
+import { set_disputeList } from '../../redux/disputes';
 dayjs.extend(relativeTime);
 
 const PAGE_BG = '#F5F5F5';
@@ -37,14 +40,14 @@ const LINE_PENDING = '#E0E0E0';
 const DOT_PENDING = '#D8D8D8';
 
 const STATUS_DISPLAY = {
-  open: 'Open',
-  under_review: 'Under review',
+  open: 'Opened',
+  escalated: 'Escalated',
   resolved: 'Resolved',
 };
 
 const STATUS_PILL = {
   open: { bg: '#FFF3E0', fg: '#C45C00' },
-  responded: { bg: '#E3F2FD', fg: '#1565C0' },
+  escalated: { bg: '#E3F2FD', fg: '#1565C0' },
   resolved: { bg: '#E8F5E9', fg: '#2E7D32' },
 };
 
@@ -114,7 +117,7 @@ export default function DisputeDetailScreen() {
   const dispatch = useDispatch();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const route = useRoute();
+  const [loading, setLoading] = useState(false);
   const auth = useSelector((s) => s.auth);
   const { disputeInfo: dispute } = useSelector((s) => s.disputeInfo);
   const isCustomer = auth?.activeRole === 'customer';
@@ -143,6 +146,7 @@ export default function DisputeDetailScreen() {
       navigation.setOptions({ headerRight: undefined });
       return undefined;
     }
+    
     navigation.setOptions({
       headerTitle: () => (
         <View style={[styles.statusRow, {flexDirection: "column"}]}>
@@ -164,38 +168,44 @@ export default function DisputeDetailScreen() {
   const statusText = STATUS_DISPLAY[statusKey] ?? statusKey;
   const isResolved = statusKey === 'resolved';
 
-  const timeline = useMemo(() => {
-    if (!dispute?.timeline?.length) {
-      return [
-        { title: 'Dispute opened', dateLabel: dispute?.openedLabel ?? '—', done: true },
-        { title: 'Awaiting update', dateLabel: null, done: false },
-      ];
-    }
-    return dispute.timeline;
-  }, [dispute]);
-
-  const evidenceItems = useMemo(() => {
-    if (!dispute?.evidence?.length) return [];
-    return dispute.evidence
-      .filter((e) => e?.uri)
-      .slice(0, 12)
-      .map((e, idx) => ({
-        uri: e.uri,
-        kind: e.kind ?? 'image',
-        caption: e.caption || `Photo ${idx + 1}`,
-      }));
-  }, [dispute]);
-
   const closeActions = () => setActionsOpen(false);
 
-  const onAcceptOffer = () => {
-    if(dispute.status === "responded")return;
-    navigation.navigate("Dispute-action", {
-      action: "acceptance",
-      data: {
-        dispute_id: dispute.id
-      }
-    })
+  const makeCall = async (phoneNumber) => {
+    try {
+      const url = `tel:${phoneNumber}`;
+
+      await Linking.openURL(url);
+    } catch (error) {
+      Alert.alert('Error', 'Unable to open phone dialer');
+      console.log(error);
+    }
+  };
+
+  const onAcceptOffer = async() => {
+    if(dispute.status === "escalated"){
+      await makeCall(9047263572);
+      return;
+    }
+
+    if(dispute.status === "resolved"){
+      setLoading(true)
+      let id = await fetchReturnId(dispute.order_id, auth.activeRole);
+      setLoading(false)
+      navigation.navigate("Return-detail",{
+        returnId: id.id,
+      });
+      return;
+    }
+    if (dispute.status === "open") {
+      if(isCustomer)return;
+      navigation.navigate("Dispute-action", {
+        action: "acceptance",
+        data: {
+          dispute_id: dispute.id
+        }
+      });
+      return;
+    }
   };
 
   const onSubmitEvidenceFab = () => {
@@ -215,12 +225,35 @@ export default function DisputeDetailScreen() {
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Escalate',
-          onPress: () =>
-            Alert.alert('Request sent', 'Our team will prioritise your case.'),
+          // onPress: () =>
+          //   Alert.alert('Request sent', 'Our team will prioritise your case.'),
+          onPress: () => escalateDispute()
         },
       ],
     );
+
+                             
   };
+  let escalateDispute = async (params) => {
+    setLoading(true);
+    const u = await getStoredUser();
+    const response = await emitSocketAck(
+      "dispute_escalation",
+      {
+        status: "escalated",
+        dispute_id: dispute.id,
+        notes: "",
+        action: "escalation",
+        actor_id: u.id,
+      }
+    );
+    if (response.success) {
+      Alert.alert('Request sent', 'Our team will prioritise your case.')
+      dispatch(set_disputeInfo(response.dispute.vendor.vdi));
+      dispatch(set_disputeList(response.dispute.vendor.vdl));
+      navigation.goBack();
+    }
+  }
 
   const onAddEvidence = () => {
     closeActions();
@@ -298,10 +331,10 @@ export default function DisputeDetailScreen() {
         
         <View style={styles.tableRow}>
           <Text style={[styles.tableCell, styles.tableHName]} numberOfLines={2}>
-            {dispute.name.name ?? '—'}
+            {dispute.name ?? '—'}
           </Text>
           <Text style={styles.tableCell}>
-            {dispute.units != null ? String(dispute.units) : '—'}
+            {dispute.qty != null ? String(dispute.qty) : '—'}
           </Text>
           <Text style={styles.tableCell}>
             {dispute.unit_price != null
@@ -319,11 +352,49 @@ export default function DisputeDetailScreen() {
   }, [])
 
 
+  function Spinner() {
+    return (
+      <>
+        <View
+          style={{
+            height: '100%',
+            width: '100%',
+            position: 'absolute',
+            top: 0,
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1000
+          }}
+        >
+          <ActivityIndicator size="large" color="green" />
+        </View>
+      </>
+    );
+  }
+
   const fabBottom = Math.max(insets.bottom, 12) + 8;
   const scrollBottomPad = fabBottom + 72;
+  const getButtonText = () => {
+    if (dispute.status === "resolved") {
+      return "Click here to view Return";
+    }
 
+    if (dispute.status === "escalated") {
+      return "Dispute Escalated, Contact Support!";
+    }
+
+    if (dispute.status === "open") {
+      return isCustomer
+        ? "Awaiting vendor's response"
+        : "Accept claim";
+    }
+
+    return "";
+  };
   return (
     <View style={styles.root}>
+      {loading && <Spinner />}
       <Modal
         visible={actionsOpen}
         transparent
@@ -450,7 +521,7 @@ export default function DisputeDetailScreen() {
             value={dispute.reason}
             highlight
           />
-          <AnalysisField label="Item condition" value={"_"} highlight />
+          {/* <AnalysisField label="Item condition" value={"_"} highlight /> */}
           <AnalysisField
             label="Payment made to Escrow"
             value={formatNaira(dispute?.order?.amount_paid)}
@@ -496,7 +567,7 @@ export default function DisputeDetailScreen() {
                 <Text style={styles.tableHCell}>Unit</Text>
                 <Text style={styles.tableHCell}>Total</Text>
               </View>
-              {dispute.order_items.map((item, index) => renderOrderItems(item, index))}
+              {dispute?.metadata?.selected_items?.map((item, index) => renderOrderItems(item, index))}
             </>
           ) : (
             <View style={styles.noLineItemRow}>
@@ -553,20 +624,23 @@ export default function DisputeDetailScreen() {
 
       </ScrollView>
 
-      {auth.activeRole === "vendor" && !isResolved ? (
+      {(
         <View style={[styles.fabBar, { bottom: 0, paddingBottom: 4 }]}>
           <Pressable
-            style={({ pressed }) => [styles.fabAccept, pressed && styles.fabPressed, {backgroundColor: STATUS_PILL[dispute.status].fg}]}
+            style={({ pressed }) => [styles.fabAccept, pressed && styles.fabPressed, {
+              backgroundColor: STATUS_PILL[dispute.status]?.fg
+            }]}
             onPress={onAcceptOffer}
+            // disabled={dispute.status === "escalated"};
           >
-            <Icon name="checkmark-circle" size={20} color={WHITE} />
+            {dispute.status === "open" && <Icon name="checkmark-circle" size={20} color={WHITE} />}
             <Text style={styles.fabAcceptText}>{
-              dispute.status === "open"?
-              "Accept claim" : dispute?.response?.will_return_item ? "Return processing" : "Refund processing" 
+              getButtonText()
             }</Text>
           </Pressable>
           
           {
+            !isCustomer &&
             dispute.status === "open" && 
             <Pressable
               style={({ pressed }) => [styles.fabMore, pressed && styles.fabPressed]}
@@ -576,7 +650,7 @@ export default function DisputeDetailScreen() {
             </Pressable>
           }
           </View>
-      ) : null}
+      )}
     </View>
   );
 }
@@ -987,7 +1061,7 @@ const styles = StyleSheet.create({
     backgroundColor: TEAL,
     paddingVertical: 10,
     paddingHorizontal: 14,
-    borderRadius: 10,
+    borderRadius: 5,
     flexGrow: 1,
     flexShrink: 1,
   },
@@ -1009,16 +1083,16 @@ const styles = StyleSheet.create({
   fabSecondaryText: {
     fontSize: 14,
     fontWeight: '600',
-    color: BLACK,
+    color: WHITE,
   },
   fabMore: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
-    backgroundColor: '#F0F0F0',
+    backgroundColor: '#000',
     paddingVertical: 10,
     paddingHorizontal: 12,
-    borderRadius: 10,
+    borderRadius: 5,
     flexShrink: 0,
   },
   fabPressed: {

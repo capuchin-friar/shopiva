@@ -2,8 +2,25 @@ import { Product } from '../api';
 // import Memory from './memoryHandler';
 import { Alert, NativeModules, PermissionsAndroid, Platform } from 'react-native';
 // import Geolocation from '@react-native-community/geolocation';
+import Sound from 'react-native-sound';
 
 class Tools {
+
+    static playSound = async () => {
+        Sound.setCategory("Playback")
+        const ding = new Sound("activity.wav", Sound.MAIN_BUNDLE, (error) => {
+        if (error) {
+            console.log("Failed to load the sound", error);
+            return;
+        }
+        ding.play((success) => {
+            if (!success) {
+            console.log("Playback failed due to audio decoding errors");
+            }
+            ding.release(); // free memory after playback
+        });
+        });
+    }
     static async getDeviceId(){
         // Do not import react-native-device-info at module load: it throws if
         // NativeModules.RNDeviceInfo is null (stale iOS build, pods not applied).

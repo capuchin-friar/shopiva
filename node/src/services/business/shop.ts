@@ -397,7 +397,7 @@ export async function CreatePayoutAccountService(payload: Partial<NewPayoutAccou
         provider_recipient_id: data.recipient_code,
         provider_account_id: data.id,
         account_number: typeof payload.account_number === 'string'
-            ? Number(payload.account_number.slice(-4))
+            ? Number(payload.account_number)
             : undefined,
         status: 'verified',
         verification_method: 'bank'
@@ -435,7 +435,7 @@ export async function UpdatePayoutAccountService(payload: Partial<NewPayoutAccou
         provider_recipient_id: data.recipient_code,
         provider_account_id: data.id,
         account_number: typeof payload.account_number === 'string'
-            ? Number(payload.account_number.slice(-4))
+            ? Number(payload.account_number)
             : undefined,
         status: 'verified',
         verification_method: 'bank'

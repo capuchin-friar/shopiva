@@ -66,7 +66,7 @@ const FINAL_DELIVERY_HANDLER_OPTIONS = [
   { label: 'Third-party logistics', value: 'third_party_logistics' },
   { label: 'Dispatch rider', value: 'dispatch_rider' },
   { label: 'Courier service', value: 'courier_service' },
-  { label: 'In-house / vendor team', value: 'vendor_team' },
+  { label: 'My team / Me', value: 'vendor_team' },
   { label: 'Customer pickup (at hub)', value: 'customer_pickup_hub' },
 ];
 
@@ -436,30 +436,45 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                   }
                   setLoading(!loading);
                   const u = await getStoredUser();
-                  const response = await emitSocketAck('order_acceptance', {
-                    ...data,
-                    meta: {
-                      ...(data.meta && typeof data.meta === 'object'
-                        ? data.meta
-                        : {}),
-                      vendor_confirmations: {
-                        items_in_stock: true,
-                        fulfill_on_time: true,
-                        performance_policy: true,
-                      },
-                      fulfillment_duration: fulfillmentDuration,
-                      fulfillment_duration_label:
-                        FULFILLMENT_TIMEFRAME_OPTIONS.find(
-                          o => o.value === fulfillmentDuration,
+                  
+
+                  async function AcceptSubmit() {
+                    const response = await emitSocketAck('order_acceptance', {
+                      ...data,
+                      meta: {
+                        ...(data.meta && typeof data.meta === 'object'
+                          ? data.meta
+                          : {}),
+                        vendor_confirmations: {
+                          items_in_stock: true,
+                          fulfill_on_time: true,
+                          performance_policy: true,
+                        },
+                        fulfillment_duration: fulfillmentDuration,
+                        fulfillment_duration_label: FULFILLMENT_TIMEFRAME_OPTIONS.find(
+                          o => o.value === fulfillmentDuration
                         )?.label ?? null,
-                    },
-                    notes: note,
-                    actor_id: u.id,
-                  });
-                  if (response.success) {
-                    dispatch(set_orderInfo(response.result));
-                    navigation.goBack();
+                      },
+                      notes: note,
+                      actor_id: u.id,
+                    });
+                    if (response.success) {
+                      dispatch(set_orderInfo(response.result));
+                      navigation.goBack();
+                    }
                   }
+                  Alert.alert(
+                    'Confirm order acceptance',
+                    'By accepting this order, you agree to deliver the item to the customer',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Confirm',
+                        style: 'default',
+                        onPress:  AcceptSubmit,
+                      },
+                    ],
+                  );
                 }}
                 style={({ pressed }) => [
                   styles.btnAccept,
@@ -1385,7 +1400,12 @@ function ConfirmDelivery({ data }) {
     });
     if (response.success) {
       dispatch(set_orderInfo(response.result));
-      navigation.goBack();
+      console.log("response - result",response.result);
+      navigation.navigate("Review", {
+        shop: response.result.shop,
+        order: response.result.order
+      })
+      // navigation.goBack();
     }
   };
 
@@ -1460,7 +1480,7 @@ function ConfirmDelivery({ data }) {
               onPress={() => {
                 Alert.alert(
                   'Confirm order',
-                  'Submit this shipping update for the customer?',
+                  'Once you confirm, the escrow funds will be released to the vendor.',
                   [
                     { text: 'Cancel', style: 'cancel' },
                     {

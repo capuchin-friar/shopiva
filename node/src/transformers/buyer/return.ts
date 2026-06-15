@@ -53,13 +53,18 @@ export const returnTransformer = async (
 
     // console.log(products);
   
+    const { rows:[dispute] } = await pool.query(
+        `SELECT * FROM disputes WHERE order_id = $1`,
+        [orderRef]
+    );
 
-    const formattedReturnItems = order_items.map((return_item: any) => {
+    const formattedReturnItems = dispute.metadata.selected_items.map((return_item: any) => {
         // products.find(
         //     (p: any) => console.log(p.id, return_item.item_id)
         // )
         return ({
             ...return_item,
+            units: return_item.qty,
             product: products.find(
                 (p: any) => parseInt(p.id) === parseInt(return_item.item_id)
             )
@@ -68,16 +73,6 @@ export const returnTransformer = async (
 
     const { rows: return_events } = await pool.query(
         `SELECT * FROM return_events WHERE return_id = $1`,
-        [returnId]
-    );
-
-    const { rows:[payment_info] } = await pool.query(
-        `SELECT * FROM paystack_transactions WHERE reference = $1`,
-        [orderRef]
-    );
-
-    const { rows:[dispute] } = await pool.query(
-        `SELECT * FROM disputes WHERE order_id = $1`,
         [returnId]
     );
 

@@ -190,7 +190,6 @@ export const handleNewDispute = async (
   }
 };
 
-
 export const handleDisputeResponse = async(
   userId: number,
   _nsp: Namespace,
@@ -199,7 +198,7 @@ export const handleDisputeResponse = async(
 ) => {
   try {
     const {
-      dispute_id, response
+      dispute_id, response, status
     } = payload;
 
     const pool = await db();
@@ -211,7 +210,7 @@ export const handleDisputeResponse = async(
           updated_at = NOW()
       WHERE id = $3
       RETURNING *`,
-      [response, "responded", (dispute_id)]
+      [response, status, (dispute_id)]
     );
 
     const {rows: [shop]} = await pool.query(
@@ -253,6 +252,56 @@ export const handleDisputeResponse = async(
 
     const socketPayload = await broadcastDisputeUpdate(
       "dispute_acceptance",
+      shop.id,
+      Number(dispute.customer_id),
+      userId,
+      "vendor",
+      dispute.order_id,
+      dispute.id
+    );
+
+    ackSuccess(ack, socketPayload);
+  } catch (error) {
+    console.error("[raise_dispute] error:", error);
+    ackError(
+      ack,
+      error instanceof Error ? error.message : "Failed to create dispute"
+    );
+  }
+}
+
+
+export const handleDisputeEscalation = async(
+  userId: number,
+  _nsp: Namespace,
+  payload: Record<string, unknown>,
+  ack: unknown
+) => {
+  try {
+    const {
+      dispute_id, status
+    } = payload;
+
+    const pool = await db();
+
+    const {rows: [dispute]} = await pool.query(
+      `UPDATE disputes 
+      SET "status" = $1,
+        updated_at = NOW()
+      WHERE id = $2
+      RETURNING *`,
+      [status, (dispute_id)]
+    );
+
+    const {rows: [shop]} = await pool.query(
+      `SELECT id 
+      FROM shops 
+      WHERE ownerid = $1`,
+      [userId]
+    );
+
+    const socketPayload = await broadcastDisputeUpdate(
+      "dispute_escalation",
       shop.id,
       Number(dispute.customer_id),
       userId,

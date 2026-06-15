@@ -1,6 +1,8 @@
 import jwt from "jsonwebtoken";
 import type { SignOptions } from "jsonwebtoken";
 import dotenv from "dotenv";
+import nodeCron from "node-cron";
+import { db } from "../config/database.js";
 dotenv.config();
 export class tools{
     static generate_token(){
@@ -21,32 +23,9 @@ export class tools{
             id: id as number
         }, secret, options);
     }
+
+
+
+
 }
 
-
-export class socketTools{
-
-    static async toggleUserStatus(){
-        
-    }
-
-    static async getRoomMssgs(){
-
-    }
-
-    static async createMessg(){
-        
-    }
-
-    static async markMssgAsSeen(){
-        
-    }
-
-    static async getUserRooms(){
-        
-    }
-
-    static async getRoomMessages(){
-        
-    }
-}

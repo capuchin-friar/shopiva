@@ -9,6 +9,8 @@ import { set_returnList } from '../../redux/returns';
 import { set_disputeInfo } from '../../redux/dispute';
 import { set_disputeList } from '../../redux/disputes';
 import { mapBuyerDisputeRow, mapOrderRowToListItem } from '../utils/buyerUi';
+import Tools from '../utils/gen';
+import { Alert } from 'react-native';
 
 /** @type {import('socket.io-client').Socket | null} */
 let socketSingleton = null;
@@ -16,6 +18,7 @@ let socketSingleton = null;
 let connectPromise = null;
 
 const ORDER_SOCKET_EVENTS = [
+  'payment_received',
   'order_acceptance',
   'order_processing',
   'order_shipping',
@@ -37,15 +40,18 @@ const RETURN_SOCKET_EVENTS = [
 
 const DISPUTE_SOCKET_EVENTS = [
   'raise_dispute', 
-  'dispute_acceptance'
+  'dispute_acceptance',
+  'dispute_escalation'
 ];
 
 /** @param {unknown} res */
-export function applyOrderSocketPayload(res) {
+export async function applyOrderSocketPayload(res) {
   if (!res || typeof res !== 'object') return;
   const payload = /** @type {Record<string, unknown>} */ (res);
-  console.log("order payload form socket: ", payload);
-  store.dispatch(set_orderInfo(payload.result))
+  console.log("testing payment_received: ", payload);
+  if (payload?.result) {
+    store.dispatch(set_orderInfo(payload.result))
+  }
   store.dispatch(set_orderList(payload.list))
 }
 
@@ -67,7 +73,6 @@ export function applyDisputeSocketPayload(res) {
 
   if (!res || typeof res !== 'object') return;
   const payload = /** @type {Record<string, unknown>} */ (res);
-  console.log("coi testing", payload)
 
   if (payload.actor && typeof payload.actor === 'object') {
     const {actor} = res;
@@ -103,7 +108,7 @@ export function applyDisputeSocketPayload(res) {
 }
 
 /** @param {unknown} ack */
-export function applySocketAckPayload(ack) {
+export async function applySocketAckPayload(ack) {
   applyOrderSocketPayload(ack);
   applyReturnSocketPayload(ack);
   applyDisputeSocketPayload(ack);
@@ -114,7 +119,9 @@ function bindOrderSocketListeners(socket) {
   if (socket.__orderListenersBound) return;
   socket.__orderListenersBound = true;
 
-  const onOrderUpdate = (res) => {
+  const onOrderUpdate = async(res) => {
+    await Tools.playSound();
+    // console.log("this suppose to be customer listener---")
     applyOrderSocketPayload(res);
   };
 
@@ -126,7 +133,9 @@ function bindReturnSocketListeners(socket) {
   if (socket.__returnListenersBound) return;
   socket.__returnListenersBound = true;
 
-  const onReturnUpdate = (res) => {
+  const onReturnUpdate = async(res) => {
+    await Tools.playSound();
+    // console.log("this suppose to be customer listener---")
     applyReturnSocketPayload(res);
   };
 
@@ -138,8 +147,9 @@ function bindDisputeSocketListeners(socket) {
   if (socket.__disputeListenersBound) return;
   socket.__disputeListenersBound = true;
 
-  const onDisputeUpdate = (res) => {
-    console.log(res)
+  const onDisputeUpdate = async(res) => {
+    await Tools.playSound();
+    // console.log("this suppose to be customer listener---")
     applyDisputeSocketPayload(res);
   };
 
@@ -204,9 +214,14 @@ export async function connectChatSocket() {
       });
     }
 
+    // playNotificationSound();
+    // showInAppBanner(data);
+    
     bindOrderSocketListeners(socketSingleton);
     bindReturnSocketListeners(socketSingleton);
     bindDisputeSocketListeners(socketSingleton);
+
+    
     return socketSingleton;
   })();
 

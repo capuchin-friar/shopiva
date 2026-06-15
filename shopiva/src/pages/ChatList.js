@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -281,7 +281,8 @@ export default function ChatListScreen({
         <ChatRow
           item={item}
           highlightKind={highlightKind}
-          onPress={() => navigation.navigate(chatRoomRouteName, { chat: item })}
+          onPress={() => navigation.navigate("Chat-room", { chat: item })}
+          // onPress={() => navigation.navigate(chatRoomRouteName, { chat: item })}
         />
       );
     },

@@ -27,118 +27,10 @@ import { useDispatch, useSelector } from 'react-redux';
 import { getStoredUser } from '../auth/session';
 import { connectChatSocket } from '../socket/chatSocket';
 import { set_orderInfo } from '../../redux/order';
+import { ESCROW_STATUS_THEME, STATUS_THEME, PAY_THEME, COLOR } from '../utils/statusTheme';
+import { set_disputeInfo } from '../../redux/dispute';
 
-const PAGE_BG = '#FFF';
-const WHITE = '#FFFFFF';
-const BLACK = '#111111';
-const TEXT = '#1A1A1A';
-const MUTED = '#8E8E93';
-const HAIR = '#ECECEE';
-const ACCENT = '#00926e';
-const ACCENT_PRESSED = '#00bc8d';
 
-/** Pill themes */
-const PAY_THEME = {
-  paid: { bg: '#E0F2E9', dot: '#0D8A4A', text: '#0D5C2F', label: 'Paid' },
-  unpaid: { bg: '#FFF4D6', dot: '#B58100', text: '#7A5800', label: 'Unpaid' },
-  refunded: {
-    bg: '#EFEAFF',
-    dot: '#7C5CFC',
-    text: '#3F2BB8',
-    label: 'Refunded',
-  },
-  cancelled: {
-    bg: '#FDE3E3',
-    dot: '#C62828',
-    text: '#9F1818',
-    label: 'Cancelled',
-  },
-};
-
-const STATUS_THEME = {
-  payment_received: {
-    bg: '#FFF4D6',
-    dot: '#B58100',
-    text: '#7A5800',
-    label: 'Payment received',
-  },
-  order_accepted: {
-    bg: '#FFF4D6',
-    dot: '#B58100',
-    text: '#7A5800',
-    label: 'Order accepted',
-  },
-  order_processing: {
-    bg: '#FFF0E0',
-    dot: '#C45C00',
-    text: '#7A3A00',
-    label: 'Processing',
-  },
-  order_shipping: {
-    bg: '#E0EAFF',
-    dot: '#2F5DDB',
-    text: '#1B3FA1',
-    label: 'Shipping',
-  },
-  order_out_for_delivery: {
-    bg: '#E0F2E9',
-    dot: '#08ccfd',
-    text: '#075646',
-    label: 'Out For Delivery',
-  },
-  order_delivered: {
-    bg: '#E0F2E9',
-    dot: '#0D8A4A',
-    text: '#0D5C2F',
-    label: 'Delivered',
-  },
-  order_confirmed: {
-    bg: '#fff3e3',
-    dot: '#eb8900',
-    text: '#a46000',
-    label: 'Order confirmed',
-  },
-  order_disputed: {
-    bg: '#fff3e3',
-    dot: '#eb8900',
-    text: '#a46000',
-    label: 'Order disputed',
-  },
-  order_cancellation: {
-    bg: '#FDE3E3',
-    dot: '#C62828',
-    text: '#9F1818',
-    label: 'Cancelled',
-  },
-};
-
-/** Escrow pill themes — keys match {@link orderInfo.order.escrow_status}. */
-const ESCROW_STATUS_THEME = {
-  held: {
-    bg: '#FFF4D6',
-    dot: '#B58100',
-    text: '#7A5800',
-    label: 'Held',
-    caption:
-      'Funds are held in escrow until delivery is completed or the order is otherwise resolved.',
-  },
-  released: {
-    bg: '#E0F2E9',
-    dot: '#0D8A4A',
-    text: '#0D5C2F',
-    label: 'Released',
-    caption: 'Escrow has been released to the seller.',
-  },
-  refunded: {
-    bg: '#EFEAFF',
-    dot: '#7C5CFC',
-    text: '#3F2BB8',
-    label: 'Refunded',
-    caption: 'Funds have been refunded from escrow to the buyer.',
-  },
-};
-
-/** @param {unknown} meta */
 function parseEventMeta(meta) {
   if (meta == null) return {};
   if (typeof meta === 'object') return /** @type {Record<string, unknown>} */ (meta);
@@ -155,7 +47,6 @@ function parseEventMeta(meta) {
   return {};
 }
 
-/** @param {string | null | undefined} name */
 function initialsOf(name) {
   const parts = String(name ?? '')
     .trim()
@@ -166,11 +57,6 @@ function initialsOf(name) {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-/**
- * Pull a non-empty string from an object trying multiple key aliases.
- * @param {Record<string, unknown> | null | undefined} obj
- * @param {string[]} keys
- */
 function pickStr(obj, keys) {
   if (!obj || typeof obj !== 'object') return '';
   for (const k of keys) {
@@ -182,27 +68,7 @@ function pickStr(obj, keys) {
   return '';
 }
 
-/**
- * Normalize a shipping address that may arrive as:
- *  - a plain string
- *  - a JSON-stringified object (jsonb cast to text from the API)
- *  - a parsed object with various key aliases
- * @param {unknown} input
- * @returns {{
- *   recipient: string;
- *   phone: string;
- *   email: string;
- *   street: string;
- *   street2: string;
- *   city: string;
- *   state: string;
- *   zip: string;
- *   country: string;
- *   text: string;
- * }}
- */
 function parseShippingAddress(input) {
-  /** @type {Record<string, unknown> | null} */
   let obj = null;
 
   if (input && typeof input === 'object') {
@@ -307,11 +173,10 @@ function SectionLabel({ children }) {
   return <Text style={styles.sectionLabel}>{children}</Text>;
 }
 
-/** @param {{ icon: string; label: string; value?: React.ReactNode; last?: boolean }} p */
 function SummaryRow({ icon, label, value, last }) {
   return (
     <View style={[styles.summaryRow, last && styles.summaryRowLast]}>
-      <Icon name={icon} size={18} color={MUTED} style={styles.summaryIcon} />
+      <Icon name={icon} size={18} color={COLOR.MUTED} style={styles.summaryIcon} />
       <Text style={styles.summaryLabel}>{label}</Text>
       <View style={styles.summaryValue}>
         {typeof value === 'string' || typeof value === 'number' ? (
@@ -326,7 +191,6 @@ function SummaryRow({ icon, label, value, last }) {
   );
 }
 
-/** @param {{ label: string; value: string; bold?: boolean; muted?: boolean }} p */
 function MoneyRow({ label, value, bold, muted }) {
   return (
     <View style={styles.moneyRow}>
@@ -345,14 +209,12 @@ export default function OrderDetailScreen() {
   const insets = useSafeAreaInsets();
   const route = useRoute();
   const auth = useSelector(s => s.auth);
-  const order = /** @type {Record<string, unknown> | undefined} */ (
+  const order = (
     route.params?.order
   );
   const [statusKey, setStatusKey] = useState(null);
-  const [statusOpen, setStatusOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [cancelledModalOpen, setCancelledModalOpen] = useState(false);
-  // const [orderInfo, setOrderInfo] = useState(null);
   const { orderInfo } = useSelector(s => s.orderInfo);
   const dispatch = useDispatch();
 
@@ -360,7 +222,7 @@ export default function OrderDetailScreen() {
     connectChatSocket();
   }, []);
 
-  const isOrderCancelled = statusKey === 'order_cancellation';
+  const isOrderCancelled = statusKey === 'order_cancelled';
 
   const cancellationDetails = useMemo(() => {
     if (!isOrderCancelled) return null;
@@ -372,7 +234,7 @@ export default function OrderDetailScreen() {
       const stage = String(e?.stage ?? '').toLowerCase();
       const type = String(e?.event_type ?? '').toLowerCase();
       return (
-        stage === 'order_cancellation' ||
+        stage === 'order_cancelled' ||
         type === 'cancellation' ||
         stage.includes('cancel')
       );
@@ -441,6 +303,7 @@ export default function OrderDetailScreen() {
   }, [orderInfo]);
 
   useEffect(() => {
+    dispatch(set_orderInfo(null));
     if (auth.activeRole === 'customer') {
       (async () => {
         await connectChatSocket();
@@ -492,7 +355,7 @@ export default function OrderDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel="More order actions"
         >
-          <Icon name="ellipsis-horizontal" size={22} color={TEXT} />
+          <Icon name="ellipsis-horizontal" size={22} color={COLOR.TEXT} />
         </Pressable>
       ),
     });
@@ -718,7 +581,7 @@ export default function OrderDetailScreen() {
             onPress: () => {
               navigation.navigate("Open-dispute", {
                 orderId: order.id,
-              });
+              }); 
             },
           })
         ]
@@ -751,7 +614,7 @@ export default function OrderDetailScreen() {
         data: {
           order_id: orderInfo.order.id,
           event_type: 'cancellation',
-          stage: 'order_cancellation',
+          stage: 'order_cancelled',
           actor_type: 'customer',
           actor_id: u.id,
           outcome: 'success',
@@ -770,7 +633,7 @@ export default function OrderDetailScreen() {
         data: {
           order_id: orderInfo.order.id,
           event_type: 'cancellation',
-          stage: 'order_cancellation',
+          stage: 'order_cancelled',
           actor_type: 'vendor',
           actor_id: u.id,
           outcome: 'success',
@@ -781,11 +644,23 @@ export default function OrderDetailScreen() {
     }
   }, [auth.activeRole, blockIfCancelled, navigation, order.id, orderInfo, statusKey]);
 
-  const onOpenDispute = useCallback(() => {
+  const onOpenDispute = useCallback(async() => {
     if(orderInfo?.dispute){
+      const [vendor] = await fetchShopOwner(orderInfo.shop.id);
+      console.log("vendor:",vendor)
+      dispatch(set_disputeInfo({
+        ...orderInfo.dispute,
+        order: orderInfo.order,
+        vendor,
+        customer: orderInfo.customer,
+        order_event: orderInfo.order_event,
+        order_items: orderInfo.order_items
+      }));
+      // Alert.alert(JSON.stringify(orderInfo.dispute));
       navigation.navigate("Dispute-detail", {
-
-      })
+        dispute: orderInfo.dispute,
+        disputeId: orderInfo.dispute.id,
+      });
       return;
     }
     if (blockIfCancelled()) return;
@@ -824,6 +699,24 @@ export default function OrderDetailScreen() {
   const onUpdateStatus = async () => {
     if (blockIfCancelled()) return;
     if (!orderInfo?.order) return;
+    if(statusKey === "order_disputed"){
+      const [vendor] = await fetchShopOwner(orderInfo.shop.id);
+      console.log("vendor:",vendor)
+      dispatch(set_disputeInfo({
+        ...orderInfo.dispute,
+        order: orderInfo.order,
+        vendor,
+        customer: orderInfo.customer,
+        order_event: orderInfo.order_event,
+        order_items: orderInfo.order_items
+      }));
+      // Alert.alert(JSON.stringify(orderInfo.dispute));
+      navigation.navigate("Dispute-detail", {
+        dispute: orderInfo.dispute,
+        disputeId: orderInfo.dispute.id,
+      });
+      return;
+    }
     const u = await getStoredUser();
     const base = {
       order_id: orderInfo.order.id,
@@ -831,7 +724,7 @@ export default function OrderDetailScreen() {
       actor_id: u.id,
       outcome: 'pending',
       notes: '',
-      recipient: orderInfo.order.customer_id,
+      recipient: auth.activeRole === "vendor" ? orderInfo?.order?.customer_id : orderInfo?.shop?.ownerid,
       meta: {},
     };
 
@@ -954,7 +847,7 @@ export default function OrderDetailScreen() {
       : []),
   ];
 
-  if (!orderInfo) {
+  if (orderInfo === null) {
     return (
       <>
         <View
@@ -971,21 +864,80 @@ export default function OrderDetailScreen() {
   }
 
   const actionBtn = () => {
-    return (
-      (auth.activeRole === 'vendor')
-        ? statusKey === 'order_accepted'
-          ? 'Start Processing Order'
-          : statusKey === 'order_processing'
-          ? 'Start Shipping Order'
-          : statusKey === 'order_shipping'
-          ? 'Notify Buyer For Pickup'
-          : statusKey === 'order_out_for_delivery'
-          ? 'Confirm Buyer Has Recieved The Order'
-          : "Awaiting Buyer's Confirmation"
-        : 
-      (auth.activeRole === 'customer') 
-      ? 'Confirm delivery' : ''
-    )
+    // return (
+    //   (auth.activeRole === 'vendor')
+    //     ? statusKey === 'order_accepted'
+    //       ? 'Start Processing Order'
+    //       : statusKey === 'order_processing'
+    //       ? 'Start Shipping Order'
+    //       : statusKey === 'order_shipping'
+    //       ? 'Notify Buyer For Pickup'
+    //       : statusKey === 'order_out_for_delivery'
+    //       ? 'Confirm Buyer Has Received The Order'
+    //       : statusKey === 'order_confirmed' ? 'Your payout will be processed within 48 hours.'
+    //       : "Awaiting Buyer's Confirmation"
+    //     : 
+    //   (auth.activeRole === 'customer') 
+    //   ? 'Confirm delivery' : ''
+    // );
+
+    let message;
+    if(auth.activeRole === 'vendor'){
+      switch(statusKey){
+        case 'order_accepted':
+          message = 'Click Here To Start Processing Order';
+          break;
+        case 'order_processing':
+          message = 'Click Here To Start Shipping Order';
+          break;
+        case 'order_shipping':
+          message = 'Click Here To Notify Customer For Pickup';
+          break;
+        case 'order_out_for_delivery':
+          message = 'Click Here To Confirm Customer Has Received The Order';
+          break;
+        case 'order_confirmed':
+          message = 'Your Payout Will Be Processed Within 24 Hrs.';
+          break;
+        case 'order_cancelled':
+          message = 'This order was cancelled';
+          break;
+        case 'order_rejected':
+          message = 'You Declined this order';
+          break;
+        default: 
+          message = "Awaiting Customer's Confirmation";
+      }
+    }else{
+      switch(statusKey){
+        case 'order_accepted':
+          message = 'Your Order is being processed';
+          break;
+        case 'order_processing':
+          message = 'Vendor already started shipping';
+          break;
+        case 'order_shipping':
+          message = 'Vendor Has shipped Your Order';
+          break;
+        case 'order_out_for_delivery':
+          message = 'Your Order Is Out For Delivery';
+          break;
+        case 'order_confirmed':
+          message = 'Escrow Will Now Release The Funds To The Customer';
+          break;
+        case 'order_cancelled':
+          message = 'This order was cancelled';
+          break;
+        case 'order_rejected':
+          message = 'Vendor Declined & cannot Fulfill this order';
+          break;
+        default: 
+          message = "Confirm That You Received The Order";
+      }
+    }
+
+    return message
+  
   }
 
   return (
@@ -1067,9 +1019,10 @@ export default function OrderDetailScreen() {
                 </Text>
               </View>
             ) : null}
-            {!isOrderCancelled ? (
+            {!isOrderCancelled && (statusKey !== "order_confirmed"  && statusKey !== "order_rejected") ? (
             <View style={styles.escrowActions}>
-              <Pressable
+             { statusKey !== "order_disputed" &&
+             <Pressable
                 onPress={onCancelDelivery}
                 style={({ pressed }) => [
                   styles.escrowBtn,
@@ -1079,8 +1032,8 @@ export default function OrderDetailScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Cancel delivery"
               >
-                <Text style={styles.escrowBtnCancelText}>Cancel delivery</Text>
-              </Pressable>
+                <Text style={styles.escrowBtnCancelText}>Cancel order</Text>
+              </Pressable>}
               <Pressable
                 onPress={onOpenDispute}
                 style={({ pressed }) => [
@@ -1135,7 +1088,7 @@ export default function OrderDetailScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Message customer"
                 >
-                  <Icon name="mail-outline" size={22} color={ACCENT} />
+                  <Icon name="mail-outline" size={22} color={COLOR.BRAND_COLOR} />
                 </Pressable>
               </View>
             </View>
@@ -1163,7 +1116,7 @@ export default function OrderDetailScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Message vendor"
                 >
-                  <Icon name="mail-outline" size={22} color={ACCENT} />
+                  <Icon name="mail-outline" size={22} color={COLOR.BRAND_COLOR} />
                 </Pressable>
               </View>
             </View>
@@ -1239,7 +1192,7 @@ export default function OrderDetailScreen() {
 
         {/* <SectionLabel>Items</SectionLabel> */}
         <View style={styles.card}>
-          {Array.isArray(orderInfo.order_items) &&
+          {Array.isArray(orderInfo?.order_items) &&
             orderInfo.order_items.map((it, i) => (
               <View
                 key={String(it.id ?? i)}
@@ -1293,8 +1246,8 @@ export default function OrderDetailScreen() {
           <MoneyRow
             label="Subtotal"
             value={
-              Array.isArray(orderInfo.order_items) &&
-              orderInfo.order_items.reduce(
+              Array.isArray(orderInfo?.order_items) &&
+              orderInfo?.order_items?.reduce(
                 (acc, curr) => acc + parseInt(curr.total_price),
                 0,
               )
@@ -1391,41 +1344,52 @@ export default function OrderDetailScreen() {
             </Pressable>
           </>
         )}
-        {!isOrderCancelled && orderInfo?.order_events?.length > 1 &&  (
-          statusKey !== "order_delivered" && auth.activeRole === 'customer' ? '' : 
+        {orderInfo?.order_events?.length > 1 &&  (
+          statusKey !== "order_delivered" && statusKey !== "order_disputed" && auth.activeRole === 'customer' ? '' : 
           <Pressable
             onPress={onUpdateStatus}
             // disabled={
-            //   statusKey !== 'order_delivered' && auth.activeRole === 'customer'
-            //     ? true
+            //   statusKey !== 'order_delivered' || statusKey !== "order_disputed" && auth.activeRole === 'customer'
+            //     ? true 
             //     : false
             // }
             style={({ pressed }) => [
               styles.btnPrimary,
               pressed && styles.btnPrimaryPressed,
+              {
+                backgroundColor: STATUS_THEME[statusKey]?.dot
+              }
             ]}
           >
             <Text style={styles.btnPrimaryText}>
               {
+                statusKey === "order_disputed" 
+                ?
+                "This Order Was Disputed, Click to View Dispute"
+                :
                 actionBtn()
               }
             </Text>
           </Pressable>
         )}
 
-        {!isOrderCancelled && auth.activeRole === 'customer' && statusKey !== "order_delivered" ? 
+        {auth.activeRole === 'customer' && statusKey !== "order_delivered" && statusKey !== "order_disputed" ? 
           <Pressable 
-          disabled
+          onPress={e => {
+            if (blockIfCancelled()) return;
+          }}
           style={({ pressed }) => [
             styles.btnPrimary,
             pressed && styles.btnPrimaryPressed,
-            {backgroundColor: "#000"}
+            {
+              backgroundColor: STATUS_THEME[statusKey]?.dot
+            }
           ]}
           >
              <Text style={[styles.btnPrimaryText, {textTransform: "capitalize"}]}>
               {
                 statusKey === "payment_received"?
-                "Awaiting Vendor's Approval" : statusKey?.split("_")?.join(" ")
+                "Awaiting Vendor's Approval" : actionBtn()
               }
             </Text>
           </Pressable>
@@ -1463,7 +1427,7 @@ export default function OrderDetailScreen() {
                 <Icon
                   name={action.icon}
                   size={22}
-                  color={action.destructive ? '#C62828' : TEXT}
+                  color={action.destructive ? '#C62828' : COLOR.TEXT}
                   style={styles.sheetRowIcon}
                 />
                 <Text
@@ -1531,7 +1495,7 @@ export default function OrderDetailScreen() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: PAGE_BG,
+    backgroundColor: COLOR.NEUTRAL,
   },
   headerBar: {
     flexDirection: 'row',
@@ -1549,12 +1513,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: BLACK,
+    color: COLOR.DARK,
     letterSpacing: -0.4,
   },
   headerDate: {
     fontSize: 13,
-    color: MUTED,
+    color: COLOR.MUTED,
     paddingHorizontal: 16,
     marginTop: 4,
     marginBottom: 12,
@@ -1570,7 +1534,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: WHITE,
+    backgroundColor: COLOR.NEUTRAL,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#E2E2E6',
   },
@@ -1586,7 +1550,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: BLACK,
+    color: COLOR.DARK,
     marginTop: 16,
     marginBottom: 10,
   },
@@ -1605,13 +1569,13 @@ const styles = StyleSheet.create({
   linkText: {
     fontSize: 13,
     fontWeight: '700',
-    color: ACCENT,
+    color: COLOR.BRAND_COLOR,
   },
   linkArrow: {
     transform: [{ rotate: '45deg' }],
   },
   card: {
-    backgroundColor: WHITE,
+    backgroundColor: COLOR.NEUTRAL,
     borderRadius: 5,
     paddingVertical: 5,
     paddingHorizontal: 14,
@@ -1649,8 +1613,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: HAIR,
+    // borderBottomWidth: StyleSheet.hairlineWidth,
+    // borderBottomColor: COLOR.HAIR,
   },
   summaryRowLast: {
     borderBottomWidth: 0,
@@ -1662,7 +1626,7 @@ const styles = StyleSheet.create({
   summaryLabel: {
     flex: 1,
     fontSize: 11,
-    color: TEXT,
+    color: COLOR.TEXT,
   },
   summaryValue: {
     alignItems: 'flex-end',
@@ -1671,7 +1635,7 @@ const styles = StyleSheet.create({
   summaryValueText: {
     fontSize: 11,
     fontWeight: '700',
-    color: BLACK,
+    color: COLOR.DARK,
     textTransform: 'capitalize',
   },
   escrowStatusRow: {
@@ -1680,8 +1644,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
     paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: HAIR,
+    // borderBottomWidth: StyleSheet.hairlineWidth,
+    // borderBottomColor: COLOR.HAIR,
   },
   escrowAmountRow: {
     flexDirection: 'row',
@@ -1693,23 +1657,23 @@ const styles = StyleSheet.create({
   },
   escrowAmountLabel: {
     fontSize: 13,
-    color: MUTED,
+    color: COLOR.MUTED,
     fontWeight: '600',
   },
   escrowAmountValue: {
     fontSize: 15,
     fontWeight: '700',
-    color: BLACK,
+    color: COLOR.DARK,
     flexShrink: 0,
   },
   escrowStatusLabel: {
     fontSize: 13,
-    color: TEXT,
+    color: COLOR.TEXT,
     fontWeight: '600',
   },
   escrowCaption: {
     fontSize: 12,
-    color: MUTED,
+    color: COLOR.MUTED,
     lineHeight: 17,
     marginTop: 6,
     marginBottom: 4,
@@ -1739,12 +1703,12 @@ const styles = StyleSheet.create({
   },
   escrowBtnSecondary: {
     borderColor: '#D6D6DC',
-    backgroundColor: WHITE,
+    backgroundColor: COLOR.NEUTRAL,
   },
   escrowBtnSecondaryText: {
     fontSize: 13,
     fontWeight: '700',
-    color: TEXT,
+    color: COLOR.TEXT,
   },
   cancelledBanner: {
     flexDirection: 'row',
@@ -1772,7 +1736,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.45)',
   },
   cancelledModalCard: {
-    backgroundColor: WHITE,
+    backgroundColor: COLOR.NEUTRAL,
     borderRadius: 8,
     padding: 24,
     alignItems: 'center',
@@ -1781,19 +1745,19 @@ const styles = StyleSheet.create({
   cancelledModalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: BLACK,
+    color: COLOR.DARK,
     marginTop: 4,
   },
   cancelledModalBody: {
     fontSize: 14,
     lineHeight: 21,
-    color: MUTED,
+    color: COLOR.MUTED,
     textAlign: 'center',
   },
   cancelledModalReason: {
     fontSize: 13,
     lineHeight: 19,
-    color: TEXT,
+    color: COLOR.TEXT,
     textAlign: 'center',
     fontStyle: 'italic',
   },
@@ -1802,14 +1766,14 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 48,
     borderRadius: 5,
-    backgroundColor: ACCENT,
+    backgroundColor: COLOR.BRAND_COLOR,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cancelledModalBtnText: {
     fontSize: 15,
     fontWeight: '700',
-    color: WHITE,
+    color: COLOR.NEUTRAL,
   },
   customerHead: {
     flexDirection: 'row',
@@ -1817,8 +1781,8 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingBottom: 12,
     marginBottom: 4,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: HAIR,
+    // borderBottomWidth: StyleSheet.hairlineWidth,
+    // borderBottomColor: COLOR.HAIR,
   },
   customerTitleRow: {
     flex: 1,
@@ -1851,11 +1815,11 @@ const styles = StyleSheet.create({
   customerName: {
     fontSize: 15,
     fontWeight: '700',
-    color: BLACK,
+    color: COLOR.DARK,
   },
   customerEmail: {
     fontSize: 12,
-    color: MUTED,
+    color: COLOR.MUTED,
     marginTop: 2,
   },
   headIcon: {
@@ -1874,7 +1838,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#E5484D',
     borderWidth: 1,
-    borderColor: WHITE,
+    borderColor: COLOR.NEUTRAL,
   },
   kvRow: {
     flexDirection: 'row',
@@ -1887,7 +1851,7 @@ const styles = StyleSheet.create({
   kvLabel: {
     flex: 1,
     fontSize: 13,
-    color: MUTED,
+    color: COLOR.MUTED,
   },
   kvValueWrap: {
     flex: 1.4,
@@ -1897,7 +1861,7 @@ const styles = StyleSheet.create({
     flex: 1.4,
     fontSize: 13,
     fontWeight: '600',
-    color: TEXT,
+    color: COLOR.TEXT,
     textAlign: 'right',
   },
   kvAddress: {
@@ -1907,12 +1871,12 @@ const styles = StyleSheet.create({
     marginTop: 6,
     paddingTop: 6,
     borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: HAIR,
+    borderTopColor: COLOR.HAIR,
   },
   shippingHeader: {
     fontSize: 12,
     fontWeight: '700',
-    color: MUTED,
+    color: COLOR.MUTED,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
     marginTop: 6,
@@ -1923,8 +1887,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: HAIR,
+    // borderBottomWidth: StyleSheet.hairlineWidth,
+    // borderBottomColor: COLOR.HAIR,
   },
   itemRowLast: {
     borderBottomWidth: 0,
@@ -1949,11 +1913,11 @@ const styles = StyleSheet.create({
   itemName: {
     fontSize: 14,
     fontWeight: '700',
-    color: BLACK,
+    color: COLOR.DARK,
   },
   itemVariant: {
     fontSize: 12,
-    color: MUTED,
+    color: COLOR.MUTED,
     marginTop: 2,
   },
   itemRight: {
@@ -1971,18 +1935,18 @@ const styles = StyleSheet.create({
   },
   qtyChipLabel: {
     fontSize: 11,
-    color: MUTED,
+    color: COLOR.MUTED,
     fontWeight: '600',
   },
   qtyChipValue: {
     fontSize: 12,
     fontWeight: '700',
-    color: BLACK,
+    color: COLOR.DARK,
   },
   itemPrice: {
     fontSize: 14,
     fontWeight: '700',
-    color: BLACK,
+    color: COLOR.DARK,
   },
   moneyRow: {
     flexDirection: 'row',
@@ -1992,20 +1956,20 @@ const styles = StyleSheet.create({
   },
   moneyLabel: {
     fontSize: 13,
-    color: TEXT,
+    color: COLOR.TEXT,
   },
   moneyLabelMuted: {
-    color: MUTED,
+    color: COLOR.MUTED,
   },
   moneyValue: {
     fontSize: 13,
     fontWeight: '600',
-    color: TEXT,
+    color: COLOR.TEXT,
   },
   moneyValueBold: {
     fontSize: 15,
     fontWeight: '800',
-    color: BLACK,
+    color: COLOR.DARK,
   },
   moneyDivider: {
     height: StyleSheet.hairlineWidth,
@@ -2033,7 +1997,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0D8A4A',
   },
   tlDotPending: {
-    backgroundColor: WHITE,
+    backgroundColor: COLOR.NEUTRAL,
     borderWidth: 2,
     borderColor: '#D6D6DC',
   },
@@ -2060,11 +2024,11 @@ const styles = StyleSheet.create({
   tlTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: BLACK,
+    color: COLOR.DARK,
     flexShrink: 1,
   },
   tlTitleMuted: {
-    color: MUTED,
+    color: COLOR.MUTED,
     fontWeight: '600',
   },
   tlDateRow: {
@@ -2074,11 +2038,11 @@ const styles = StyleSheet.create({
   },
   tlDate: {
     fontSize: 12,
-    color: MUTED,
+    color: COLOR.MUTED,
   },
   tlSubtitle: {
     fontSize: 12,
-    color: MUTED,
+    color: COLOR.MUTED,
     marginTop: 4,
   },
   actionBar: {
@@ -2091,7 +2055,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 16,
     paddingTop: 12,
-    backgroundColor: WHITE,
+    backgroundColor: COLOR.NEUTRAL,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: '#E2E2E6',
   },
@@ -2101,14 +2065,14 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: WHITE,
+    backgroundColor: COLOR.NEUTRAL,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: '#D6D6DC',
   },
   btnGhostText: {
     fontSize: 13,
     fontWeight: '700',
-    color: TEXT,
+    color: COLOR.TEXT,
   },
   btnPrimary: {
     flex: 1.2,
@@ -2116,15 +2080,16 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: ACCENT,
+    // backgroundColor: "#000",
+    // backgroundColor: COLOR.BRAND_COLOR,
   },
   btnPrimaryPressed: {
-    backgroundColor: ACCENT_PRESSED,
+    backgroundColor: COLOR.BRAND_COLOR_LITE,
   },
   btnPrimaryText: {
     fontSize: 14,
     fontWeight: '700',
-    color: WHITE,
+    color: COLOR.NEUTRAL,
   },
   btnAccept: {
     flex: 1,
@@ -2140,7 +2105,7 @@ const styles = StyleSheet.create({
   btnAcceptText: {
     fontSize: 13,
     fontWeight: '700',
-    color: WHITE,
+    color: COLOR.NEUTRAL,
   },
   btnReject: {
     flex: 1,
@@ -2156,7 +2121,7 @@ const styles = StyleSheet.create({
   btnRejectText: {
     fontSize: 13,
     fontWeight: '700',
-    color: WHITE,
+    color: COLOR.NEUTRAL,
   },
   sheetRoot: {
     flex: 1,
@@ -2167,7 +2132,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   sheet: {
-    backgroundColor: WHITE,
+    backgroundColor: COLOR.NEUTRAL,
     borderTopLeftRadius: 18,
     borderTopRightRadius: 18,
     paddingHorizontal: 12,
@@ -2184,7 +2149,7 @@ const styles = StyleSheet.create({
   sheetTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: MUTED,
+    color: COLOR.MUTED,
     textTransform: 'uppercase',
     letterSpacing: 0.4,
     paddingHorizontal: 8,
@@ -2210,7 +2175,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: '600',
-    color: TEXT,
+    color: COLOR.TEXT,
   },
   sheetRowIcon: {
     width: 22,
@@ -2227,7 +2192,7 @@ const styles = StyleSheet.create({
   sheetCloseText: {
     fontSize: 15,
     fontWeight: '600',
-    color: MUTED,
+    color: COLOR.MUTED,
   },
   headerEllipsis: {
     paddingVertical: 6,

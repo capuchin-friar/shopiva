@@ -140,7 +140,7 @@ export default function ProductVariantCardPicker({ attrKeys, variants, selectedV
         accessibilityHint="Shows all variants with details"
       >
         <Text style={[styles.triggerText, !summary && styles.triggerPlaceholder]} numberOfLines={2}>
-          {summary || 'Select a variant'}
+          {summary || 'Select an Option (variant)'}
         </Text>
         <Icon name="chevron-down" size={22} color="#333" />
       </Pressable>

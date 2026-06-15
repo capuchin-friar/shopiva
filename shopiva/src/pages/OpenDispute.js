@@ -3,6 +3,9 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,6 +17,7 @@ import { TextInput } from 'react-native-gesture-handler';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
+import Icon from 'react-native-vector-icons/Ionicons';
 import {
   errorCodes,
   isErrorWithCode,
@@ -29,8 +33,20 @@ import { set_disputeInfo } from '../../redux/dispute';
 import { set_orderInfo } from '../../redux/order';
 import { set_orderList } from '../../redux/orders';
 import { set_disputeList } from '../../redux/disputes';
+import { formatNaira } from '../utils/formatNaira';
+
+
+const PRIMARY = '#00926e';
+const PAGE_BG = '#F2F2F3';
+const CARD_BG = '#FFFFFF';
+const BORDER = '#E0E0E0';
+const MUTED = '#757575';
+const ERROR = '#C62828';
+const ERROR_BG = '#FFEBEE';
+const EXPRESS_SHIPPING = 1000;
 
 const DISPUTE_REASONS = [
+  { label: 'Did not receive the order(s)', value: 'order_not_received' },
   { label: 'Item not as described', value: 'not_as_described' },
   { label: 'Wrong item received', value: 'wrong_item' },
   { label: 'Item is damaged', value: 'damaged_item' },
@@ -40,8 +56,8 @@ const DISPUTE_REASONS = [
 ];
 
 const RESOLUTIONS = [
-  { label: 'Full refund', value: 'refund' },
-  { label: 'Replacement item', value: 'replacement' },
+  // { label: 'Full refund', value: 'refund' },
+  // { label: 'Replacement item', value: 'replacement' },
   { label: 'Return and refund', value: 'return_refund' },
 ];
 
@@ -83,6 +99,101 @@ function labelForValue(options, value) {
   return options.find((o) => o.value === value)?.label ?? value ?? '—';
 }
 
+/**
+ * @param {unknown} row
+ * @param {number} [index]
+ */
+function normalizeOrderItemLine(row, index = 0) {
+  if (!row || typeof row !== 'object') return null;
+  const r = /** @type {Record<string, unknown>} */ (row);
+  const keyRaw = r.id ?? r.item_id ?? index;
+  const key =
+    (typeof keyRaw === 'string' || typeof keyRaw === 'number' ? String(keyRaw) : '').trim() ||
+    `line-${index}`;
+  const product =
+    r.product && typeof r.product === 'object'
+      ? /** @type {Record<string, unknown>} */ (r.product)
+      : null;
+  const title = String(product?.name ?? 'Item').trim() || 'Item';
+  const unitPrice = Number(r.unit_price) || 0;
+  const qty = Math.max(1, Number(r.qty ?? r.units ?? 1));
+  let image = typeof r.image === 'string' ? r.image.trim() : '';
+  if (!image && product) {
+    if (typeof product.image === 'string' && product.image.trim()) {
+      image = product.image.trim();
+    } else if (Array.isArray(product.images)) {
+      const first = product.images.find((x) => typeof x === 'string' && x.trim());
+      if (typeof first === 'string') image = first.trim();
+    }
+  }
+  return { key, title, image, unitPrice, qty };
+}
+
+/**
+ * @param {{
+ *   lines: Array<{ key: string; title: string; image: string; unitPrice: number; qty: number }>;
+ *   styles: object;
+ *   selectable?: boolean;
+ *   selectedKeys?: string[];
+ *   onToggle?: (key: string) => void;
+ * }} p
+ */
+function OrderLinesList({ lines, styles: S, selectable, selectedKeys, onToggle }) {
+  if (!Array.isArray(lines) || lines.length === 0) return null;
+  return (
+    <>
+      {lines.map((line, idx) => {
+        const lineTotal = line.unitPrice * line.qty;
+        const last = idx === lines.length - 1;
+        const selected = selectable && selectedKeys?.includes(line.key);
+        const row = (
+          <View style={[S.orderLine, last ? S.orderLineLast : null]}>
+            {selectable ? (
+              <View style={[S.itemSelectCheck, selected && S.itemSelectCheckOn]}>
+                {selected ? <Text style={S.itemSelectCheckMark}>✓</Text> : null}
+              </View>
+            ) : null}
+            {line.image ? (
+              <Image source={{ uri: line.image }} style={S.orderThumb} resizeMode="cover" />
+            ) : (
+              <View style={[S.orderThumb, S.orderThumbPh]}>
+                <Icon name="image-outline" size={22} color="#BDBDBD" />
+              </View>
+            )}
+            <View style={S.orderLineBody}>
+              <Text style={S.orderTitle} numberOfLines={2}>
+                {line.title}
+              </Text>
+              <Text style={S.orderMeta}>
+                {formatNaira(line.unitPrice)} × {line.qty}
+              </Text>
+            </View>
+            <Text style={S.orderLineTotal}>{formatNaira(lineTotal)}</Text>
+          </View>
+        );
+        if (!selectable || !onToggle) {
+          return (
+            <View key={line.key}>
+              {row}
+            </View>
+          );
+        }
+        return (
+          <Pressable
+            key={line.key}
+            onPress={() => onToggle(line.key)}
+            style={({ pressed }) => [pressed && S.itemSelectRowPressed]}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: !!selected }}
+          >
+            {row}
+          </Pressable>
+        );
+      })}
+    </>
+  );
+}
+
 function Section({ title, subtitle, children }) {
   return (
     <View style={styles.card}>
@@ -107,6 +218,7 @@ function ConfirmCheckbox({ checked, onToggle, label }) {
   );
 }
 
+
 export default function OpenDispute() {
   const dispatch = useDispatch();
   const navigation = useNavigation();
@@ -125,6 +237,100 @@ export default function OpenDispute() {
     orderId != null ? `Order #${orderId}` : 'Order'
   );
   const [submitting, setSubmitting] = useState(false);
+  const [disputeOpenItems, setDisputeOpenItems] = useState(false);
+  /** @type {string[]} */
+  const [selectedItemKeys, setSelectedItemKeys] = useState([]);
+  /** @type {string[]} */
+  const [draftItemKeys, setDraftItemKeys] = useState([]);
+
+  const orderItemLines = useMemo(() => {
+    const items = orderInfo?.order_items;
+    if (!Array.isArray(items)) return [];
+    return items
+      .map((row, i) => normalizeOrderItemLine(row, i))
+      .filter((line) => line != null);
+  }, [orderInfo?.order_items]);
+
+  const selectedOrderLines = useMemo(
+    () => orderItemLines.filter((line) => selectedItemKeys.includes(line.key)),
+    [orderItemLines, selectedItemKeys]
+  );
+
+  const selectedItemsForMetadata = useMemo(() => {
+    const items = orderInfo?.order_items;
+    if (!Array.isArray(items)) return [];
+    return items
+      .map((row, i) => ({ row, line: normalizeOrderItemLine(row, i) }))
+      .filter(({ line }) => line && selectedItemKeys.includes(line.key))
+      .map(({ row, line }) => {
+        const r = /** @type {Record<string, unknown>} */ (row);
+        const orderItemId = Number(r.id);
+        const productId = Number(r.item_id);
+        const totalRaw = r.total_price != null ? Number(r.total_price) : NaN;
+        return {
+          order_item_id:
+            Number.isFinite(orderItemId) && orderItemId > 0 ? orderItemId : null,
+          item_id:
+            Number.isFinite(productId) && productId > 0 ? productId : null,
+          name: line.title,
+          unit_price: line.unitPrice,
+          qty: line.qty,
+          total_price:
+            Number.isFinite(totalRaw) && totalRaw >= 0
+              ? totalRaw
+              : line.unitPrice * line.qty,
+          image: line.image || null,
+        };
+      });
+  }, [orderInfo?.order_items, selectedItemKeys]);
+
+  const draftOrderLines = useMemo(
+    () => orderItemLines.filter((line) => draftItemKeys.includes(line.key)),
+    [orderItemLines, draftItemKeys]
+  );
+
+  const draftSubtotal = useMemo(
+    () => draftOrderLines.reduce((sum, line) => sum + line.unitPrice * line.qty, 0),
+    [draftOrderLines]
+  );
+
+  useEffect(() => {
+    if (orderItemLines.length === 1) {
+      setSelectedItemKeys([orderItemLines[0].key]);
+    }
+  }, [orderItemLines]);
+
+  const handleOpenItemPicker = useCallback(() => {
+    if (orderItemLines.length === 0) {
+      Alert.alert('No items', 'This order has no items to dispute.');
+      return;
+    }
+    if (orderItemLines.length === 1) {
+      setSelectedItemKeys([orderItemLines[0].key]);
+      return;
+    }
+    setDraftItemKeys([...selectedItemKeys]);
+    setDisputeOpenItems(true);
+  }, [orderItemLines, selectedItemKeys]);
+
+  const toggleDraftItemKey = useCallback((key) => {
+    setDraftItemKeys((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
+  }, []);
+
+  const confirmItemSelection = useCallback(() => {
+    if (draftItemKeys.length === 0) {
+      Alert.alert('Select items', 'Choose at least one item from your order.');
+      return;
+    }
+    setSelectedItemKeys([...draftItemKeys]);
+    setDisputeOpenItems(false);
+  }, [draftItemKeys]);
+
+  const closeItemPicker = useCallback(() => {
+    setDisputeOpenItems(false);
+  }, []);
 
   const [reasonCode, setReasonCode] = useState(null);
   /** @type {{ id: string; uri: string; name: string; type: string }[]} */
@@ -224,6 +430,13 @@ export default function OpenDispute() {
       Alert.alert('Order required', 'Open this screen from an order to link your dispute.');
       return false;
     }
+    if (selectedItemKeys.length === 0) {
+      Alert.alert(
+        'Item required',
+        'Select at least one item from your order before submitting.'
+      );
+      return false;
+    }
     if (!reasonCode) {
       Alert.alert('Reason required', 'Select what is wrong with your order.');
       return false;
@@ -284,8 +497,9 @@ export default function OpenDispute() {
           mime_type: e.type,
           uri: e.uri,
         })),
-        shop_id:  
+        shop_id:
           orderInfo?.shop?.id != null ? String(orderInfo.shop.id) : undefined,
+        selected_items: selectedItemsForMetadata,
       };
 
       /** @type {Record<string, unknown>} */
@@ -357,160 +571,272 @@ export default function OpenDispute() {
     );
   }
 
+
+
   return (
-    <View style={styles.root}>
-      {submitting && <Spinner />}
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={[
-          styles.scroll,
-          { paddingBottom: insets.bottom + 100 },
-        ]}
-      >
-        <View style={styles.heroCard}>
-          <Text style={styles.heroTitle}>Raise a dispute</Text>
-          <Text style={styles.heroSub}>
-            Funds for {orderLabel} are in escrow. Tell us what went wrong, add a
-            photo, and choose how you would like this resolved.
-          </Text>
-          {orderId == null ? (
-            <Text style={styles.heroWarning}>
-              No order linked — open this screen from order details.
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+    >
+      <View style={styles.root}>
+        {submitting && <Spinner />}
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={[
+            styles.scroll,
+            { paddingBottom: insets.bottom + 100 },
+          ]}
+        >
+          <View style={styles.heroCard}>
+            <Text style={styles.heroTitle}>Raise a dispute</Text>
+            <Text style={styles.heroSub}>
+              Funds for {orderLabel} are in escrow. Tell us what went wrong, add a
+              photo, and choose how you would like this resolved.
             </Text>
-          ) : null}
-        </View>
-
-        <Section title="What is the issue with your order?">
-          <Dropdown
-            style={styles.dropdown}
-            containerStyle={styles.dropdownContainer}
-            placeholderStyle={styles.placeholderStyle}
-            selectedTextStyle={styles.selectedTextStyle}
-            itemTextStyle={styles.itemTextStyle}
-            data={DISPUTE_REASONS}
-            labelField="label"
-            valueField="value"
-            placeholder="Select a reason"
-            value={reasonCode}
-            onChange={(item) => setReasonCode(item.value)}
-          />
-        </Section>
-
-        <Section
-          title="Describe the issue"
-          subtitle={`At least ${DESCRIPTION_MIN} characters.`}
-        >
-          <TextInput
-            style={[styles.textInput, styles.textInputMultiline]}
-            placeholder="e.g. I ordered a black iPhone 13 but received a blue iPhone 11."
-            placeholderTextColor="#999"
-            multiline
-            maxLength={DESCRIPTION_MAX}
-            value={description}
-            onChangeText={setDescription}
-          />
-          <Text style={styles.charCount}>
-            {description.trim().length} / {DESCRIPTION_MAX}
-          </Text>
-        </Section>
-
-        <Section
-          title="Add photos"
-          subtitle="Clear photos of the item and packaging help us review faster."
-        >
-          <ScrollView
-            horizontal
-            nestedScrollEnabled
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.evidenceRow}
-          >
-            {evidence.map((item) => (
-              <View key={item.id} style={styles.evidenceTile}>
-                <Image
-                  source={{ uri: item.uri }}
-                  style={styles.evidenceImage}
-                  resizeMode="cover"
-                />
-                <Pressable
-                  onPress={() => removeEvidence(item.id)}
-                  style={styles.evidenceRemove}
-                  hitSlop={8}
-                >
-                  <Text style={styles.evidenceRemoveText}>×</Text>
-                </Pressable>
-              </View>
-            ))}
-            {evidence.length < MAX_EVIDENCE ? (
-              <Pressable
-                onPress={addEvidence}
-                style={({ pressed }) => [
-                  styles.evidenceAdd,
-                  pressed && styles.evidenceAddPressed,
-                ]}
-              >
-                <Text style={styles.evidenceAddPlus}>+</Text>
-                <Text style={styles.evidenceAddLabel}>Add photo</Text>
-              </Pressable>
+            {orderId == null ? (
+              <Text style={styles.heroWarning}>
+                No order linked — open this screen from order details.
+              </Text>
             ) : null}
-          </ScrollView>
-          <Text style={styles.hint}>
-            {evidence.length} / {MAX_EVIDENCE} photos
-          </Text>
-        </Section>
 
-        <Section title="What resolution do you want?">
-          <Dropdown
-            style={styles.dropdown}
-            containerStyle={styles.dropdownContainer}
-            placeholderStyle={styles.placeholderStyle}
-            selectedTextStyle={styles.selectedTextStyle}
-            itemTextStyle={styles.itemTextStyle}
-            data={RESOLUTIONS}
-            labelField="label"
-            valueField="value"
-            placeholder="Select resolution"
-            value={resolution}
-            onChange={(item) => setResolution(item.value)}
-          />
-        </Section>
 
-        <Section title="Confirmation">
-          <ConfirmCheckbox
-            checked={confirmedAccurate}
-            onToggle={setConfirmedAccurate}
-            label="I confirm that the information and evidence provided are accurate. I understand that false disputes may lead to account restrictions."
-          />
-        </Section>
-      </ScrollView>
+          </View>
+          <Section title="Select item from order">
+            <Pressable
+              onPress={handleOpenItemPicker}
+              style={({ pressed }) => [
+                styles.itemPickerRow,
+                pressed && styles.itemPickerRowPressed,
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Select item from order"
+            >
+              <View style={styles.itemPickerBody}>
+                {selectedOrderLines.length > 0 ? (
+                  <OrderLinesList lines={selectedOrderLines} styles={styles} />
+                ) : (
+                  <Text style={styles.itemPickerPlaceholder}>
+                    {orderItemLines.length > 1
+                      ? 'Tap to select item(s) from your order'
+                      : orderItemLines.length === 1
+                        ? 'Item will be selected automatically'
+                        : 'No items on this order'}
+                  </Text>
+                )}
+              </View>
+              {orderItemLines.length > 1 ? (
+                <Icon name="chevron-forward" size={20} color={MUTED} style={styles.itemPickerChevron} />
+              ) : null}
+            </Pressable>
+          </Section>
+          <Section title="What is the issue with your order?">
+            <Dropdown
+              style={styles.dropdown}
+              containerStyle={styles.dropdownContainer}
+              placeholderStyle={styles.placeholderStyle}
+              selectedTextStyle={styles.selectedTextStyle}
+              itemTextStyle={styles.itemTextStyle}
+              data={DISPUTE_REASONS}
+              labelField="label"
+              valueField="value"
+              placeholder="Select a reason"
+              value={reasonCode}
+              onChange={(item) => setReasonCode(item.value)}
+            />
+          </Section>
+          <Section
+            title="Describe the issue"
+            subtitle={`At least ${DESCRIPTION_MIN} characters.`}
+          >
+            <TextInput
+              style={[styles.textInput, styles.textInputMultiline]}
+              placeholder="e.g. I ordered a black iPhone 13 but received a blue iPhone 11."
+              placeholderTextColor="#999"
+              multiline
+              maxLength={DESCRIPTION_MAX}
+              value={description}
+              onChangeText={setDescription}
+            />
+            <Text style={styles.charCount}>
+              {description.trim().length} / {DESCRIPTION_MAX}
+            </Text>
+          </Section>
 
-      <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-        <Pressable
-          onPress={() => navigation.goBack()}
-          disabled={submitting}
-          style={({ pressed }) => [
-            styles.btnSecondary,
-            pressed && styles.btnSecondaryPressed,
-          ]}
-        >
-          <Text style={styles.btnSecondaryText}>Cancel</Text>
-        </Pressable>
-        <Pressable
-          onPress={submit}
-          disabled={submitting}
-          style={({ pressed }) => [
-            styles.btnPrimary,
-            pressed && styles.btnPrimaryPressed,
-            submitting && styles.btnDisabled,
-          ]}
-        >
-          {submitting ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.btnPrimaryText}>Submit dispute</Text>
-          )}
-        </Pressable>
+          
+          <Section
+            title="Add photos"
+            subtitle="Clear photos of the item and packaging help us review faster."
+          >
+            <ScrollView
+              horizontal
+              nestedScrollEnabled
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.evidenceRow}
+            >
+              {evidence.map((item) => (
+                <View key={item.id} style={styles.evidenceTile}>
+                  <Image
+                    source={{ uri: item.uri }}
+                    style={styles.evidenceImage}
+                    resizeMode="cover"
+                  />
+                  <Pressable
+                    onPress={() => removeEvidence(item.id)}
+                    style={styles.evidenceRemove}
+                    hitSlop={8}
+                  >
+                    <Text style={styles.evidenceRemoveText}>×</Text>
+                  </Pressable>
+                </View>
+              ))}
+              {evidence.length < MAX_EVIDENCE ? (
+                <Pressable
+                  onPress={addEvidence}
+                  style={({ pressed }) => [
+                    styles.evidenceAdd,
+                    pressed && styles.evidenceAddPressed,
+                  ]}
+                >
+                  <Text style={styles.evidenceAddPlus}>+</Text>
+                  <Text style={styles.evidenceAddLabel}>Add photo</Text>
+                </Pressable>
+              ) : null}
+            </ScrollView>
+            <Text style={styles.hint}>
+              {evidence.length} / {MAX_EVIDENCE} photos
+            </Text>
+          </Section>
+          <Section title="What resolution do you want?">
+            <Dropdown
+              style={styles.dropdown}
+              containerStyle={styles.dropdownContainer}
+              placeholderStyle={styles.placeholderStyle}
+              selectedTextStyle={styles.selectedTextStyle}
+              itemTextStyle={styles.itemTextStyle}
+              data={RESOLUTIONS}
+              labelField="label"
+              valueField="value"
+              placeholder="Select resolution"
+              value={resolution}
+              onChange={(item) => setResolution(item.value)}
+            />
+          </Section>
+          <Section title="Confirmation">
+            <ConfirmCheckbox
+              checked={confirmedAccurate}
+              onToggle={setConfirmedAccurate}
+              label="I confirm that the information and evidence provided are accurate. I understand that false disputes may lead to account restrictions."
+            />
+          </Section>
+        </ScrollView>
+        <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+          <Pressable
+            onPress={() => navigation.goBack()}
+            disabled={submitting}
+            style={({ pressed }) => [
+              styles.btnSecondary,
+              pressed && styles.btnSecondaryPressed,
+            ]}
+          >
+            <Text style={styles.btnSecondaryText}>Cancel</Text>
+          </Pressable>
+          <Pressable
+            onPress={e => {
+              Alert.alert(
+                'Confirm Dispute',
+                'Are you sure you want to Dispute the selected Orders',
+                [
+                  {
+                    text: 'Confirm',
+                    onPress: submit,
+                    style: "destructive"
+                  },
+                  {
+                    text: 'Cancel',
+                    style: 'cancel',
+                  },
+                ]
+              );
+            }}
+            disabled={submitting}
+            style={({ pressed }) => [
+              styles.btnPrimary,
+              pressed && styles.btnPrimaryPressed,
+              submitting && styles.btnDisabled,
+            ]}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.btnPrimaryText}>Submit dispute</Text>
+            )}
+          </Pressable>
+        </View>
       </View>
-    </View>
+      <Modal
+        visible={disputeOpenItems}
+        animationType="slide"
+        transparent
+        onRequestClose={closeItemPicker}
+      >
+        <View style={styles.orderModalRoot}>
+          <Pressable
+            style={styles.orderModalBackdrop}
+            onPress={closeItemPicker}
+            accessibilityRole="button"
+            accessibilityLabel="Close"
+          />
+          <View style={[styles.orderModalSheet, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+            <View style={styles.orderModalGrabberWrap}>
+              <View style={styles.orderModalGrabber} />
+            </View>
+            <Text style={styles.orderModalTitle}>Select items</Text>
+            <Text style={styles.orderModalSubtitle}>
+              Choose the item(s) you want to dispute
+            </Text>
+            <ScrollView
+              style={styles.orderModalScroll}
+              contentContainerStyle={styles.orderModalScrollContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.orderModalCard}>
+                <OrderLinesList
+                  lines={orderItemLines}
+                  styles={styles}
+                  selectable
+                  selectedKeys={draftItemKeys}
+                  onToggle={toggleDraftItemKey}
+                />
+              </View>
+              {draftOrderLines.length > 0 ? (
+                <View style={styles.orderModalTotals}>
+                  <View style={[styles.orderModalTotalRow, styles.orderModalTotalRowGrand]}>
+                    <Text style={styles.orderModalGrandLabel}>
+                      {draftOrderLines.length} item{draftOrderLines.length === 1 ? '' : 's'} selected
+                    </Text>
+                    <Text style={styles.orderModalGrandValue}>{formatNaira(draftSubtotal)}</Text>
+                  </View>
+                </View>
+              ) : null}
+            </ScrollView>
+            <Pressable
+              onPress={confirmItemSelection}
+              style={({ pressed }) => [
+                styles.orderModalContinueBtn,
+                pressed && styles.btnPrimaryPressed,
+                draftItemKeys.length === 0 && styles.payBtnDisabled,
+              ]}
+            >
+              <Text style={styles.orderModalContinueBtnText}>Done</Text>
+            </Pressable>
+            <Pressable onPress={closeItemPicker} style={styles.orderModalCloseLink}>
+              <Text style={styles.orderModalCloseLinkText}>Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -537,6 +863,7 @@ function Spinner() {
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   root: {
     flex: 1,
     backgroundColor: '#F4F5F7',
@@ -749,6 +1076,76 @@ const styles = StyleSheet.create({
     color: '#111',
     lineHeight: 21,
   },
+  itemPickerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  itemPickerBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+  itemPickerRowPressed: {
+    opacity: 0.85,
+  },
+  itemPickerPlaceholder: {
+    flex: 1,
+    fontSize: 14,
+    color: MUTED,
+    lineHeight: 20,
+  },
+  itemPickerChevron: {
+    marginLeft: 8,
+  },
+  itemSelectRowPressed: {
+    opacity: 0.85,
+  },
+  itemSelectCheck: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: '#FAFAFA',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  itemSelectCheckOn: {
+    backgroundColor: PRIMARY,
+    borderColor: PRIMARY,
+  },
+  itemSelectCheckMark: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  orderLine: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: BORDER,
+  },
+  orderLineLast: {
+    borderBottomWidth: 0,
+  },
+  orderThumb: {
+    width: 56,
+    height: 56,
+    borderRadius: 10,
+    backgroundColor: '#F5F5F5',
+  },
+  orderThumbPh: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: BORDER,
+  },
+  orderLineBody: { flex: 1, marginLeft: 12, marginRight: 8, minWidth: 0 },
+  orderTitle: { fontSize: 15, fontWeight: '600', color: '#111' },
+  orderMeta: { fontSize: 13, color: MUTED, marginTop: 4 },
+  orderLineTotal: { fontSize: 15, fontWeight: '700', color: '#111' },
   actionBar: {
     position: 'absolute',
     left: 0,
@@ -798,5 +1195,113 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: '#111',
+  },
+  orderModalRoot: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  orderModalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  orderModalSheet: {
+    backgroundColor: CARD_BG,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    maxHeight: '88%',
+  },
+  orderModalGrabberWrap: { alignItems: 'center', marginBottom: 8 },
+  orderModalGrabber: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#E0E0E0',
+  },
+  orderModalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#111',
+    marginBottom: 4,
+  },
+  orderModalSubtitle: {
+    fontSize: 14,
+    color: MUTED,
+    marginBottom: 12,
+  },
+  orderModalScroll: {
+    maxHeight: 360,
+  },
+  orderModalScrollContent: {
+    paddingBottom: 8,
+  },
+  orderModalCard: {
+    backgroundColor: '#FAFAFA',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+  },
+  orderModalTotals: {
+    marginBottom: 8,
+  },
+  orderModalTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  orderModalTotalRowGrand: {
+    marginTop: 4,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: BORDER,
+  },
+  orderModalTotalLabel: {
+    fontSize: 15,
+    color: '#444',
+  },
+  orderModalTotalValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#111',
+  },
+  orderModalGrandLabel: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#111',
+  },
+  orderModalGrandValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#111',
+  },
+  orderModalContinueBtn: {
+    backgroundColor: PRIMARY,
+    borderRadius: 10,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  payBtnDisabled: {
+    opacity: 0.6,
+  },
+  orderModalContinueBtnText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '800',
+    letterSpacing: 0.3,
+  },
+  orderModalCloseLink: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  orderModalCloseLinkText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: MUTED,
   },
 });
