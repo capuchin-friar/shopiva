@@ -49,6 +49,48 @@ const pages = {
       { accessor: "createdAt", header: "Created" },
     ],
   },
+  "Shop KYC": {
+    title: "Shop KYC",
+    description: "Review shop verification details and uploaded KYC documents.",
+    endpoint: "shop-kyc",
+    filters: [
+      {
+        name: "isVerified",
+        label: "Verified",
+        type: "select",
+        options: ["All", "true", "false"],
+      },
+      {
+        name: "query",
+        label: "Search",
+        type: "text",
+        placeholder: "Search by shop name or owner email/phone",
+      },
+    ],
+    columns: [
+      { accessor: "id", header: "Shop ID" },
+      { accessor: "name", header: "Shop" },
+      { accessor: "ownerName", header: "Owner Name" },
+      { accessor: "ownerEmail", header: "Owner Email" },
+      { accessor: "ownerPhone", header: "Owner Phone" },
+      { accessor: "isVerified", header: "Verified" },
+      { accessor: "businessLicenseVerified", header: "Business License Verified" },
+      { accessor: "businessLicenseUrl", header: "Business License File", render: (row) => (row.businessLicenseUrl ? <a href={row.businessLicenseUrl} target="_blank" rel="noreferrer">View</a> : 'None') },
+      { accessor: "taxIdVerified", header: "Tax ID Verified" },
+      { accessor: "taxIdUrl", header: "Tax ID File", render: (row) => (row.taxIdUrl ? <a href={row.taxIdUrl} target="_blank" rel="noreferrer">View</a> : 'None') },
+      { accessor: "identityProofVerified", header: "ID Proof Verified" },
+      { accessor: "identityProofUrl", header: "ID Proof File", render: (row) => (row.identityProofUrl ? <a href={row.identityProofUrl} target="_blank" rel="noreferrer">View</a> : 'None') },
+      { accessor: "createdAt", header: "Created" },
+    ],
+    rowActions: (row) => [
+      {
+        label: "Review KYC",
+        handler: () => {
+          window.location.href = `/shop-kyc/${row.id}`;
+        },
+      },
+    ],
+  },
   Orders: {
     title: "Orders",
     description: "Monitor recent orders, payment status, and fulfillment flow.",
@@ -177,6 +219,7 @@ export default function Dashboard() {
     Orders: <ResourcePage {...pages.Orders} />,
     Returns: <ResourcePage {...pages.Returns} />,
     Disputes: <ResourcePage {...pages.Disputes} />,
+    "Shop KYC": <ResourcePage {...pages['Shop KYC']} />,
     Cart: <ResourcePage {...pages.Cart} />,
     Transactions: <ResourcePage {...pages.Transactions} />,
   };
