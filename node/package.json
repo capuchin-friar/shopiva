@@ -62,6 +62,7 @@
     "passport-google-oauth20": "^2.0.0",
     "pg": "^8.16.3",
     "sentry": "^0.1.2",
+    "short-id": "^0.1.0-1",
     "socket-io": "^1.0.0",
     "socket.io": "^4.8.3",
     "swagger-jsdoc": "^6.2.8",
