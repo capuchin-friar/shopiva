@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -17,7 +18,13 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fetchOwnerShops } from '../../api/shop';
+import {
+  errorCodes,
+  isErrorWithCode,
+  pick as pickDocument,
+  types as documentPickerTypes,
+} from '@react-native-documents/picker';
+import { fetchOwnerShops, uploadProductImage } from '../../api/shop';
 import { createInventory, createProduct } from '../../api/product';
 import { useProfile } from '../../context/ProfileContext';
 import colorJson from '../../json/color.json';
@@ -60,6 +67,9 @@ export default function VendorCreateProductScreen() {
   const insets = useSafeAreaInsets();
   const { user } = useProfile();
   const [resolvedShopId, setResolvedShopId] = useState(/** @type {number | null} */ (null));
+  const [productId] = useState(
+    () => `prod_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
+  );
   const [saveSubmitting, setSaveSubmitting] = useState(false);
   const defaultCategory = useMemo(
     () => mvpCategoryRootKeys(/** @type {Record<string, unknown>} */ (mvpCategoryData))[0] || 'fashion',
@@ -111,6 +121,12 @@ export default function VendorCreateProductScreen() {
   const [brandName, setBrandName] = useState('');
   const [allowPickup, setAllowPickup] = useState(false);
   const [allowDelivery, setAllowDelivery] = useState(false);
+  const [uploadedMedia, setUploadedMedia] = useState(
+    /** @type {{ id: string; url: string; type: string }[]} */ ([]),
+  );
+  const [thumbnailUrl, setThumbnailUrl] = useState('');
+  const [mediaUploading, setMediaUploading] = useState(false);
+  const [mediaUploadError, setMediaUploadError] = useState('');
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [showFinishSheet, setShowFinishSheet] = useState(false);
 
@@ -154,6 +170,15 @@ export default function VendorCreateProductScreen() {
       cancelled = true;
     };
   }, [user?.id]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (mediaUploading) {
+        e.preventDefault();
+      }
+    });
+    return unsubscribe;
+  }, [navigation, mediaUploading]);
 
   const variantCtx = useMemo(() => {
     const cat = categoryKey;
@@ -228,8 +253,63 @@ export default function VendorCreateProductScreen() {
     category.trim().length > 0 &&
     isPriceValid &&
     isQuantityValid &&
-    hasFashionGender;
+    hasFashionGender &&
+    uploadedMedia.length > 0;
   const hasCategoryFields = subCategory.trim().length > 0 && productType.trim().length > 0;
+
+  const handleRemoveMedia = useCallback((mediaId) => {
+    setUploadedMedia((prev) => prev.filter((item) => item.id !== mediaId));
+    setMediaUploadError('');
+  }, []);
+
+  const handlePickMedia = useCallback(async () => {
+    if (!resolvedShopId) {
+      Alert.alert('No shop', 'Create a shop in settings before adding products.');
+      return;
+    }
+
+    try {
+      setMediaUploadError('');
+      setMediaUploading(true);
+      const fileResult = await pickDocument({
+        type: [documentPickerTypes.images, documentPickerTypes.video],
+        copyTo: 'cachesDirectory',
+      });
+      const file = Array.isArray(fileResult) ? fileResult[0] : fileResult;
+
+      const formFile = {
+        uri: file.uri,
+        type: file.type ?? 'application/octet-stream',
+        name:
+          file.name ||
+          `upload.${String(file.uri).split('.').pop() || 'jpg'}`,
+      };
+
+      const uploadResponse = await uploadProductImage(resolvedShopId, formFile, productId);
+      const image = uploadResponse?.image;
+      const url = image?.url || image?.secure_url;
+      if (!url) {
+        throw new Error('Upload response missing image URL.');
+      }
+
+      setUploadedMedia((prev) => [
+        ...prev,
+        {
+          id: `${Date.now()}-${prev.length}`,
+          url,
+          type: String(image?.format || formFile.type),
+        },
+      ]);
+      setThumbnailUrl((prev) => prev || url);
+    } catch (err) {
+      if (isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED) {
+        return;
+      }
+      setMediaUploadError(err instanceof Error ? err.message : 'Upload failed.');
+    } finally {
+      setMediaUploading(false);
+    }
+  }, [resolvedShopId]);
 
   const onSave = useCallback(() => {
     if (!hasCoreFields || !hasCategoryFields) {
@@ -485,6 +565,17 @@ export default function VendorCreateProductScreen() {
         loadedSpecifications: {},
       });
 
+      productPayload.specifications = {
+        ...(productPayload.specifications ?? {}),
+        generated_product_id: productId,
+      };
+
+      if (Array.isArray(uploadedMedia) && uploadedMedia.length > 0) {
+        productPayload.images = uploadedMedia.map((item) => item.url);
+      }
+      productPayload.thumbnail_url = thumbnailUrl || (uploadedMedia[0] ? uploadedMedia[0].url : null);
+      productPayload.image_folder_id = productId;
+
       const data = await createProduct(resolvedShopId, uid, productPayload);
       const rawProduct = data?.product;
       const product =
@@ -553,6 +644,7 @@ export default function VendorCreateProductScreen() {
       <ScrollView
         style={styles.scrollFlex}
         contentContainerStyle={[styles.scroll, { paddingBottom: 16 }]}
+        pointerEvents={mediaUploading ? 'none' : 'auto'}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -586,15 +678,47 @@ export default function VendorCreateProductScreen() {
           <Text style={[styles.label, styles.spaceTop]}>Media</Text>
           <View style={styles.mediaBox}>
             <View style={styles.mediaBtnsRow}>
-              <TouchableOpacity style={styles.mediaBtnActive} activeOpacity={0.88}>
-                <Text style={styles.mediaBtnActiveText}>Upload new</Text>
+              <TouchableOpacity
+                style={[styles.mediaBtnActive, mediaUploading && styles.mediaBtnDisabled]}
+                activeOpacity={0.88}
+                onPress={mediaUploading ? undefined : handlePickMedia}
+                disabled={mediaUploading}
+              >
+                <Text style={styles.mediaBtnActiveText}>
+                  {mediaUploading ? 'Uploading…' : 'Upload new'}
+                </Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.mediaBtnGhost} activeOpacity={0.88}>
+              <TouchableOpacity
+                style={[styles.mediaBtnGhost, mediaUploading && styles.mediaBtnDisabled]}
+                activeOpacity={0.88}
+                onPress={mediaUploading ? undefined : handlePickMedia}
+                disabled={mediaUploading}
+              >
                 <Text style={styles.mediaBtnGhostText}>Select existing</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.mediaHint}>Accepts video, and Images</Text>
+            <Text style={styles.mediaHint}>Accepts video and images</Text>
+            {mediaUploadError ? <Text style={styles.errorText}>{mediaUploadError}</Text> : null}
           </View>
+          {uploadedMedia.length > 0 ? (
+            <View style={styles.uploadedMediaGrid}>
+              {uploadedMedia.map((item) => (
+                <View style={styles.uploadedMediaCard} key={item.id}>
+                  <Image source={{ uri: item.url }} style={styles.uploadedMediaImage} resizeMode="cover" />
+                  <TouchableOpacity
+                    style={styles.uploadedMediaRemove}
+                    onPress={mediaUploading ? undefined : () => handleRemoveMedia(item.id)}
+                    disabled={mediaUploading}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Remove media"
+                  >
+                    <Icon name="close-circle" size={22} color="#FFFFFF" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.card}>
@@ -798,11 +922,21 @@ export default function VendorCreateProductScreen() {
       </ScrollView>
 
       <View style={[styles.saveBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-        <TouchableOpacity style={styles.primaryBtnBar} onPress={onSave} activeOpacity={0.88}>
+        <TouchableOpacity
+          style={[styles.primaryBtnBar, (mediaUploading || saveSubmitting) && styles.primaryBtnDisabled]}
+          onPress={mediaUploading ? undefined : onSave}
+          activeOpacity={0.88}
+          disabled={mediaUploading || saveSubmitting}
+        >
           <Text style={styles.primaryBtnText}>Save</Text>
         </TouchableOpacity>
       </View>
-
+      {mediaUploading ? (
+        <View style={styles.uploadOverlay}>
+          <ActivityIndicator size="large" color="#FFFFFF" />
+          <Text style={styles.uploadOverlayText}>Uploading images…</Text>
+        </View>
+      ) : null}
       <Modal transparent visible={showValidationModal} animationType="fade">
         <View style={styles.modalRoot}>
           <View style={styles.validationModalCard}>
@@ -1173,6 +1307,9 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
   },
+  mediaBtnDisabled: {
+    opacity: 0.45,
+  },
   mediaBtnGhost: {
     borderRadius: 10,
     paddingVertical: 8,
@@ -1193,6 +1330,32 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: 13,
     color: '#6B7280',
+  },
+  uploadedMediaGrid: {
+    marginTop: 12,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  uploadedMediaCard: {
+    width: 100,
+    height: 100,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: '#F3F4F6',
+    marginTop: 12,
+  },
+  uploadedMediaImage: {
+    width: '100%',
+    height: '100%',
+  },
+  uploadedMediaRemove: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 16,
+    padding: 2,
   },
   selectField: {
     minHeight: 46,
@@ -1310,6 +1473,19 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: '#B91C1C',
+  },
+  uploadOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  uploadOverlayText: {
+    marginTop: 16,
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
   },
   savedVariantGrid: {
     gap: 8,

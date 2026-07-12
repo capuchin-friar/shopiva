@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -14,11 +15,13 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import DocumentPicker from 'react-native-document-picker';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchOwnerShops } from '../../api/shop';
 import { createInventory, createProduct } from '../../api/product';
+import { uploadProductImage } from '../../api/upload';
 import { useProfile } from '../../context/ProfileContext';
 import colorJson from '../../json/color.json';
 import mvpCategoryData from '../../json/mvp_category.json';
@@ -111,6 +114,24 @@ export default function VendorCreateProductScreen() {
   const [brandName, setBrandName] = useState('');
   const [allowPickup, setAllowPickup] = useState(false);
   const [allowDelivery, setAllowDelivery] = useState(false);
+  const [selectedImages, setSelectedImages] = useState(
+    /** @type {Array<{
+      id: string;
+      uri: string;
+      name: string;
+      type: string;
+      uploading: boolean;
+      uploaded: boolean;
+      url?: string | null;
+      publicId?: string;
+      width?: number;
+      height?: number;
+      format?: string;
+      bytes?: number;
+      error?: string | null;
+    }>} */ ([]),
+  );
+  const [imagePickerBusy, setImagePickerBusy] = useState(false);
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [showFinishSheet, setShowFinishSheet] = useState(false);
 
@@ -431,6 +452,108 @@ export default function VendorCreateProductScreen() {
     variantCtx.materialStrings,
   ]);
 
+  const uploadSelectedImages = useCallback(
+    async (files) => {
+      if (!resolvedShopId) {
+        Alert.alert('No shop selected', 'Unable to upload images without a shop selected.');
+        return;
+      }
+
+      const queuedImages = files.map((file) => {
+        const uri = file.fileCopyUri || file.uri || '';
+        return {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          uri,
+          name: file.name || `image-${Date.now()}.jpg`,
+          type: file.type || 'image/jpeg',
+          uploading: true,
+          uploaded: false,
+          url: null,
+          publicId: null,
+          width: null,
+          height: null,
+          format: null,
+          bytes: null,
+          error: null,
+        };
+      });
+
+      setSelectedImages((prev) => [...prev, ...queuedImages]);
+
+      for (const image of queuedImages) {
+        try {
+          const result = await uploadProductImage(resolvedShopId, {
+            uri: image.uri,
+            name: image.name,
+            type: image.type,
+          });
+          setSelectedImages((prev) =>
+            prev.map((item) =>
+              item.id === image.id
+                ? {
+                    ...item,
+                    uploading: false,
+                    uploaded: true,
+                    url: result?.image?.url ?? null,
+                    publicId: result?.image?.public_id ?? null,
+                    width: result?.image?.width ?? null,
+                    height: result?.image?.height ?? null,
+                    format: result?.image?.format ?? null,
+                    bytes: result?.image?.bytes ?? null,
+                  }
+                : item,
+            ),
+          );
+        } catch (e) {
+          const message = e instanceof Error ? e.message : 'Image upload failed.';
+          setSelectedImages((prev) =>
+            prev.map((item) =>
+              item.id === image.id
+                ? {
+                    ...item,
+                    uploading: false,
+                    uploaded: false,
+                    error: String(message),
+                  }
+                : item,
+            ),
+          );
+          Alert.alert('Upload failed', message);
+        }
+      }
+    },
+    [resolvedShopId],
+  );
+
+  const pickImages = useCallback(async () => {
+    if (imagePickerBusy) return;
+    if (!resolvedShopId) {
+      Alert.alert('No shop selected', 'Create or select a shop before uploading images.');
+      return;
+    }
+
+    setImagePickerBusy(true);
+    try {
+      const result = await DocumentPicker.pickMultiple({
+        type: [DocumentPicker.types.images],
+        copyTo: 'cachesDirectory',
+      });
+      const images = Array.isArray(result) ? result : [result];
+      if (images.length > 0) {
+        await uploadSelectedImages(images);
+      }
+    } catch (e) {
+      if (DocumentPicker.isCancel(e)) return;
+      Alert.alert('Image picker failed', e instanceof Error ? e.message : String(e));
+    } finally {
+      setImagePickerBusy(false);
+    }
+  }, [imagePickerBusy, resolvedShopId, uploadSelectedImages]);
+
+  const handleDeleteImage = useCallback((imageId) => {
+    setSelectedImages((prev) => prev.filter((item) => item.id !== imageId));
+  }, []);
+
   const onContinueFinalSave = useCallback(async () => {
     const uid = user?.id;
     if (!uid) {
@@ -454,9 +577,7 @@ export default function VendorCreateProductScreen() {
     if (!qtyCheck || qtyCheck <= 0) {
       Alert.alert(
         'Complete the form',
-        hasVariantsList
-          ? 'Total variant stock must be greater than 0.'
-          : 'Enter a valid quantity.',
+        hasVariantsList ? 'Total variant stock must be greater than 0.' : 'Enter a valid quantity.',
       );
       return;
     }
@@ -464,9 +585,18 @@ export default function VendorCreateProductScreen() {
       Alert.alert('Complete the form', 'Enter a valid price.');
       return;
     }
+    const uploadingImages = selectedImages.some((img) => img.uploading);
+    if (uploadingImages) {
+      Alert.alert('Please wait', 'Image uploads are still in progress.');
+      return;
+    }
 
     setSaveSubmitting(true);
     try {
+      const imageUrls = selectedImages
+        .filter((img) => img.uploaded && img.url)
+        .map((img) => String(img.url));
+
       const { productPayload, inventoryPayload } = buildProductCreatePayloads({
         title,
         description,
@@ -485,15 +615,12 @@ export default function VendorCreateProductScreen() {
         loadedSpecifications: {},
       });
 
-      const data = await createProduct(resolvedShopId, uid, productPayload);
+      const finalProductPayload = imageUrls.length > 0 ? { ...productPayload, images: imageUrls } : productPayload;
+      const data = await createProduct(resolvedShopId, uid, finalProductPayload);
       const rawProduct = data?.product;
-      const product =
-        rawProduct && typeof rawProduct === 'object'
-          ? /** @type {Record<string, unknown>} */ (rawProduct)
-          : {};
+      const product = rawProduct && typeof rawProduct === 'object' ? rawProduct : {};
       const productIdRaw = product.id ?? product.product_id;
-      const productId =
-        typeof productIdRaw === 'number' ? productIdRaw : parseInt(String(productIdRaw ?? ''), 10);
+      const productId = typeof productIdRaw === 'number' ? productIdRaw : parseInt(String(productIdRaw ?? ''), 10);
       if (productId == null || Number.isNaN(Number(productId)) || Number(productId) <= 0) {
         throw new Error('Invalid response from server (missing product id).');
       }
@@ -527,6 +654,7 @@ export default function VendorCreateProductScreen() {
     price,
     quantity,
     continueSelling,
+    selectedImages,
     navigation,
   ]);
 
@@ -586,15 +714,47 @@ export default function VendorCreateProductScreen() {
           <Text style={[styles.label, styles.spaceTop]}>Media</Text>
           <View style={styles.mediaBox}>
             <View style={styles.mediaBtnsRow}>
-              <TouchableOpacity style={styles.mediaBtnActive} activeOpacity={0.88}>
-                <Text style={styles.mediaBtnActiveText}>Upload new</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.mediaBtnGhost} activeOpacity={0.88}>
-                <Text style={styles.mediaBtnGhostText}>Select existing</Text>
+              <TouchableOpacity
+                style={[styles.mediaBtnActive, imagePickerBusy && styles.mediaBtnDisabled]}
+                activeOpacity={0.88}
+                onPress={pickImages}
+                disabled={imagePickerBusy}
+              >
+                {imagePickerBusy ? (
+                  <ActivityIndicator color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.mediaBtnActiveText}>Upload images</Text>
+                )}
               </TouchableOpacity>
             </View>
-            <Text style={styles.mediaHint}>Accepts video, and Images</Text>
+            <Text style={styles.mediaHint}>Upload image files for this product.</Text>
           </View>
+          {selectedImages.length > 0 ? (
+            <View style={styles.imageGrid}>
+              {selectedImages.map((image) => (
+                <View style={styles.imageCard} key={image.id}>
+                  <Image source={{ uri: image.uri }} style={styles.imageThumb} />
+                  <View style={styles.imageCardFooter}>
+                    {image.uploading ? (
+                      <Text style={styles.imageStatusText}>Uploading…</Text>
+                    ) : image.error ? (
+                      <Text style={styles.imageErrorText}>Failed</Text>
+                    ) : (
+                      <Text style={styles.imageStatusText}>Uploaded</Text>
+                    )}
+                    <TouchableOpacity
+                      onPress={() => handleDeleteImage(image.id)}
+                      hitSlop={8}
+                      activeOpacity={0.8}
+                      style={styles.removeImageBtn}
+                    >
+                      <Text style={styles.removeImageText}>Remove</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.card}>
@@ -1189,10 +1349,56 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
+  mediaBtnDisabled: {
+    opacity: 0.75,
+  },
   mediaHint: {
     marginTop: 8,
     fontSize: 13,
     color: '#6B7280',
+  },
+  imageGrid: {
+    marginTop: 14,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  imageCard: {
+    width: 100,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+  },
+  imageThumb: {
+    width: '100%',
+    height: 100,
+  },
+  imageCardFooter: {
+    padding: 8,
+    alignItems: 'center',
+  },
+  imageStatusText: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 6,
+  },
+  imageErrorText: {
+    fontSize: 12,
+    color: '#B91C1C',
+    marginBottom: 6,
+  },
+  removeImageBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+  },
+  removeImageText: {
+    fontSize: 12,
+    color: '#111111',
+    fontWeight: '600',
   },
   selectField: {
     minHeight: 46,

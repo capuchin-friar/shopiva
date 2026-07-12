@@ -1,5 +1,5 @@
 import { v2 } from "cloudinary";
-import shortId from "short-id";
+import { randomUUID } from "crypto";
 
 
 export default class Cloudinary {
@@ -17,10 +17,10 @@ export default class Cloudinary {
                 const folder = await v2.api.delete_folder(product_id);
                 return true;
             } catch (error: any) {
-                throw new Error("Error deleting Cloudinary folder:", error);
+                throw new Error(`Error deleting Cloudinary folder: ${String(error?.message ?? error)}`);
             }
         } catch (error: any) {
-            throw new Error("Error: ", error);
+            throw new Error(`Error: ${String(error?.message ?? error)}`);
         }
     };
 
@@ -70,7 +70,7 @@ export default class Cloudinary {
             const uploadOptions = {
                 resource_type: 'auto',
                 folder: productId ? productId.trim() : undefined,
-                public_id: `${shortId.generate()}-${productId}`,
+                public_id: `${randomUUID()}-${productId}`,
                 use_filename: false,
                 unique_filename: false,
                 overwrite: false,

@@ -137,6 +137,17 @@ export async function uploadShopVerificationDocument(shopId, file) {
   return readJson(res);
 }
 
+export async function uploadProductImage(shopId, file, productId) {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('productId', String(productId ?? '').trim());
+  const res = await apiFetchAuthMultipart(`/shop/${encodeURIComponent(String(shopId))}/product/upload`, {
+    method: 'POST',
+    body: form,
+  });
+  return readJson(res);
+}
+
 
 /**
  * Vendor data via shopId.

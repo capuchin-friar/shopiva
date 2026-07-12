@@ -44,6 +44,10 @@ import {
     GetOrderDetailByIdController,
 } from "../../controllers/business/product.js";
 import {
+    UploadProductImageController,
+    productImageUploadMiddleware,
+} from "../../controllers/business/productImageUpload.js";
+import {
     GetReturnsByShopController,
     GetReturnDetailByIdController,
 } from "../../controllers/business/return.js";
@@ -77,6 +81,12 @@ BusinessRouter.post(
   verifyToken,
   verificationUploadMiddleware,
   UploadShopVerificationDocumentController,
+);
+BusinessRouter.post(
+  "/shop/:shopId/product/upload",
+  verifyToken,
+  productImageUploadMiddleware,
+  UploadProductImageController,
 );
 BusinessRouter.post("/shop/delete/:shopId/:id", authenticate, DeleteShopController);
 

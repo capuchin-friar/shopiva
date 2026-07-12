@@ -29,6 +29,8 @@ export type ProductRow = {
   category: string | null;
   subcategory: string | null;
   brand: string | null;
+  thumbnail_url: string | null;
+  image_folder_id: string | null;
   images: string[];
   videos: string[];
   tags: string[];
@@ -108,6 +110,8 @@ export type CreateProductPayload = {
   category?: string | null;
   subcategory?: string | null;
   brand?: string | null;
+  thumbnail_url?: string | null;
+  image_folder_id?: string | null;
   images?: string[];
   videos?: string[];
   tags?: string[];
@@ -153,6 +157,8 @@ export class product {
       category = null,
       subcategory = null,
       brand = null,
+      thumbnail_url = null,
+      image_folder_id = null,
       images = [],
       videos = [],
       tags = [],
@@ -170,10 +176,10 @@ export class product {
     ).query<ProductRow>(
       `INSERT INTO products (
         shop_id, name, slug, description, short_description,
-        category, subcategory, brand, images, videos, tags,
-        weight, dimensions, specifications, status,
+        category, subcategory, brand, thumbnail_url, image_folder_id,
+        tags, images, videos, weight, dimensions, specifications, status,
         is_published, published_at, is_featured
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       RETURNING *`,
       [
         shop_id,
@@ -184,9 +190,11 @@ export class product {
         category,
         subcategory,
         brand,
+        thumbnail_url,
+        image_folder_id,
+        tags,
         images,
         videos,
-        tags,
         weight,
         dimensions ? JSON.stringify(dimensions) : null,
         JSON.stringify(specifications),

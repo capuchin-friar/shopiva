@@ -10,7 +10,7 @@ export const API_DEFAULT_PORT = '3456';
  * for local development.
  */
 // export const DEFAULT_API_BASE_URL = 'http://172.20.10.4:3456';
-export const DEFAULT_API_BASE_URL = 'http://10.86.158.129:3456';
+export const DEFAULT_API_BASE_URL = 'http://10.36.166.104:3456';
 
 // export const DEFAULT_API_BASE_URL = 'https://shopiva-b29g.onrender.com';
 
