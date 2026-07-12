@@ -14,8 +14,8 @@ CREATE TABLE products (
 
     brand VARCHAR(100),
 
-    images TEXT[] DEFAULT '{}',
-    videos TEXT[] DEFAULT '{}',
+    thumbanil_url  VARCHAR(100),
+    image_folder_id VARCHAR(100),
 
     tags TEXT[] DEFAULT '{}',
 
