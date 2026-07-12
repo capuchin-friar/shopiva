@@ -157,8 +157,6 @@ export default function OrderListScreen() {
   const listHeader = useMemo(
     () => (
       <View style={styles.headerBlock}>
-        {/* <Text style={styles.pageTitle}>Orders</Text> */}
-        {/* <Text style={styles.pageSubtitle}>Manage all your orders</Text> */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
