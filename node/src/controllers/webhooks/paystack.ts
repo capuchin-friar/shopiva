@@ -134,7 +134,7 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
       } = order;
 
       const newOrder: NewOrder = {
-        order_id: `${reference}`,
+        order_id: `${index}-${reference}`,
         customer_id: customer_id || paystackData.customer.email,
         shop_id: shop_id,
         amount_paid: subtotal,
