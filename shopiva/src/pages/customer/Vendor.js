@@ -19,6 +19,7 @@ import mvpCategoryData from '../../json/mvp_category.json';
 import { buildMvpCategoryFilters, formatMvpCategoryLabel } from '../../utils/mvpCategory';
 import { getStorefrontProducts, getStorefrontShop } from '../../api/storefront';
 import { formatNaira } from '../../utils/formatNaira';
+import { getProductImageUri } from '../../utils/productImageUtils';
 
 const { width: WINDOW_W, height: WINDOW_H } = Dimensions.get('window');
 const BROWN = '#3D2E22';
@@ -73,7 +74,7 @@ function applyProductFilters(products, f) {
 function mapStorefrontProductToTile(p, index) {
   const id = String(p.id ?? index);
   const title = String(p.name ?? p.title ?? 'Product').trim() || 'Product';
-  const uri = String(p.thumbnail ?? '').trim();
+  const uri = getProductImageUri(p) || '';
   const hasVariants = Boolean(p.hasVariants);
   const minPrice = Number(p.minPrice) || 0;
   const maxPrice = Number(p.maxPrice) || minPrice;

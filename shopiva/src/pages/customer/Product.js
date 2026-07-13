@@ -42,6 +42,7 @@ import {
   patchBuyerCartLine,
 } from '../../api/buyer';
 import { formatNaira } from '../../utils/formatNaira';
+import { getProductImageUri } from '../../utils/productImageUtils';
 
 const { width: WINDOW_W } = Dimensions.get('window');
 const PURPLE = '#00926e';
@@ -259,14 +260,10 @@ export default function ProductScreen({ route, navigation }) {
 
   const mergedProduct = useMemo(() => {
     const p = routeProduct || {};
-    const imgs =
-      d && Array.isArray(d.images)
-        ? d.images.filter(x => typeof x === 'string' && x.trim())
-        : [];
     const name = String(d?.name ?? p.title ?? 'Product').trim() || 'Product';
     const uri =
-      (typeof p.uri === 'string' && p.uri.trim() ? p.uri : null) ||
-      (typeof imgs[0] === 'string' ? imgs[0] : '') ||
+      getProductImageUri(p) ||
+      getProductImageUri(d) ||
       '';
     let priceUsd = 0;
     if (!hasVariants && d) {

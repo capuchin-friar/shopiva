@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Modal,
   Platform,
   Pressable,
@@ -18,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchOwnerShops } from '../../api/shop';
 import { getProducts } from '../../api/product';
 import { useProfile } from '../../context/ProfileContext';
+import { getProductImageUri } from '../../utils/productImageUtils';
 
 const BRAND = '#00926e';
 const BG = '#F0F1F4';
@@ -74,6 +76,7 @@ function mapApiProductToRow(p, shopDisplayName) {
   return {
     id: String(idRaw ?? ''),
     title: String(p.name ?? p.title ?? 'Untitled').trim() || 'Untitled',
+    uri: getProductImageUri(p) || '',
     shop: shopDisplayName,
     variantCount: variantCountFromSpecs(specs),
     status: String(p.status ?? 'draft').toLowerCase(),
@@ -337,8 +340,12 @@ export default function VendorProductListScreen() {
                         onPress={openCard}
                         android_ripple={{ color: '#F3F4F6' }}
                       >
-                        <View style={styles.thumb}>
-                          <Icon name="image-outline" size={22} color="#9CA3AF" />
+                                <View style={styles.thumb}>
+                          {row.uri ? (
+                            <Image source={{ uri: row.uri }} style={styles.thumbImage} resizeMode="cover" />
+                          ) : (
+                            <Icon name="image-outline" size={22} color="#9CA3AF" />
+                          )}
                         </View>
                         <View style={styles.cardTitleBlock}>
                           <Text style={styles.cardTitle} numberOfLines={2}>
@@ -572,6 +579,12 @@ const styles = StyleSheet.create({
     marginRight: 14,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    overflow: 'hidden',
+  },
+  thumbImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 10,
   },
   cardTitleBlock: {
     flex: 1,

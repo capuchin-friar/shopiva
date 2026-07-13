@@ -19,6 +19,7 @@ import ShopPolicyViewerModal from '../../components/ShopPolicyViewerModal';
 import { ShopOverflowMenu } from '../../components/ShopOverflowMenu';
 import { getVendorsOnMapByCategory, getStorefrontProducts, getStorefrontShop } from '../../api';
 import { formatNaira } from '../../utils/formatNaira';
+import { getProductImageUri } from '../../utils/productImageUtils';
 import { extractCustomerPolicySections } from '../../utils/shopPoliciesForCustomer';
 
 const WINDOW_W = Dimensions.get('window').width;
@@ -472,7 +473,7 @@ export default function VendorScreen({ route, navigation }) {
               const list = Array.isArray(products) ? products : [];
               const items = list.slice(0, 8).map((p, idx) => {
                 const id = String(p?.id ?? idx);
-                const uri = String(p?.thumbnail ?? '').trim();
+                const uri = getProductImageUri(p) || '';
                 const minPrice = Number(p?.minPrice) || 0;
                 const maxPrice = Number(p?.maxPrice) || minPrice;
                 const hasVariants = Boolean(p?.hasVariants);

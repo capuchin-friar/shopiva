@@ -374,6 +374,8 @@ export default function CartCheckoutScreen({ navigation }) {
       };
     });
 
+    console.log("ordersArray: ", ordersArray);
+
     const pricingBreakdown = {
       currency: 'NGN',
       totalNaira: total,

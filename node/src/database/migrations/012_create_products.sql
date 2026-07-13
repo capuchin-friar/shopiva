@@ -14,8 +14,8 @@ CREATE TABLE products (
 
     brand VARCHAR(100),
 
-    thumbnail_url  VARCHAR(100) NOT NULL,
-    image_folder_id VARCHAR(100) NOT NULL,
+    images TEXT[] NOT NULL,
+    thumbnail_url  TEXT NOT NULL,
 
     tags TEXT[] DEFAULT '{}',
 

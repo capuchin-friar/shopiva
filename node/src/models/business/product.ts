@@ -157,11 +157,8 @@ export class product {
       category = null,
       subcategory = null,
       brand = null,
-      thumbnail_url = null,
-      image_folder_id = null,
       images = [],
-      videos = [],
-      tags = [],
+      thumbnail_url,
       weight = null,
       dimensions = null,
       specifications = {},
@@ -170,16 +167,15 @@ export class product {
       published_at = null,
       is_featured = false,
     } = payload;
-
+    console.log("payload:", payload);
     const { rows } = await (
       await db()
     ).query<ProductRow>(
       `INSERT INTO products (
         shop_id, name, slug, description, short_description,
-        category, subcategory, brand, thumbnail_url, image_folder_id,
-        tags, images, videos, weight, dimensions, specifications, status,
+        category, subcategory, brand, images, thumbnail_url, weight, dimensions, specifications, status,
         is_published, published_at, is_featured
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       RETURNING *`,
       [
         shop_id,
@@ -190,11 +186,8 @@ export class product {
         category,
         subcategory,
         brand,
-        thumbnail_url,
-        image_folder_id,
-        tags,
         images,
-        videos,
+        thumbnail_url,
         weight,
         dimensions ? JSON.stringify(dimensions) : null,
         JSON.stringify(specifications),

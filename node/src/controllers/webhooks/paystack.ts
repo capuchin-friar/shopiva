@@ -125,7 +125,7 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
       return;
     }
 
-
+    console.log("orders:", orders);
     // Create order from Paystack data
     await Promise.all(orders.map(async(order: any, index: Number) => {
 

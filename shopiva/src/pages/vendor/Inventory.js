@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Modal,
   Platform,
   Pressable,
@@ -18,6 +19,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useProfile } from '../../context/ProfileContext';
 import { fetchOwnerShops, fetchShopInventory } from '../../api/shop';
 import { formatNaira } from '../../utils/formatNaira';
+import { getProductImageUri } from '../../utils/productImageUtils';
 
 const BRAND = '#00926e';
 const BG = '#F0F1F4';
@@ -87,6 +89,7 @@ function normalizeInventoryRow(raw, shopName) {
     product: productName,
     shop: shopName,
     sku,
+    uri: getProductImageUri(raw.product ?? raw) || '',
     price,
     currency,
     stock,
@@ -371,7 +374,11 @@ export default function VendorInventoryScreen() {
                       android_ripple={{ color: '#F3F4F6' }}
                     >
                       <View style={styles.thumb}>
-                        <Icon name="cube-outline" size={22} color="#9CA3AF" />
+                        {row.uri ? (
+                          <Image source={{ uri: row.uri }} style={styles.thumbImage} resizeMode="cover" />
+                        ) : (
+                          <Icon name="cube-outline" size={22} color="#9CA3AF" />
+                        )}
                       </View>
                       <View style={styles.cardTitleBlock}>
                         <Text style={styles.cardTitle} numberOfLines={2}>
@@ -586,6 +593,12 @@ const styles = StyleSheet.create({
     marginRight: 14,
     borderWidth: 1,
     borderColor: '#E5E7EB',
+    overflow: 'hidden',
+  },
+  thumbImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 10,
   },
   cardTitleBlock: { flex: 1, minWidth: 0, paddingRight: 8 },
   cardTitle: { fontSize: 16, fontWeight: '700', color: TEXT, lineHeight: 22 },
