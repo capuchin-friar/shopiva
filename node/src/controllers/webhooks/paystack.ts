@@ -184,7 +184,7 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
         };
 
         await OrderHandler.orderedTtem(orderItems);
-        await OrderHandler.removeItemFromCart(cart_id);
+        // await OrderHandler.removeItemFromCart(cart_id);
   
       }
 
