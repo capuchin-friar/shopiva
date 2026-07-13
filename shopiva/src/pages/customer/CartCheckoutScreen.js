@@ -404,7 +404,7 @@ export default function CartCheckoutScreen({ navigation }) {
             ? String(/** @type {{ reference?: string }} */ (res).reference)
             : reference;
         navigation.replace('Payment-success', {
-          reference: refStr,
+          reference: (refStr.split("-").length > 1 ? refStr.split("-").splice(-1) : refStr),
           subtotal,
           shipping: shippingCost,
           total: total,

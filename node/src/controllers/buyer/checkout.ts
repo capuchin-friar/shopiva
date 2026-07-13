@@ -22,7 +22,7 @@ export async function PostBuyerCheckoutConfirmPaymentController(req: AuthRequest
       res.status(400).json({ error: "reference is required" });
       return;
     }
-
+    console.log("chat room pending", userId, reference, shippingNaira)
     const result = await confirmCartCheckoutAndCreateChatRoom(userId, reference, shippingNaira);
     const first = result.rooms[0];
     res.status(200).json({
