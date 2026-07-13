@@ -57,10 +57,10 @@ function ReturnCard({ item, onPress }) {
         </View>
         <View style={styles.cardTitleCol}>
           <Text style={styles.orderId}>{`RTN-${item?.return_id}`}</Text>
-          <Text style={styles.vendorLine} numberOfLines={1}>
+          {/* <Text style={styles.vendorLine} numberOfLines={1}>
             {item.customer}
-            {/* auth.activeRole === "vendor" ? item.customer : item.vendor */}
-          </Text>
+            auth.activeRole === "vendor" ? item.customer : item.vendor
+          </Text> */}
         </View>
         <Icon name="chevron-forward" size={20} color={COLOR.MUTED} />
       </View>

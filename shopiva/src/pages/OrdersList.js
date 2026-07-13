@@ -20,6 +20,7 @@ import { getStoredUser } from '../auth/session';
 import { fetchOwnerShops, fetchShopOrders } from '../api';
 import { set_orderList } from '../../redux/orders';
 import { ESCROW_STATUS_THEME, STATUS_THEME, PAY_THEME, COLOR } from '../utils/statusTheme';
+import { useAuth } from '../hooks/useAuth';
 
 
 const FILTERS = [
@@ -61,9 +62,12 @@ function OrderCard({ item, onPress }) {
         </View>
         <View style={styles.cardTitleCol}>
           <Text style={styles.orderId}>ORD-{item.order_id}</Text>
-          <Text style={styles.vendorLine} numberOfLines={1}>
-            {item.vendor ?? item.customer}
-          </Text>
+          {/* <Text style={styles.vendorLine} numberOfLines={1}>
+            {
+              auth.activeRole !== "customer" ? item.vendor
+              : item.customer
+            }
+          </Text> */}
         </View>
         <Icon name="chevron-forward" size={20} color={COLOR.MUTED} />
       </View>
