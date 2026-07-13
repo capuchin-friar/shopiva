@@ -1035,9 +1035,9 @@ export default function ReturnDetailScreen() {
                 ]}
               >
                 <View style={styles.itemThumb}>
-                  {it.image ? (
+                  {it.product.thumbnail_url ? (
                     <Image
-                      source={{ uri: String(it.image) }}
+                      source={{ uri: String(it.product.thumbnail_url) }}
                       style={styles.itemImg}
                     />
                   ) : (
