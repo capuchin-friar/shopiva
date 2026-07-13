@@ -8,7 +8,7 @@ class Tools {
 
     static playSound = async () => {
         Sound.setCategory("Playback")
-        const ding = new Sound("activity.wav", Sound.MAIN_BUNDLE, (error) => {
+        const ding = new Sound("activity.mp3", Sound.MAIN_BUNDLE, (error) => {
         if (error) {
             console.log("Failed to load the sound", error);
             return;
