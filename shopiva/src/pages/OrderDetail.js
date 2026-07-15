@@ -781,6 +781,7 @@ export default function OrderDetailScreen() {
           action: 'confirmation',
           data: {
             ...base,
+            actor_type: 'customer',
             event_type: 'confirmation',
             stage: 'order_confirmed',
           },

@@ -35,6 +35,8 @@ async function buildOrderLists(orderId: unknown): Promise<{
             ? customerOrdersTransformer(customerId)
             : Promise.resolve([]),
     ]);
+    // console.log("hello", vendorList)
+    // console.log("hello", customerList)
 
     return { result, vendorList, customerList };
 }

@@ -24,12 +24,13 @@ export class escrow{
 
     static async complete(payload: any){
         const {
-            status, transfer_reference, paid_at
+            status, transfer_reference
         } = payload;
         const pool = await db();
         await pool.query(
-            `UPDATE shop_payouts set status = $1, paid_at = $2 WHERE transfer_reference = $3`, [status, paid_at, transfer_reference]
+            `UPDATE shop_payouts set status = $1, paid_at = NOW() WHERE transfer_reference = $2`, [status, transfer_reference]
         );
     }
+    
 
 }

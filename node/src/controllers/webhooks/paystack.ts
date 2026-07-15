@@ -10,6 +10,7 @@ import { getIo } from "../../index.js";
 import { ordersTransformer as buyerOrdersTransformer } from "../../transformers/buyer/orders.js";
 import { ordersTransformer as vendorOrdersTransformer } from "../../transformers/business/orders.js";
 import { GetShopOwnerByShopIdService } from "../../services/business/shop.js";
+import { escrow } from "../../services/escrow.js";
 const secret = process.env.PAYSTACK_SECRET_KEY;
 
 
@@ -89,14 +90,33 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
         rawBody.toString()
       ]
     );
+
+    // 
+    const { metadata, reference } = paystackData;
   
     // Process only successful charges
     if (eventType !== "charge.success") {
-      res.status(200).send("Ignored");
-      return;
+      if(eventType === "transfer.success"){
+        escrow.complete({
+          status: "success", 
+          transfer_reference: reference, 
+        });
+      }else if(eventType === "transfer.failed"){
+        escrow.complete({
+          status: "failed", 
+          transfer_reference: reference, 
+        });
+      }else if(eventType === "transfer.reversed"){
+        escrow.complete({
+          status: "reversed", 
+          transfer_reference: reference, 
+        });
+      }else{
+        res.status(200).send("Ignored");
+      }
     }
 
-    const { metadata, reference } = paystackData;
+    // const { metadata, reference } = paystackData;
     const { customer_id, shipping_address, tax, orders } = metadata || {};
 
     // Verify payment with Paystack
@@ -125,8 +145,7 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
       return;
     }
 
-    console.log("orders:", orders);
-    // Create order from Paystack data
+     // Create order from Paystack data
     await Promise.all(orders.map(async(order: any, index: Number) => {
 
       const {
@@ -134,7 +153,7 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
       } = order;
 
       const newOrder: NewOrder = {
-        order_id: `${index}-${reference}`,
+        ref: `${index}-${reference}`,
         customer_id: customer_id || paystackData.customer.email,
         shop_id: shop_id,
         amount_paid: subtotal,

@@ -249,7 +249,7 @@ const ReviewSubmissionScreen = ({ navigation }) => {
             }}
             disabled={isSubmitting}
           >
-            <Text style={styles.submitButtonText}>Cancel</Text>
+            <Text style={styles.cancelButtonText}>Cancel</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -479,7 +479,10 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: 8,
+    height: 70,
+    paddingHorizontal: 15,
+    paddingTop: 10, 
+    paddingBottom: 10, 
     display: 'flex',
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
@@ -494,11 +497,13 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   submitButton: {
-    backgroundColor: '#0D9488',
+    backgroundColor: '#059669',
     borderRadius: 5,
-    padding: 18,
+    padding: 0,
     width: '60%',
+    height: '100%',
     alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
@@ -511,14 +516,15 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: '#fff',
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '400',
   },
   cancelButton: {
     backgroundColor: 'grey',
     borderRadius: 5,
     width: '35%',
-    padding: 18,
+    height: '100%',
     alignItems: 'center',
+    justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,
@@ -531,7 +537,7 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: '#fff',
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '500',
   },
 });
 

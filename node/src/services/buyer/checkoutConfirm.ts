@@ -121,7 +121,15 @@ export async function confirmCartCheckoutAndCreateChatRoom(
     throw new Error("Could not resolve seller for this cart");
   }
 
-  const orderKey = txnId;
+  const pool = await db();
+
+  const { rows: [order] } = await pool.query(
+    `SELECT * FROM orders WHERE ref = $1`,
+    [reference]
+  );
+  console.log("order id", order);
+  // const orderKey = txnId;
+  const orderKey = 'order.id';
   const results: CheckoutConfirmRoomEntry[] = [];
 
   for (const recipientId of vendorIds) {
