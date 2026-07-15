@@ -135,21 +135,9 @@ export async function confirmCartCheckoutAndCreateChatRoom(
   const results: CheckoutConfirmRoomEntry[] = [];
 
   await Promise.all(orders.map(async({id: orderKey, shop_id}) => {
-    // for (const recipientId of vendorIds) {
-    //   if (recipientId === buyerUserId) {
-    //     throw new Error("Invalid checkout: buyer and seller cannot be the same");
-    //   }
-    //   if(!orderKey){
-    //     throw new Error("");
-    //   }
-    
-    
-    // }
-    console.log("shop_id", shop_id);
+   
 
     const vid = (await GetShopOwnerByShopIdService(shop_id)).id;
-
-    console.log("vid", vid);
 
     const existingId = await chatModel.findRoomForOrderAndUsers(orderKey, buyerUserId, vid);
     if (existingId) {
@@ -159,7 +147,6 @@ export async function confirmCartCheckoutAndCreateChatRoom(
       const payload = { room, existing: true };
       notifyUser(buyerUserId, "room_created", payload);
       notifyUser(vid as any, "room_created", payload);
-
       // continue;
     }
 
