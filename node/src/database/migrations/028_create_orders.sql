@@ -1,8 +1,6 @@
 CREATE TABLE orders (
     id SERIAL PRIMARY KEY,
 
-    order_id VARCHAR(50) NOT NULL,
-
     customer_id VARCHAR NOT NULL,
     shop_id VARCHAR NOT NULL,
 

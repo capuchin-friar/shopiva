@@ -123,45 +123,52 @@ export async function confirmCartCheckoutAndCreateChatRoom(
 
   const pool = await db();
 
-  console.log("reference id", reference);
-  const { rows: order } = await pool.query(
-    `SELECT * FROM orders WHERE ref = $1`,
+  const { rows: orders } = await pool.query(
+    `SELECT * FROM orders WHERE payment_reference = $1`,
     [reference]
   );
-  console.log("order id", order);
+
+  console.log("order id", orders);
   // const orderKey = txnId;
-  const orderKey = 'order.id';
+  // const orderKey = 'order.id';
   const results: CheckoutConfirmRoomEntry[] = [];
 
-  for (const recipientId of vendorIds) {
-    if (recipientId === buyerUserId) {
-      throw new Error("Invalid checkout: buyer and seller cannot be the same");
-    }
+  await Promise.all(orders.map(async({id: orderKey}) => {
+    for (const recipientId of vendorIds) {
+      if (recipientId === buyerUserId) {
+        throw new Error("Invalid checkout: buyer and seller cannot be the same");
+      }
+      if(!orderKey){
+        throw new Error("");
+      }
+      console.log("orderKey id", orderKey);
 
-    const existingId = await chatModel.findRoomForOrderAndUsers(orderKey, buyerUserId, recipientId);
-    if (existingId) {
-      const room = await chatModel.getRoomById(existingId);
-      if (!room) throw new Error("Chat room not found");
-      results.push({ room, existing: true, vendor_user_id: recipientId });
-      const payload = { room, existing: true };
+  
+      const existingId = await chatModel.findRoomForOrderAndUsers(orderKey, buyerUserId, recipientId);
+      if (existingId) {
+        const room = await chatModel.getRoomById(existingId);
+        if (!room) throw new Error("Chat room not found");
+        results.push({ room, existing: true, vendor_user_id: recipientId });
+        const payload = { room, existing: true };
+        notifyUser(buyerUserId, "room_created", payload);
+        notifyUser(recipientId, "room_created", payload);
+        continue;
+      }
+  
+      const room = await chatModel.createRoom({
+        order_id: orderKey,
+        initiator: buyerUserId,
+        participants: [
+          { user_id: buyerUserId, role: "buyer" },
+          { user_id: recipientId, role: "seller" },
+        ],
+      });
+      results.push({ room, existing: false, vendor_user_id: recipientId });
+      const payload = { room, existing: false };
       notifyUser(buyerUserId, "room_created", payload);
       notifyUser(recipientId, "room_created", payload);
-      continue;
     }
-
-    const room = await chatModel.createRoom({
-      order_id: orderKey,
-      initiator: buyerUserId,
-      participants: [
-        { user_id: buyerUserId, role: "buyer" },
-        { user_id: recipientId, role: "seller" },
-      ],
-    });
-    results.push({ room, existing: false, vendor_user_id: recipientId });
-    const payload = { room, existing: false };
-    notifyUser(buyerUserId, "room_created", payload);
-    notifyUser(recipientId, "room_created", payload);
-  }
+  }));
 
   await clearCartForUser(buyerUserId);
 

@@ -1,7 +1,6 @@
 
 
 export interface NewOrder{
-    ref: string; 
     customer_id: string; 
     shop_id: string; 
     amount_paid: number; 
