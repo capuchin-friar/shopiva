@@ -123,7 +123,7 @@ export async function confirmCartCheckoutAndCreateChatRoom(
 
   const pool = await db();
 
-  const { rows: [order] } = await pool.query(
+  const { rows: order } = await pool.query(
     `SELECT * FROM orders WHERE ref = $1`,
     [reference]
   );
