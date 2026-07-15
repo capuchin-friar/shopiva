@@ -155,11 +155,12 @@ export async function confirmCartCheckoutAndCreateChatRoom(
     if (existingId) {
       const room = await chatModel.getRoomById(existingId);
       if (!room) throw new Error("Chat room not found");
-      results.push({ room, existing: true, vendor_user_id: recipientId });
+      results.push({ room, existing: true, vendor_user_id: vid as any });
       const payload = { room, existing: true };
       notifyUser(buyerUserId, "room_created", payload);
-      notifyUser(recipientId, "room_created", payload);
-      continue;
+      notifyUser(vid as any, "room_created", payload);
+
+      // continue;
     }
 
     const room = await chatModel.createRoom({
