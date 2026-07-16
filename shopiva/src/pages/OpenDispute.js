@@ -25,7 +25,7 @@ import {
   pick,
   types,
 } from '@react-native-documents/picker';
-import { fetchBuyerOrder } from '../api';
+import { fetchBuyerOrder, uploadDisputeEvidence } from '../api';
 import { getStoredUser } from '../auth/session';
 import { connectChatSocket, emitSocketAck } from '../socket/chatSocket';
 import { mapBuyerDisputeRow } from '../utils/buyerUi';
@@ -335,6 +335,7 @@ export default function OpenDispute() {
   const [reasonCode, setReasonCode] = useState(null);
   /** @type {{ id: string; uri: string; name: string; type: string }[]} */
   const [evidence, setEvidence] = useState([]);
+  const [evidenceUploading, setEvidenceUploading] = useState(false);
   const [description, setDescription] = useState('');
   const [resolution, setResolution] = useState(null);
   const [confirmedAccurate, setConfirmedAccurate] = useState(false);
@@ -374,6 +375,7 @@ export default function OpenDispute() {
   const reasonLabel = labelForValue(DISPUTE_REASONS, reasonCode);
 
   const addEvidence = useCallback(async () => {
+    if (evidenceUploading) return;
     if (evidence.length >= MAX_EVIDENCE) {
       Alert.alert('Limit reached', `You can add up to ${MAX_EVIDENCE} photos.`);
       return;
@@ -385,6 +387,8 @@ export default function OpenDispute() {
       });
       const remaining = MAX_EVIDENCE - evidence.length;
       const slice = picked.slice(0, remaining);
+      if (slice.length === 0) return;
+
       const copies = await keepLocalCopy({
         files: slice.map((f) => ({
           uri: f.uri,
@@ -401,18 +405,61 @@ export default function OpenDispute() {
           c.status === 'success' ? c.localUri : c.sourceUri,
         ])
       );
-      const next = slice.map((f, i) => ({
-        id: `dsp_${Date.now()}_${i}`,
-        uri: uriBySource[f.uri] || f.uri,
-        name: f.name || 'photo.jpg',
-        type: f.type || 'image/jpeg',
-      }));
-      setEvidence((prev) => [...prev, ...next]);
+
+      setEvidenceUploading(true);
+      /** @type {{ id: string; uri: string; name: string; type: string }[]} */
+      const uploaded = [];
+      const failures = [];
+
+      for (let i = 0; i < slice.length; i++) {
+        const f = slice[i];
+        const localUri = uriBySource[f.uri] || f.uri;
+        const name = f.name || 'photo.jpg';
+        const type = f.type || 'image/jpeg';
+        try {
+          const result = await uploadDisputeEvidence({
+            uri: localUri,
+            name,
+            type,
+          });
+          const url =
+            (typeof result?.url === 'string' && result.url) ||
+            (typeof result?.image?.url === 'string' && result.image.url) ||
+            '';
+          if (!url) {
+            throw new Error('Upload succeeded but no image URL was returned.');
+          }
+          uploaded.push({
+            id: `dsp_${Date.now()}_${i}`,
+            uri: url,
+            name,
+            type,
+          });
+        } catch (uploadErr) {
+          failures.push(
+            uploadErr instanceof Error ? uploadErr.message : String(uploadErr)
+          );
+        }
+      }
+
+      if (uploaded.length > 0) {
+        setEvidence((prev) => [...prev, ...uploaded].slice(0, MAX_EVIDENCE));
+      }
+      if (failures.length > 0) {
+        Alert.alert(
+          'Upload incomplete',
+          failures.length === 1
+            ? failures[0]
+            : `${failures.length} photo(s) failed to upload. Please try again.`
+        );
+      }
     } catch (e) {
       if (isErrorWithCode(e) && e.code === errorCodes.OPERATION_CANCELED) return;
       Alert.alert('Photos', e instanceof Error ? e.message : String(e));
+    } finally {
+      setEvidenceUploading(false);
     }
-  }, [evidence.length]);
+  }, [evidence.length, evidenceUploading]);
 
   const removeEvidence = (id) => {
     setEvidence((prev) => prev.filter((x) => x.id !== id));
@@ -475,6 +522,10 @@ export default function OpenDispute() {
   };
 
   const submit = async () => {
+    if (evidenceUploading) {
+      Alert.alert('Please wait', 'Photos are still uploading.');
+      return;
+    }
     if (!validate() || orderId == null) return;
     setSubmitting(true);
     try {
@@ -495,7 +546,7 @@ export default function OpenDispute() {
         evidence: evidence.map((e) => ({
           file_name: e.name,
           mime_type: e.type,
-          uri: e.uri,
+          url: e.uri,
         })),
         shop_id:
           orderInfo?.shop?.id != null ? String(orderInfo.shop.id) : undefined,
@@ -694,18 +745,28 @@ export default function OpenDispute() {
               {evidence.length < MAX_EVIDENCE ? (
                 <Pressable
                   onPress={addEvidence}
+                  disabled={evidenceUploading}
                   style={({ pressed }) => [
                     styles.evidenceAdd,
-                    pressed && styles.evidenceAddPressed,
+                    pressed && !evidenceUploading && styles.evidenceAddPressed,
+                    evidenceUploading && styles.evidenceAddDisabled,
                   ]}
                 >
-                  <Text style={styles.evidenceAddPlus}>+</Text>
-                  <Text style={styles.evidenceAddLabel}>Add photo</Text>
+                  {evidenceUploading ? (
+                    <ActivityIndicator color={PRIMARY} />
+                  ) : (
+                    <>
+                      <Text style={styles.evidenceAddPlus}>+</Text>
+                      <Text style={styles.evidenceAddLabel}>Add photo</Text>
+                    </>
+                  )}
                 </Pressable>
               ) : null}
             </ScrollView>
             <Text style={styles.hint}>
-              {evidence.length} / {MAX_EVIDENCE} photos
+              {evidenceUploading
+                ? 'Uploading photos…'
+                : `${evidence.length} / ${MAX_EVIDENCE} photos`}
             </Text>
           </Section>
           <Section title="What resolution do you want?">
@@ -734,7 +795,7 @@ export default function OpenDispute() {
         <View style={[styles.actionBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <Pressable
             onPress={() => navigation.goBack()}
-            disabled={submitting}
+            disabled={submitting || evidenceUploading}
             style={({ pressed }) => [
               styles.btnSecondary,
               pressed && styles.btnSecondaryPressed,
@@ -760,11 +821,11 @@ export default function OpenDispute() {
                 ]
               );
             }}
-            disabled={submitting}
+            disabled={submitting || evidenceUploading}
             style={({ pressed }) => [
               styles.btnPrimary,
               pressed && styles.btnPrimaryPressed,
-              submitting && styles.btnDisabled,
+              (submitting || evidenceUploading) && styles.btnDisabled,
             ]}
           >
             {submitting ? (
@@ -1030,6 +1091,9 @@ const styles = StyleSheet.create({
   },
   evidenceAddPressed: {
     backgroundColor: '#F0F0F0',
+  },
+  evidenceAddDisabled: {
+    opacity: 0.6,
   },
   evidenceAddPlus: {
     fontSize: 28,

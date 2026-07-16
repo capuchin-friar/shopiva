@@ -828,6 +828,7 @@ export default function OrderDetailScreen() {
           action: 'confirmation',
           data: {
             ...base,
+            recipient: orderInfo?.shop?.ownerid,
             actor_type: 'customer',
             event_type: 'confirmation',
             stage: 'order_confirmed',

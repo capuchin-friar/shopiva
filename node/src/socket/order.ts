@@ -527,6 +527,8 @@ export const handleOrderConfirmation = async(
         const {
             order_id, event_type, stage, actor_type, actor_id, outcome, notes, meta, recipient, reason
         } = payload;
+        console.log("recipient: ", recipient)
+
         const { rows } = await p.query(
             `
                 INSERT INTO order_events

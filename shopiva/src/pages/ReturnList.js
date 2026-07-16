@@ -23,15 +23,17 @@ import { RETURN_STATUS_THEME, RETURN_PAY_THEME, COLOR } from '../utils/statusThe
 
 const FILTERS = [
   { key: 'all', label: 'All' },
-  { key: 'pending', label: 'Pending' },
-  { key: 'processing', label: 'Processing' },
-  { key: 'delivered', label: 'Delivered' },
+  ...Object.entries(RETURN_STATUS_THEME).map(([key, theme]) => ({
+    key,
+    label: theme.label,
+  })),
 ];
 
 function statusThemeFor(raw) {
   const key = String(raw ?? '').toLowerCase().trim();
   if (RETURN_STATUS_THEME[key]) return RETURN_STATUS_THEME[key];
   if (key.includes('cancel')) return RETURN_STATUS_THEME.return_cancellation;
+  if (key.includes('confirm')) return RETURN_STATUS_THEME.return_confirmed;
   if (key.includes('deliver') && !key.includes('out_for'))
     return RETURN_STATUS_THEME.return_delivered;
   if (key.includes('out_for') || key.includes('out-for'))
@@ -39,7 +41,7 @@ function statusThemeFor(raw) {
   if (key.includes('ship')) return RETURN_STATUS_THEME.return_shipping;
   if (key.includes('process')) return RETURN_STATUS_THEME.return_processing;
   if (key.includes('accept')) return RETURN_STATUS_THEME.return_accepted;
-  if (key.includes('initiated') || key.includes('pending') || key.includes('initiated'))
+  if (key.includes('initiated') || key.includes('pending'))
     return RETURN_STATUS_THEME.return_initiated;
   return RETURN_STATUS_THEME.return_initiated;
 }
@@ -133,8 +135,14 @@ export default function ReturnListScreen() {
   }, [auth.activeRole, dispatch]);
 
   const data = useMemo(() => {
-    if (filter === 'all') return returnList;
-    return returnList.filter((o) => o.status === filter);
+    const list = Array.isArray(returnList) ? returnList : [];
+    if (filter === 'all') return list;
+    return list.filter((o) => {
+      const status = String(o.statusRaw ?? o.status ?? '')
+        .toLowerCase()
+        .trim();
+      return status === filter;
+    });
   }, [filter, returnList]);
 
   const renderItem = useCallback(

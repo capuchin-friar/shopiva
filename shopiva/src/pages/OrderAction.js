@@ -24,7 +24,7 @@ import { getStoredUser } from '../auth/session';
 import { connectChatSocket, emitSocketAck } from '../socket/chatSocket';
 import { set_orderInfo } from '../../redux/order';
 import { useDispatch } from 'react-redux';
-import { fetchShopOwner } from '../api';
+import { fetchShopOwner, uploadDeliveryEvidence } from '../api';
 import FormKeyboardAvoiding from '../components/FormKeyboardAvoiding';
 
 const VendorRejectReason = [
@@ -1147,12 +1147,14 @@ function MarkAsDelivered({ data }) {
   const [confirmed, setConfirmed] = useState(false);
   /** @type {{ id: string; uri: string; name: string; type: string }[]} */
   const [evidence, setEvidence] = useState([]);
+  const [evidenceUploading, setEvidenceUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   useEffect(() => {
     connectChatSocket();
   }, []);
 
   const addEvidence = async () => {
+    if (evidenceUploading) return;
     if (evidence.length >= MAX_DELIVERY_EVIDENCE) {
       Alert.alert(
         'Limit reached',
@@ -1167,6 +1169,8 @@ function MarkAsDelivered({ data }) {
       });
       const remaining = MAX_DELIVERY_EVIDENCE - evidence.length;
       const slice = picked.slice(0, remaining);
+      if (slice.length === 0) return;
+
       const copies = await keepLocalCopy({
         files: slice.map(f => ({
           uri: f.uri,
@@ -1185,18 +1189,63 @@ function MarkAsDelivered({ data }) {
           c.status === 'success' ? c.localUri : c.sourceUri,
         ]),
       );
-      const next = slice.map((f, i) => ({
-        id: `ev_${Date.now()}_${i}`,
-        uri: uriBySource[f.uri] || f.uri,
-        name: f.name || 'photo.jpg',
-        type: f.type || 'image/jpeg',
-      }));
-      setEvidence(prev => [...prev, ...next]);
+
+      setEvidenceUploading(true);
+      /** @type {{ id: string; uri: string; name: string; type: string }[]} */
+      const uploaded = [];
+      const failures = [];
+
+      for (let i = 0; i < slice.length; i++) {
+        const f = slice[i];
+        const localUri = uriBySource[f.uri] || f.uri;
+        const name = f.name || 'photo.jpg';
+        const type = f.type || 'image/jpeg';
+        try {
+          const result = await uploadDeliveryEvidence({
+            uri: localUri,
+            name,
+            type,
+          });
+          const url =
+            (typeof result?.url === 'string' && result.url) ||
+            (typeof result?.image?.url === 'string' && result.image.url) ||
+            '';
+          if (!url) {
+            throw new Error('Upload succeeded but no image URL was returned.');
+          }
+          uploaded.push({
+            id: `ev_${Date.now()}_${i}`,
+            uri: url,
+            name,
+            type,
+          });
+        } catch (uploadErr) {
+          failures.push(
+            uploadErr instanceof Error ? uploadErr.message : String(uploadErr),
+          );
+        }
+      }
+
+      if (uploaded.length > 0) {
+        setEvidence(prev =>
+          [...prev, ...uploaded].slice(0, MAX_DELIVERY_EVIDENCE),
+        );
+      }
+      if (failures.length > 0) {
+        Alert.alert(
+          'Upload incomplete',
+          failures.length === 1
+            ? failures[0]
+            : `${failures.length} photo(s) failed to upload. Please try again.`,
+        );
+      }
     } catch (e) {
       if (isErrorWithCode(e) && e.code === errorCodes.OPERATION_CANCELED) {
         return;
       }
       Alert.alert('Photos', e instanceof Error ? e.message : String(e));
+    } finally {
+      setEvidenceUploading(false);
     }
   };
 
@@ -1205,6 +1254,10 @@ function MarkAsDelivered({ data }) {
   };
 
   const submit = async () => {
+    if (evidenceUploading) {
+      Alert.alert('Please wait', 'Photos are still uploading.');
+      return;
+    }
     if (!confirmed) {
       Alert.alert(
         'Confirmation required',
@@ -1230,6 +1283,7 @@ function MarkAsDelivered({ data }) {
         delivery_evidence_files: evidence.map(e => ({
           file_name: e.name,
           mime_type: e.type,
+          url: e.uri,
         })),
       },
       outcome: 'success',
@@ -1312,18 +1366,30 @@ function MarkAsDelivered({ data }) {
                 {evidence.length < MAX_DELIVERY_EVIDENCE ? (
                   <Pressable
                     onPress={addEvidence}
+                    disabled={evidenceUploading}
                     style={({ pressed }) => [
                       styles.evidenceAddTile,
-                      pressed && styles.evidenceAddTilePressed,
+                      pressed &&
+                        !evidenceUploading &&
+                        styles.evidenceAddTilePressed,
+                      evidenceUploading && styles.evidenceAddTileDisabled,
                     ]}
                   >
-                    <Text style={styles.evidenceAddPlus}>+</Text>
-                    <Text style={styles.evidenceAddLabel}>Add photo</Text>
+                    {evidenceUploading ? (
+                      <ActivityIndicator color="#0D8A4A" />
+                    ) : (
+                      <>
+                        <Text style={styles.evidenceAddPlus}>+</Text>
+                        <Text style={styles.evidenceAddLabel}>Add photo</Text>
+                      </>
+                    )}
                   </Pressable>
                 ) : null}
               </ScrollView>
               <Text style={styles.evidenceCountLabel}>
-                {evidence.length} / {MAX_DELIVERY_EVIDENCE} photos
+                {evidenceUploading
+                  ? 'Uploading photos…'
+                  : `${evidence.length} / ${MAX_DELIVERY_EVIDENCE} photos`}
               </Text>
             </View>
           </ScrollView>
@@ -1336,6 +1402,7 @@ function MarkAsDelivered({ data }) {
           >
             <Pressable
               onPress={() => navigation.goBack()}
+              disabled={evidenceUploading || loading}
               style={({ pressed }) => [
                 styles.btnSecondary,
                 pressed && styles.btnSecondaryPressed,
@@ -1345,6 +1412,10 @@ function MarkAsDelivered({ data }) {
             </Pressable>
             <Pressable
               onPress={() => {
+                if (evidenceUploading) {
+                  Alert.alert('Please wait', 'Photos are still uploading.');
+                  return;
+                }
                 Alert.alert(
                   'Confirm delivery',
                   'Mark this order as delivered for the customer?',
@@ -1358,6 +1429,7 @@ function MarkAsDelivered({ data }) {
                   ],
                 );
               }}
+              disabled={evidenceUploading || loading}
               style={({ pressed }) => [
                 styles.btnAccept,
                 pressed && styles.btnAcceptPressed,
@@ -2162,6 +2234,9 @@ const styles = StyleSheet.create({
   },
   evidenceAddTilePressed: {
     backgroundColor: '#DCEFE6',
+  },
+  evidenceAddTileDisabled: {
+    opacity: 0.6,
   },
   evidenceAddPlus: {
     fontSize: 28,
