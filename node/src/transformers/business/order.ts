@@ -90,7 +90,6 @@ export const orderTransformer = async (
         [orderId]
     );
 
-    console.log("room: ", room);
     return {
         customer,
         shop: {
