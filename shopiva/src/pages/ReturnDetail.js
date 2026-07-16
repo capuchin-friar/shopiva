@@ -495,14 +495,9 @@ export default function ReturnDetailScreen() {
 
   const onMail = () => {
     if (blockIfCancelled()) return;
-    if (!counterpartEmail) {
-      Alert.alert(
-        'Message',
-        'No email address is on file for this party yet. Use in-app chat when available.',
-      );
-      return;
-    }
-    Linking.openURL(`mailto:${counterpartEmail}`).catch(() => {});
+    navigation.navigate('Inbox', {
+      chat:  {roomId: returnInfo.room.id, name: `Order #${returnInfo.return.id}`}
+    });
   };
 
   const onDownloadInvoice = () => {
