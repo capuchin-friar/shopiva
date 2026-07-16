@@ -16,6 +16,13 @@ export const orderTransformer = async (
         `SELECT * FROM orders WHERE id = $1`,
         [orderId]
     );
+
+    const { rows: [room] } = await pool.query(
+        `SELECT * 
+         FROM chat_rooms
+         WHERE order_id = $1`,
+        [orderId]
+    );
     
     userId = order.customer_id;
     shopId = order.shop_id;
@@ -82,13 +89,15 @@ export const orderTransformer = async (
         [orderId]
     );
    
-
+    console.log("room: ", room);
+    console.log("orderId: ", orderId);
     return {
         user,
         shop: {
             ...shop,
             owner: shopOwner
         },
+        room,
         dispute,
         order,
         order_items: formattedOrderItems,

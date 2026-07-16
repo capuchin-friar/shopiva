@@ -129,7 +129,7 @@ export default function ChatListScreen({
   route,
   chatRoleVariant = 'customer',
   chatRoomRouteName = 'Chat-room',
-  chatListTitle = 'Chats',
+  chatListTitle = 'Inbox',
 }) {
 
   const auth = useSelector(s => s.auth);
@@ -256,7 +256,7 @@ export default function ChatListScreen({
           <Icon name="search-outline" size={18} color={MUTED} />
           <Text style={styles.searchPillText}>Search</Text>
         </Pressable>
-        <View style={styles.archivedRow}>
+        {/* <View style={styles.archivedRow}>
           <View style={styles.archivedIconWrap}>
             <Icon name="archive-outline" size={22} color={HEADER_TINT} />
           </View>
@@ -264,7 +264,7 @@ export default function ChatListScreen({
             <Text style={styles.archivedTitle}>Archived</Text>
             <Text style={styles.archivedSub}>Tap to view archived chats</Text>
           </View>
-        </View>
+        </View> */}
       </View>
     ),
     [],

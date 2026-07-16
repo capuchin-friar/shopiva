@@ -11,8 +11,8 @@ export function CustomerChatListScreen(props) {
     <ChatListScreen
       {...props}
       chatRoleVariant="customer"
-      chatRoomRouteName="chat-room"
-      chatListTitle="Chats"
+      chatRoomRouteName="chat-list"
+      chatListTitle="Inbox"
     />
   );
 }
@@ -28,7 +28,7 @@ export function VendorChatListScreen(props) {
     <ChatListScreen
       {...props}
       chatRoleVariant="vendor"
-      chatRoomRouteName="vendor-chat-room"
+      chatRoomRouteName="chat-list"
       chatListTitle="Inbox"
     />
   );

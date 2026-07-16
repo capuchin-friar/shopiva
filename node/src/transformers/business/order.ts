@@ -17,7 +17,7 @@ export const orderTransformer = async (
         [orderId]
     );
 
-    const { rows: room } = await pool.query(
+    const { rows: [room] } = await pool.query(
         `SELECT * 
          FROM chat_rooms
          WHERE order_id = $1`,

@@ -76,7 +76,7 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
   const roomId = String(chat?.roomId ?? chat?.id ?? '').trim();
   const storageScope = chatRoleVariant === 'vendor' ? 'vendor' : 'customer';
   const appRolePayload = storageScope === 'vendor' ? 'vendor' : 'customer';
-  const listBackTitle = chatRoleVariant === 'vendor' ? 'Inbox' : 'Chats';
+  
 
   const [input, setInput] = useState('');
   /** Remount multiline TextInput after send so height collapses when cleared (RN layout quirk). */
@@ -201,12 +201,12 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
   useLayoutEffect(() => {
     if (!chat) {
       navigation.setOptions({
-        title: 'Chat',
+        title: 'Inbox',
         headerStyle: { backgroundColor: HEADER },
         headerTintColor: '#FFFFFF',
         headerTitleStyle: { color: '#FFFFFF', fontWeight: '600' },
         headerShadowVisible: false,
-        headerBackTitle: listBackTitle,
+        headerBackTitle: 'Inbox',
         headerRight: undefined,
       });
       return;
@@ -217,7 +217,7 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
       headerTintColor: '#FFFFFF',
       headerTitleStyle: { color: '#FFFFFF', fontWeight: '600', fontSize: 18 },
       headerShadowVisible: false,
-      headerBackTitle: listBackTitle,
+      headerBackTitle: 'Inbox',
       // headerRight: () => (
       //   <View style={styles.headerRight}>
       //     <Pressable
@@ -239,7 +239,7 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
       //   </View>
       // ),
     });
-  }, [navigation, chat, headerActions, listBackTitle]);
+  }, [navigation, chat, headerActions]);
 
   const bumpModerationLockIfNeeded = useCallback(() => {
     if (sessionModerationBlocksRef.current >= MODERATION_CONFIG.SESSION_BLOCKS_FOR_LOCK) {
