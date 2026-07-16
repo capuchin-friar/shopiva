@@ -66,23 +66,18 @@ const DOMAIN_SOCKET_EVENTS = new Set([
 ]);
 
 /**
+ * Chat ack/result shapes that must never overwrite order/return Redux.
  * @param {unknown} result
- * @returns {boolean}
  */
-function isOrderDetailResult(result) {
-  if (!result || typeof result !== 'object') return false;
+function isChatShapedResult(result) {
+  if (!result || typeof result !== 'object' || Array.isArray(result)) return false;
   const r = /** @type {Record<string, unknown>} */ (result);
-  return r.order != null && typeof r.order === 'object';
-}
-
-/**
- * @param {unknown} result
- * @returns {boolean}
- */
-function isReturnDetailResult(result) {
-  if (!result || typeof result !== 'object') return false;
-  const r = /** @type {Record<string, unknown>} */ (result);
-  return r.return != null && typeof r.return === 'object';
+  if (Array.isArray(r.messages)) return true;
+  // create_message: { message: {...} } without order/return detail
+  if (r.message != null && r.order == null && r.return == null && r.order_events == null) {
+    return true;
+  }
+  return false;
 }
 
 /** @param {string} event */
@@ -96,12 +91,16 @@ function isDomainSocketEvent(event) {
 }
 
 /**
- * Apply order list/detail from a shaped payload fragment.
  * @param {unknown} orderInfo
  * @param {unknown} orderList
  */
 function applyOrderSliceUpdates(orderInfo, orderList) {
-  if (isOrderDetailResult(orderInfo)) {
+  if (
+    orderInfo &&
+    typeof orderInfo === 'object' &&
+    !Array.isArray(orderInfo) &&
+    !isChatShapedResult(orderInfo)
+  ) {
     store.dispatch(set_orderInfo(orderInfo));
   }
   if (Array.isArray(orderList)) {
@@ -109,8 +108,26 @@ function applyOrderSliceUpdates(orderInfo, orderList) {
   }
 }
 
+/**
+ * @param {unknown} returnInfo
+ * @param {unknown} returnList
+ */
+function applyReturnSliceUpdates(returnInfo, returnList) {
+  if (
+    returnInfo &&
+    typeof returnInfo === 'object' &&
+    !Array.isArray(returnInfo) &&
+    !isChatShapedResult(returnInfo)
+  ) {
+    store.dispatch(set_returnInfo(returnInfo));
+  }
+  if (Array.isArray(returnList)) {
+    store.dispatch(set_returnList(returnList));
+  }
+}
+
 /** @param {unknown} res */
-export async function applyOrderSocketPayload(res) {
+export function applyOrderSocketPayload(res) {
   if (!res || typeof res !== 'object') return;
   const payload = /** @type {Record<string, unknown>} */ (res);
   applyOrderSliceUpdates(payload.result, payload.list);
@@ -120,12 +137,7 @@ export async function applyOrderSocketPayload(res) {
 export function applyReturnSocketPayload(res) {
   if (!res || typeof res !== 'object') return;
   const payload = /** @type {Record<string, unknown>} */ (res);
-  if (isReturnDetailResult(payload.result)) {
-    store.dispatch(set_returnInfo(payload.result));
-  }
-  if (Array.isArray(payload.list)) {
-    store.dispatch(set_returnList(payload.list));
-  }
+  applyReturnSliceUpdates(payload.result, payload.list);
 }
 
 /**
@@ -137,6 +149,7 @@ export function applyDisputeSocketPayload(res) {
   const auth = store.getState().auth;
   if (!res || typeof res !== 'object') return;
   const payload = /** @type {Record<string, unknown>} */ (res);
+  const role = auth?.activeRole === 'vendor' ? 'vendor' : 'customer';
 
   const disputeBlock = payload.dispute;
   if (disputeBlock && typeof disputeBlock === 'object') {
@@ -150,27 +163,19 @@ export function applyDisputeSocketPayload(res) {
         ? /** @type {Record<string, unknown>} */ (d.customer)
         : null;
 
-    if (auth.activeRole === 'vendor' && vendor) {
-      if (Array.isArray(vendor.vdl)) {
-        store.dispatch(set_disputeList(vendor.vdl));
-      }
-      if (vendor.vdi != null) {
-        store.dispatch(set_disputeInfo(vendor.vdi));
-      }
-    } else if (auth.activeRole === 'customer' && customer) {
-      if (Array.isArray(customer.cdl)) {
-        store.dispatch(set_disputeList(customer.cdl));
-      }
-      if (customer.cdi != null) {
-        store.dispatch(set_disputeInfo(customer.cdi));
-      }
+    if (role === 'vendor' && vendor) {
+      if (Array.isArray(vendor.vdl)) store.dispatch(set_disputeList(vendor.vdl));
+      if (vendor.vdi != null) store.dispatch(set_disputeInfo(vendor.vdi));
+    } else if (role === 'customer' && customer) {
+      if (Array.isArray(customer.cdl)) store.dispatch(set_disputeList(customer.cdl));
+      if (customer.cdi != null) store.dispatch(set_disputeInfo(customer.cdi));
     }
   }
 
   const others = payload.others;
   if (others && typeof others === 'object') {
     const o = /** @type {Record<string, unknown>} */ (others);
-    if (auth.activeRole === 'vendor') {
+    if (role === 'vendor') {
       applyOrderSliceUpdates(o.voi, o.vol);
     } else {
       applyOrderSliceUpdates(o.coi, o.col);
@@ -179,22 +184,14 @@ export function applyDisputeSocketPayload(res) {
 
   if (payload.actor && typeof payload.actor === 'object') {
     const actor = /** @type {Record<string, unknown>} */ (payload.actor);
-    if (auth.activeRole === 'vendor') {
+    if (role === 'vendor') {
       applyOrderSliceUpdates(actor.voi, actor.vol);
-      if (Array.isArray(actor.vdl)) {
-        store.dispatch(set_disputeList(actor.vdl));
-      }
-      if (actor.vdi != null) {
-        store.dispatch(set_disputeInfo(actor.vdi));
-      }
-    } else if (auth.activeRole === 'customer') {
+      if (Array.isArray(actor.vdl)) store.dispatch(set_disputeList(actor.vdl));
+      if (actor.vdi != null) store.dispatch(set_disputeInfo(actor.vdi));
+    } else {
       applyOrderSliceUpdates(actor.coi, actor.col);
-      if (Array.isArray(actor.cdl)) {
-        store.dispatch(set_disputeList(actor.cdl));
-      }
-      if (actor.cdi != null) {
-        store.dispatch(set_disputeInfo(actor.cdi));
-      }
+      if (Array.isArray(actor.cdl)) store.dispatch(set_disputeList(actor.cdl));
+      if (actor.cdi != null) store.dispatch(set_disputeInfo(actor.cdi));
     }
   }
 }
@@ -204,11 +201,11 @@ export function applyDisputeSocketPayload(res) {
  * @param {unknown} ack
  * @param {string} event
  */
-export async function applySocketAckPayload(ack, event) {
+export function applySocketAckPayload(ack, event) {
   if (!isDomainSocketEvent(event)) return;
 
   if (ORDER_SOCKET_EVENTS.includes(event)) {
-    await applyOrderSocketPayload(ack);
+    applyOrderSocketPayload(ack);
   }
   if (RETURN_SOCKET_EVENTS.includes(event)) {
     applyReturnSocketPayload(ack);
@@ -219,42 +216,47 @@ export async function applySocketAckPayload(ack, event) {
 }
 
 /** @param {import('socket.io-client').Socket} socket */
-function bindOrderSocketListeners(socket) {
-  if (socket.__orderListenersBound) return;
-  socket.__orderListenersBound = true;
+function ensureDomainListeners(socket) {
+  if (!socket) return;
 
-  const onOrderUpdate = async (res) => {
-    await Tools.playSound();
-    applyOrderSocketPayload(res);
-  };
+  if (!socket.__orderListenersBound) {
+    socket.__orderListenersBound = true;
+    const onOrderUpdate = async (res) => {
+      try {
+        await Tools.playSound();
+      } catch {
+        /* sound must not block Redux */
+      }
+      applyOrderSocketPayload(res);
+    };
+    ORDER_SOCKET_EVENTS.forEach((event) => socket.on(event, onOrderUpdate));
+  }
 
-  ORDER_SOCKET_EVENTS.forEach((event) => socket.on(event, onOrderUpdate));
-}
+  if (!socket.__returnListenersBound) {
+    socket.__returnListenersBound = true;
+    const onReturnUpdate = async (res) => {
+      try {
+        await Tools.playSound();
+      } catch {
+        /* sound must not block Redux */
+      }
+      applyReturnSocketPayload(res);
+    };
+    RETURN_SOCKET_EVENTS.forEach((event) => socket.on(event, onReturnUpdate));
+  }
 
-/** @param {import('socket.io-client').Socket} socket */
-function bindReturnSocketListeners(socket) {
-  if (socket.__returnListenersBound) return;
-  socket.__returnListenersBound = true;
-
-  const onReturnUpdate = async (res) => {
-    await Tools.playSound();
-    applyReturnSocketPayload(res);
-  };
-
-  RETURN_SOCKET_EVENTS.forEach((event) => socket.on(event, onReturnUpdate));
-}
-
-/** @param {import('socket.io-client').Socket} socket */
-function bindDisputeSocketListeners(socket) {
-  if (socket.__disputeListenersBound) return;
-  socket.__disputeListenersBound = true;
-
-  const onDisputeUpdate = async (res) => {
-    await Tools.playSound();
-    applyDisputeSocketPayload(res);
-  };
-
-  DISPUTE_SOCKET_EVENTS.forEach((event) => socket.on(event, onDisputeUpdate));
+  if (!socket.__disputeListenersBound) {
+    socket.__disputeListenersBound = true;
+    const onDisputeUpdate = async (res) => {
+      try {
+        await Tools.playSound();
+      } catch {
+        /* sound must not block Redux */
+      }
+      applyDisputeSocketPayload(res);
+    };
+    DISPUTE_SOCKET_EVENTS.forEach((event) => socket.on(event, onDisputeUpdate));
+  }
 }
 
 /**
@@ -319,7 +321,10 @@ function resolveAckPromise(ack) {
 }
 
 export async function connectChatSocket() {
-  if (socketSingleton?.connected) return socketSingleton;
+  if (socketSingleton?.connected) {
+    ensureDomainListeners(socketSingleton);
+    return socketSingleton;
+  }
   if (connectPromise) return connectPromise;
 
   connectPromise = (async () => {
@@ -349,9 +354,7 @@ export async function connectChatSocket() {
       });
     }
 
-    bindOrderSocketListeners(socketSingleton);
-    bindReturnSocketListeners(socketSingleton);
-    bindDisputeSocketListeners(socketSingleton);
+    ensureDomainListeners(socketSingleton);
 
     return socketSingleton;
   })();
@@ -363,9 +366,7 @@ export async function connectChatSocket() {
 
 /**
  * Chat-only socket ack — never updates order / return / dispute Redux.
- * Use for: get_room_messages, create_message, get_rooms, create_room, typing, mark_message_as_read.
  *
- * @template T
  * @param {string} event
  * @param {Record<string, unknown>} [payload]
  */
@@ -397,10 +398,9 @@ export async function emitChatSocketAck(event, payload = {}) {
 }
 
 /**
- * Order / return / dispute socket ack — updates Redux only for whitelisted domain events.
+ * Order / return / dispute socket ack — updates Redux for whitelisted domain events.
  * Chat events must use {@link emitChatSocketAck} instead.
  *
- * @template T
  * @param {string} event
  * @param {Record<string, unknown>} [payload]
  */
@@ -426,7 +426,8 @@ export async function emitSocketAck(event, payload = {}) {
     socket.emit(event, base, (ack) => {
       const out = parseAck(ack);
       if (out.success && isDomainSocketEvent(event)) {
-        void applySocketAckPayload(ack, event);
+        // Apply synchronously so the screen sees updated Redux before navigation.
+        applySocketAckPayload(ack, event);
       }
       resolve(resolveAckPromise(ack));
     });

@@ -27,6 +27,7 @@ import {
   requestLocationPermission,
   reverseGeocodeToPlace,
 } from '../utils/deviceLocation';
+import FormKeyboardAvoiding from '../components/FormKeyboardAvoiding';
 
 const BLACK = '#000000';
 const PAGE_BG = '#F7F7F8';
@@ -270,6 +271,7 @@ export default function ProfileSettings() {
             activeOpacity={1}
             onPress={() => (submittingSetup ? null : setSetupVisible(false))}
           />
+          <FormKeyboardAvoiding offset={0} style={{ width: '100%' }}>
           <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
             <View style={styles.sheetHandle} />
             <View style={styles.sheetHeaderRow}>
@@ -289,7 +291,11 @@ export default function ProfileSettings() {
               First time only. Provide your shop details to enable vendor navigation.
             </Text>
 
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.sheetBody}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.sheetBody}
+            >
               <LabeledInput label="Shop name" value={shopName} onChangeText={setShopName} placeholder="e.g. Comfort Wear Hub" />
 
               <Text style={styles.label}>Vendor type</Text>
@@ -374,6 +380,7 @@ export default function ProfileSettings() {
               )}
             </TouchableOpacity>
           </View>
+          </FormKeyboardAvoiding>
         </View>
       </Modal>
     </>

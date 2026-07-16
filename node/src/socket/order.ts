@@ -90,7 +90,7 @@ async function broadcastOrderUpdate(
     const recipientList = listForRole(recipientRole, vendorList, customerList);
 
     emitOrderUpdateToUser(recipient, event, result, recipientList);
-    // emitOrderUpdateToUser(actorId, event, result, actorList);
+    emitOrderUpdateToUser(actorId, event, result, actorList);
 
     return { result, list: actorList };
 }

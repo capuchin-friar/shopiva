@@ -214,6 +214,7 @@ export default function ReturnDetailScreen() {
   const [statusKey, setStatusKey] = useState(null);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [cancelledModalOpen, setCancelledModalOpen] = useState(false);
+  const [statusInfoOpen, setStatusInfoOpen] = useState(false);
   const { returnInfo } = useSelector(s => s.returnInfo);
   const dispatch = useDispatch();
 
@@ -221,6 +222,10 @@ export default function ReturnDetailScreen() {
   //   connectChatSocket();
   //   console.log("return_:", return_);
   // }, [return_]);
+
+  useEffect(() => {
+    connectChatSocket();
+  }, []);
 
   const isReturnCancelled = statusKey === 'return_cancelled';
 
@@ -764,6 +769,9 @@ export default function ReturnDetailScreen() {
         case 'return_confirmed':
           message = 'Your payout will be processed within 48 hours.';
           break;
+        case 'return_delivered':
+          message = "Awaiting Vendor's Confirmation";
+          break;
         default: 
           message = "Awaiting Vendor's Confirmation";
       }
@@ -1177,12 +1185,28 @@ export default function ReturnDetailScreen() {
         {returnInfo?.return_events?.length > 1 &&  (
           statusKey !== "return_delivered" && auth.activeRole === 'vendor' ? '' : 
           <Pressable
-            onPress={onUpdateStatus}
-            // disabled={
-            //   statusKey === 'delivered' && auth.activeRole === 'vendor'
-            //     ? true
-            //     : false
-            // }
+            onPress={() => {
+              if (blockIfCancelled()) return;
+              // Terminal / waiting statuses — explain instead of navigating.
+              if (
+                auth.activeRole === 'customer' &&
+                (statusKey === 'return_delivered' ||
+                  statusKey === 'return_confirmed' ||
+                  statusKey === 'return_cancelled')
+              ) {
+                setStatusInfoOpen(true);
+                return;
+              }
+              if (
+                auth.activeRole === 'vendor' &&
+                (statusKey === 'return_confirmed' ||
+                  statusKey === 'return_cancelled')
+              ) {
+                setStatusInfoOpen(true);
+                return;
+              }
+              onUpdateStatus();
+            }}
             style={({ pressed }) => [
               styles.btnPrimary,
               pressed && styles.btnPrimaryPressed,
@@ -1200,8 +1224,11 @@ export default function ReturnDetailScreen() {
         )}
 
         {auth.activeRole === 'vendor' && statusKey !== "return_delivered"? 
-          <Pressable 
-            disabled
+          <Pressable
+            onPress={() => {
+              if (blockIfCancelled()) return;
+              setStatusInfoOpen(true);
+            }}
             style={({ pressed }) => [
               styles.btnPrimary,
               pressed && styles.btnPrimaryPressed,
@@ -1305,6 +1332,54 @@ export default function ReturnDetailScreen() {
               style={({ pressed }) => [
                 styles.cancelledModalBtn,
                 pressed && styles.btnPrimaryPressed,
+              ]}
+            >
+              <Text style={styles.cancelledModalBtnText}>OK</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={statusInfoOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setStatusInfoOpen(false)}
+      >
+        <View style={styles.cancelledModalRoot}>
+          <Pressable
+            style={styles.sheetDismiss}
+            onPress={() => setStatusInfoOpen(false)}
+          />
+          <View style={styles.cancelledModalCard}>
+            <Icon
+              name="information-circle-outline"
+              size={44}
+              color={RETURN_STATUS_THEME[statusKey]?.dot ?? COLOR.BRAND_COLOR}
+            />
+            <Text style={styles.cancelledModalTitle}>
+              {RETURN_STATUS_THEME[statusKey]?.label ?? 'Return status'}
+            </Text>
+            <Text style={styles.cancelledModalBody}>
+              {statusKey === 'return_initiated'
+                ? "This return is waiting for the buyer's approval. You can continue once the customer accepts the return."
+                : statusKey === 'return_delivered' && auth.activeRole === 'customer'
+                  ? 'The return package has been delivered. Waiting for the vendor to confirm they received it. Your refund will proceed after confirmation.'
+                  : statusKey === 'return_confirmed'
+                    ? auth.activeRole === 'customer'
+                      ? 'The vendor confirmed the return. Your refund is being processed and should arrive within 48 hours.'
+                      : 'You confirmed the return. Escrow will refund the buyer shortly.'
+                    : `${actionBtn()}. No action is available for you at this step — the current status is "${RETURN_STATUS_THEME[statusKey]?.label ?? statusKey}".`}
+            </Text>
+            <Pressable
+              onPress={() => setStatusInfoOpen(false)}
+              style={({ pressed }) => [
+                styles.cancelledModalBtn,
+                pressed && styles.btnPrimaryPressed,
+                {
+                  backgroundColor:
+                    RETURN_STATUS_THEME[statusKey]?.dot ?? COLOR.BRAND_COLOR,
+                },
               ]}
             >
               <Text style={styles.cancelledModalBtnText}>OK</Text>

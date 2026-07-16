@@ -24,6 +24,7 @@ import {
   updateShopPayoutAccount,
   verifyPayoutAccount,
 } from '../api/shop';
+import FormKeyboardAvoiding from '../components/FormKeyboardAvoiding';
 
 const PAGE_BG = '#F7F7F8';
 const CARD = '#FFFFFF';
@@ -294,6 +295,7 @@ export default function SettingsPayoutScreen() {
 
   return (
     <>
+    <FormKeyboardAvoiding>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={[
@@ -385,9 +387,10 @@ export default function SettingsPayoutScreen() {
           </>
         )}
       </ScrollView>
+    </FormKeyboardAvoiding>
 
       <Modal visible={formOpen} animationType="slide" transparent onRequestClose={() => setFormOpen(false)}>
-        <View style={styles.modalRoot}>
+        <FormKeyboardAvoiding offset={0} style={styles.modalRoot}>
           <Pressable style={styles.modalBackdrop} onPress={() => !saveBusy && setFormOpen(false)} />
           <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
             <View style={styles.sheetHeader}>
@@ -475,7 +478,7 @@ export default function SettingsPayoutScreen() {
               </ScrollView>
             )}
           </View>
-        </View>
+        </FormKeyboardAvoiding>
       </Modal>
     </>
   );

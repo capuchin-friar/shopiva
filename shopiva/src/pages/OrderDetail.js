@@ -230,6 +230,7 @@ export default function OrderDetailScreen() {
   const [statusKey, setStatusKey] = useState(null);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [cancelledModalOpen, setCancelledModalOpen] = useState(false);
+  const [statusInfoOpen, setStatusInfoOpen] = useState(false);
   const { orderInfo } = useSelector(s => s.orderInfo);
   const dispatch = useDispatch();
 
@@ -952,6 +953,9 @@ export default function OrderDetailScreen() {
         case 'order_rejected':
           message = 'You Declined this order';
           break;
+        case 'order_delivered':
+          message = "Awaiting Customer's Confirmation";
+          break;
         default:
           message = "Awaiting Customer's Confirmation";
       }
@@ -1408,12 +1412,30 @@ export default function OrderDetailScreen() {
             ''
           ) : (
             <Pressable
-              onPress={onUpdateStatus}
-              // disabled={
-              //   statusKey !== 'order_delivered' || statusKey !== "order_disputed" && auth.activeRole === 'customer'
-              //     ? true
-              //     : false
-              // }
+              onPress={() => {
+                if (blockIfCancelled()) return;
+                // Terminal / waiting statuses — explain instead of navigating.
+                if (
+                  auth.activeRole === 'vendor' &&
+                  (statusKey === 'order_delivered' ||
+                    statusKey === 'order_confirmed' ||
+                    statusKey === 'order_cancelled' ||
+                    statusKey === 'order_rejected')
+                ) {
+                  setStatusInfoOpen(true);
+                  return;
+                }
+                if (
+                  auth.activeRole === 'customer' &&
+                  (statusKey === 'order_confirmed' ||
+                    statusKey === 'order_cancelled' ||
+                    statusKey === 'order_rejected')
+                ) {
+                  setStatusInfoOpen(true);
+                  return;
+                }
+                onUpdateStatus();
+              }}
               style={({ pressed }) => [
                 styles.btnPrimary,
                 pressed && styles.btnPrimaryPressed,
@@ -1428,7 +1450,7 @@ export default function OrderDetailScreen() {
                   : actionBtn()}
               </Text>
             </Pressable>
-          ))}
+        ))}
 
         {auth.activeRole === 'customer' &&
         statusKey !== 'order_delivered' &&
@@ -1436,6 +1458,7 @@ export default function OrderDetailScreen() {
           <Pressable
             onPress={e => {
               if (blockIfCancelled()) return;
+              setStatusInfoOpen(true);
             }}
             style={({ pressed }) => [
               styles.btnPrimary,
@@ -1543,6 +1566,54 @@ export default function OrderDetailScreen() {
               style={({ pressed }) => [
                 styles.cancelledModalBtn,
                 pressed && styles.btnPrimaryPressed,
+              ]}
+            >
+              <Text style={styles.cancelledModalBtnText}>OK</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={statusInfoOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setStatusInfoOpen(false)}
+      >
+        <View style={styles.cancelledModalRoot}>
+          <Pressable
+            style={styles.sheetDismiss}
+            onPress={() => setStatusInfoOpen(false)}
+          />
+          <View style={styles.cancelledModalCard}>
+            <Icon
+              name="information-circle-outline"
+              size={44}
+              color={STATUS_THEME[statusKey]?.dot ?? COLOR.BRAND_COLOR}
+            />
+            <Text style={styles.cancelledModalTitle}>
+              {STATUS_THEME[statusKey]?.label ?? 'Order status'}
+            </Text>
+            <Text style={styles.cancelledModalBody}>
+              {statusKey === 'payment_received'
+                ? "Payment was received. The vendor still needs to accept this order before fulfillment can begin."
+                : statusKey === 'order_delivered' && auth.activeRole === 'vendor'
+                  ? 'This order has been delivered. Waiting for the customer to confirm they received it. Escrow will release funds after confirmation.'
+                  : statusKey === 'order_confirmed'
+                    ? auth.activeRole === 'vendor'
+                      ? 'The customer confirmed delivery. Your payout is being processed and should arrive within 24 hours.'
+                      : 'You confirmed delivery. Escrow will release the funds to the vendor shortly.'
+                    : `${actionBtn()}. No action is available for you at this step — the current status is "${STATUS_THEME[statusKey]?.label ?? statusKey}".`}
+            </Text>
+            <Pressable
+              onPress={() => setStatusInfoOpen(false)}
+              style={({ pressed }) => [
+                styles.cancelledModalBtn,
+                pressed && styles.btnPrimaryPressed,
+                {
+                  backgroundColor:
+                    STATUS_THEME[statusKey]?.dot ?? COLOR.BRAND_COLOR,
+                },
               ]}
             >
               <Text style={styles.cancelledModalBtnText}>OK</Text>

@@ -56,14 +56,12 @@ async function resolveOrderParties(orderId: number | null): Promise<{
 async function broadcastDisputeUpdate(
   event: string,
   shopId: number | string,
-  recipient:  number,
+  recipient: number,
   actorId: number,
   role: string,
   orderId: any,
   disputeId: any
 ): Promise<DisputeSocketPayload> {
-  let result;
-  let payloadForRecipient;
   let voi;
   let vol;
   let coi;
@@ -74,49 +72,50 @@ async function broadcastDisputeUpdate(
   let vdl;
   let vdi;
 
-  if(role === "vendor"){
-    // for vendor get dispute transformer for both recipient(customer) and vendor
-    // payloadForRecipient = await customerDisputeTransformer(recipient);
-    // result = await vendorDisputeTransformer(shopId, actorId);
+  // Always build both sides so push + ack stay in sync for live Redux updates.
+  vdi = await vendorDisputeTransformer(disputeId);
+  cdi = await customerDisputeTransFormer(disputeId);
 
-    // get order data for actor
-    vdi = await vendorDisputeTransformer(disputeId);
+  if (role === "vendor") {
     vdl = await vendorDisputesTransformer(shopId, actorId);
-
-    // get order data for recipient(customer)
-    cdi = await customerDisputeTransFormer(disputeId);
     cdl = await customerDisputesTransformer(recipient);
-  }else{
-    // for customer get dispute transformer for both recipient(vendor) and customer
+  } else {
     vdl = await vendorDisputesTransformer(shopId, recipient);
-    vdi = await vendorDisputeTransformer(disputeId);
-
     cdl = await customerDisputesTransformer(actorId);
-    cdi = await customerDisputeTransFormer(disputeId);
+  }
 
-    // payloadForRecipient = await vendorDisputeTransformer(shopId, recipient);
-    // result = await customerDisputeTransformer(actorId);
-
-    // get order data for actor 
+  if (orderId != null) {
     coi = await customerOrderTransFormer(orderId);
-    col = await customerOrdersTransformer(actorId);
-
-    // get order data for recipient(vendor)
     voi = await vendorOrderTransFormer(orderId);
+    const customerIdForList = role === "vendor" ? recipient : actorId;
+    col = await customerOrdersTransformer(customerIdForList);
     vol = await vendorOrdersTransformer(shopId);
   }
-  const payload = { 
-    actor: role !== "vendor" ? {voi, vol, vdl, vdi} : {coi, col, cdl, cdi}, 
-  };
-  notifyUser(recipient, event, payload);
-  const others = role === "vendor" ? {voi, vol} : {coi, col};
-  return { 
-    // result: result[0],
+
+  // Recipient gets the slice for their role; actor gets theirs.
+  if (role === "vendor") {
+    notifyUser(recipient, event, {
+      actor: { coi, col, cdl, cdi },
+    });
+    notifyUser(actorId, event, {
+      actor: { voi, vol, vdl, vdi },
+    });
+  } else {
+    notifyUser(recipient, event, {
+      actor: { voi, vol, vdl, vdi },
+    });
+    notifyUser(actorId, event, {
+      actor: { coi, col, cdl, cdi },
+    });
+  }
+
+  const others = role === "vendor" ? { voi, vol } : { coi, col };
+  return {
     disputes: {
-      vendor: {vdl, vdi}, 
-      customer: {cdl, cdi}
+      vendor: { vdl, vdi },
+      customer: { cdl, cdi },
     },
-    others
+    others,
   };
 }
 

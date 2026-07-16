@@ -25,6 +25,7 @@ import { connectChatSocket, emitSocketAck } from '../socket/chatSocket';
 import { set_orderInfo } from '../../redux/order';
 import { useDispatch } from 'react-redux';
 import { fetchShopOwner } from '../api';
+import FormKeyboardAvoiding from '../components/FormKeyboardAvoiding';
 
 const VendorRejectReason = [
   { label: 'out of stock', value: 'out_of_stock' },
@@ -159,9 +160,10 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
     return (
       <>
         {(
-          <View style={[styles.cnt, styles.processingRoot]}>
+          <FormKeyboardAvoiding style={[styles.cnt, styles.processingRoot]}>
             {loading && <Spinner />}
             <ScrollView
+              keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
               contentContainerStyle={[
                 styles.processingScrollContent,
@@ -293,7 +295,7 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                 <Text style={styles.btnRejectText}>Reject</Text>
               </Pressable>
             </View>
-          </View>
+          </FormKeyboardAvoiding>
         )}
       </>
     );
@@ -301,9 +303,10 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
     return (
       <>
         {(
-          <View style={[styles.cnt, styles.processingRoot]}>
+          <FormKeyboardAvoiding style={[styles.cnt, styles.processingRoot]}>
             {loading && <Spinner />}
             <ScrollView
+              keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
               contentContainerStyle={[
                 styles.processingScrollContent,
@@ -484,7 +487,7 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                 <Text style={styles.btnAcceptText}>Accept</Text>
               </Pressable>
             </View>
-          </View>
+          </FormKeyboardAvoiding>
         )}
       </>
     );
@@ -552,9 +555,10 @@ function Processing({ data }) {
   return (
     <>
       {(
-        <View style={[styles.cnt, styles.processingRoot]}>
+        <FormKeyboardAvoiding style={[styles.cnt, styles.processingRoot]}>
         {loading && <Spinner />}
           <ScrollView
+              keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               styles.processingScrollContent,
@@ -655,7 +659,7 @@ function Processing({ data }) {
               <Text style={styles.btnAcceptText}>Confirm</Text>
             </Pressable>
           </View>
-        </View>
+        </FormKeyboardAvoiding>
       )}
     </>
   );
@@ -752,9 +756,10 @@ function Shipping({ data }) {
      
 
       {(
-        <View style={[styles.cnt, styles.processingRoot]}>
+        <FormKeyboardAvoiding style={[styles.cnt, styles.processingRoot]}>
          {loading && <Spinner />}
           <ScrollView
+              keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               styles.processingScrollContent,
@@ -912,7 +917,7 @@ function Shipping({ data }) {
               <Text style={styles.btnAcceptText}>Confirm</Text>
             </Pressable>
           </View>
-        </View>
+        </FormKeyboardAvoiding>
       )}
     </>
   );
@@ -997,9 +1002,10 @@ function OutForDelivery({ data }) {
       
       {(
 
-        <View style={[styles.cnt, styles.processingRoot]}>
+        <FormKeyboardAvoiding style={[styles.cnt, styles.processingRoot]}>
         {loading && <Spinner />}
           <ScrollView
+              keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               styles.processingScrollContent,
@@ -1128,7 +1134,7 @@ function OutForDelivery({ data }) {
               <Text style={styles.btnAcceptText}>Confirm</Text>
             </Pressable>
           </View>
-        </View>
+        </FormKeyboardAvoiding>
       )}
     </>
   );
@@ -1240,9 +1246,10 @@ function MarkAsDelivered({ data }) {
       
 
       {(
-        <View style={[styles.cnt, styles.processingRoot]}>
+        <FormKeyboardAvoiding style={[styles.cnt, styles.processingRoot]}>
         {loading && <Spinner />}
           <ScrollView
+              keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               styles.processingScrollContent,
@@ -1277,6 +1284,7 @@ function MarkAsDelivered({ data }) {
                 to {MAX_DELIVERY_EVIDENCE}. Scroll sideways to review.
               </Text>
               <ScrollView
+              keyboardShouldPersistTaps="handled"
                 horizontal
                 nestedScrollEnabled
                 showsHorizontalScrollIndicator={false}
@@ -1358,7 +1366,7 @@ function MarkAsDelivered({ data }) {
               <Text style={styles.btnAcceptText}>Confirm</Text>
             </Pressable>
           </View>
-        </View>
+        </FormKeyboardAvoiding>
       )}
     </>
   );
@@ -1414,9 +1422,10 @@ function ConfirmDelivery({ data }) {
       
       {(
         
-        <View style={[styles.cnt, styles.processingRoot]}>
+        <FormKeyboardAvoiding style={[styles.cnt, styles.processingRoot]}>
         {loading && <Spinner />}
           <ScrollView
+              keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               styles.processingScrollContent,
@@ -1499,7 +1508,7 @@ function ConfirmDelivery({ data }) {
               <Text style={styles.btnAcceptText}>Confirm & Pay Vendor</Text>
             </Pressable>
           </View>
-        </View>
+        </FormKeyboardAvoiding>
       )}
     </>
   );
@@ -1609,9 +1618,10 @@ function VendorCancelOrder({ data }) {
       
       {(
         
-        <View style={[styles.cnt, styles.processingRoot]}>
+        <FormKeyboardAvoiding style={[styles.cnt, styles.processingRoot]}>
         {submitting && <Spinner />}
           <ScrollView
+              keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               styles.processingScrollContent,
@@ -1726,7 +1736,7 @@ function VendorCancelOrder({ data }) {
               </Text>
             </Pressable>
           </View>
-        </View>
+        </FormKeyboardAvoiding>
       )}
     </>
   );
@@ -1861,9 +1871,10 @@ function CancelOrder({ data }) {
       
       {(
         
-        <View style={[styles.cnt, styles.processingRoot]}>
+        <FormKeyboardAvoiding style={[styles.cnt, styles.processingRoot]}>
         {submitting && <Spinner />}
           <ScrollView
+              keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               styles.processingScrollContent,
@@ -1980,7 +1991,7 @@ function CancelOrder({ data }) {
               </Text>
             </Pressable>
           </View>
-        </View>
+        </FormKeyboardAvoiding>
       )}
     </>
   );

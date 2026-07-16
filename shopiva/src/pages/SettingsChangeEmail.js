@@ -69,7 +69,7 @@ export default function SettingsChangeEmailScreen() {
   }, [newEmail, currentPassword, user?.id, user?.email, saveEmail]);
 
   return (
-    <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}>
       <ScrollView
         style={s.scroll}
         contentContainerStyle={[
