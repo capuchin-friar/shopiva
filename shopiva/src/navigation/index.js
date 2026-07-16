@@ -79,7 +79,7 @@ function NavigationTree() {
           const rootTabRoutes = new Set([
             "Home",
             "Activities",
-            "Chat",
+            // "Chat",
             "Catalog",
             "Profile"
             // 'home',

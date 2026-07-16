@@ -11,8 +11,7 @@ import ReturnListScreen from '../../pages/ReturnList';
 import ReturnDetailScreen from '../../pages/ReturnDetail';
 import ReturnActionScreen from '../../pages/ReturnAction';
 import ReviewSubmissionScreen from '../../pages/Review'
-import { CustomerChatRoomScreen } from '../../pages/chat/roleChatScreens';
-import { navigationRef } from '../../navigation';
+import ChatRoomScreen from '../../pages/ChatRoom';
 const ActivitiesStack = createNativeStackNavigator();
 const activityOptions = {
   headerShown: true,
@@ -68,13 +67,13 @@ const reviewOpt = {
   headerBackVisible: false,
   headerShadowVisible: false,
 }
-const HEADER = '#075E54';
-const CHAT_ROOM_OPTIONS = {
-  // title: 'Inbox',
+const inboxOpt = {
+  title: 'Inbox',
   headerBackTitle: 'Order',
   headerShadowVisible: false,
-  headerStyle: { backgroundColor: HEADER },
+  headerStyle: { backgroundColor: '#075E54' },
   headerTintColor: '#FFFFFF',
+  headerShown: true,
   headerTitleStyle: { color: '#FFFFFF', fontWeight: '600' },
   contentStyle: { backgroundColor: '#ECE5DD' },
 };
@@ -93,6 +92,8 @@ export function ActivitiesStackScreen() {
       <ActivitiesStack.Screen name="Order-list" component={OrderDetailScreen} options={orderOpt} />
       <ActivitiesStack.Screen name="Order-action" component={OrderActionScreen} options={orderStatusUpdateOpt} />
       
+      <ActivitiesStack.Screen name="Inbox" component={ChatRoomScreen} options={inboxOpt} />
+      
       <ActivitiesStack.Screen
         name="Open-dispute"
         component={OpenDispute}
@@ -106,8 +107,6 @@ export function ActivitiesStackScreen() {
       <ActivitiesStack.Screen name="Returns" component={ReturnListScreen} options={returnOpt} />
       <ActivitiesStack.Screen name="Return-detail" component={ReturnDetailScreen} options={returnDetailOpt} />
       <ActivitiesStack.Screen name="Return-action" component={ReturnActionScreen} options={returnStatusUpdateOpt} />
-
-      <ActivitiesStack.Screen name="Inbox" component={CustomerChatRoomScreen} options={CHAT_ROOM_OPTIONS} />
 
     </ActivitiesStack.Navigator>
   );

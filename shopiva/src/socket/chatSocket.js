@@ -8,15 +8,14 @@ import { set_returnInfo } from '../../redux/return';
 import { set_returnList } from '../../redux/returns';
 import { set_disputeInfo } from '../../redux/dispute';
 import { set_disputeList } from '../../redux/disputes';
-import { mapBuyerDisputeRow, mapOrderRowToListItem } from '../utils/buyerUi';
 import Tools from '../utils/gen';
-import { Alert } from 'react-native';
 
 /** @type {import('socket.io-client').Socket | null} */
 let socketSingleton = null;
 /** @type {Promise<import('socket.io-client').Socket | null> | null} */
 let connectPromise = null;
 
+/** Server push + client ack events that update order Redux. */
 const ORDER_SOCKET_EVENTS = [
   'payment_received',
   'order_acceptance',
@@ -28,6 +27,7 @@ const ORDER_SOCKET_EVENTS = [
   'order_cancelled',
 ];
 
+/** Server push + client ack events that update return Redux. */
 const RETURN_SOCKET_EVENTS = [
   'return_acceptance',
   'return_processing',
@@ -38,28 +38,89 @@ const RETURN_SOCKET_EVENTS = [
   'return_cancelled',
 ];
 
+/** Server push + client ack events that update dispute (+ related order) Redux. */
 const DISPUTE_SOCKET_EVENTS = [
-  'raise_dispute', 
+  'raise_dispute',
   'dispute_acceptance',
-  'dispute_escalation'
+  'dispute_escalation',
 ];
+
+/**
+ * Chat-only socket events — never read or write order / return / dispute slices.
+ * Must stay in sync with `node/src/services/socket.ts` chat handlers.
+ */
+export const CHAT_SOCKET_EVENTS = new Set([
+  'get_room_messages',
+  'create_message',
+  'get_rooms',
+  'create_room',
+  'typing',
+  'mark_message_as_read',
+]);
+
+/** Explicit whitelist of domain events allowed to touch Redux from acks. */
+const DOMAIN_SOCKET_EVENTS = new Set([
+  ...ORDER_SOCKET_EVENTS,
+  ...RETURN_SOCKET_EVENTS,
+  ...DISPUTE_SOCKET_EVENTS,
+]);
+
+/**
+ * @param {unknown} result
+ * @returns {boolean}
+ */
+function isOrderDetailResult(result) {
+  if (!result || typeof result !== 'object') return false;
+  const r = /** @type {Record<string, unknown>} */ (result);
+  return r.order != null && typeof r.order === 'object';
+}
+
+/**
+ * @param {unknown} result
+ * @returns {boolean}
+ */
+function isReturnDetailResult(result) {
+  if (!result || typeof result !== 'object') return false;
+  const r = /** @type {Record<string, unknown>} */ (result);
+  return r.return != null && typeof r.return === 'object';
+}
+
+/** @param {string} event */
+function isChatSocketEvent(event) {
+  return CHAT_SOCKET_EVENTS.has(event);
+}
+
+/** @param {string} event */
+function isDomainSocketEvent(event) {
+  return DOMAIN_SOCKET_EVENTS.has(event);
+}
+
+/**
+ * Apply order list/detail from a shaped payload fragment.
+ * @param {unknown} orderInfo
+ * @param {unknown} orderList
+ */
+function applyOrderSliceUpdates(orderInfo, orderList) {
+  if (isOrderDetailResult(orderInfo)) {
+    store.dispatch(set_orderInfo(orderInfo));
+  }
+  if (Array.isArray(orderList)) {
+    store.dispatch(set_orderList(orderList));
+  }
+}
 
 /** @param {unknown} res */
 export async function applyOrderSocketPayload(res) {
   if (!res || typeof res !== 'object') return;
   const payload = /** @type {Record<string, unknown>} */ (res);
-  console.log("testing payment_received: ", payload);
-  if (payload?.result) {
-    store.dispatch(set_orderInfo(payload.result))
-  }
-  store.dispatch(set_orderList(payload.list))
+  applyOrderSliceUpdates(payload.result, payload.list);
 }
 
 /** @param {unknown} res */
 export function applyReturnSocketPayload(res) {
   if (!res || typeof res !== 'object') return;
   const payload = /** @type {Record<string, unknown>} */ (res);
-  if (payload.result) {
+  if (isReturnDetailResult(payload.result)) {
     store.dispatch(set_returnInfo(payload.result));
   }
   if (Array.isArray(payload.list)) {
@@ -67,51 +128,94 @@ export function applyReturnSocketPayload(res) {
   }
 }
 
-/** @param {unknown} res */
+/**
+ * Push payload uses `{ actor: { voi, vol, cdl, cdi, ... } }`.
+ * Ack payload uses `{ dispute: { vendor, customer }, others: { voi, vol, coi, col } }`.
+ * @param {unknown} res
+ */
 export function applyDisputeSocketPayload(res) {
   const auth = store.getState().auth;
-
   if (!res || typeof res !== 'object') return;
   const payload = /** @type {Record<string, unknown>} */ (res);
 
-  if (payload.actor && typeof payload.actor === 'object') {
-    const {actor} = res;
-    if (auth.activeRole === "customer" && actor?.cdl) {
-      store.dispatch(set_disputeList(actor.cdl));
-      store.dispatch(set_disputeInfo(actor.cdi));
-    }else if(auth.activeRole === "vendor" && actor?.vdl){
-      store.dispatch(set_disputeList(actor.vdl));
-      store.dispatch(set_disputeInfo(actor.vdi));
-    }
+  const disputeBlock = payload.dispute;
+  if (disputeBlock && typeof disputeBlock === 'object') {
+    const d = /** @type {Record<string, unknown>} */ (disputeBlock);
+    const vendor =
+      d.vendor && typeof d.vendor === 'object'
+        ? /** @type {Record<string, unknown>} */ (d.vendor)
+        : null;
+    const customer =
+      d.customer && typeof d.customer === 'object'
+        ? /** @type {Record<string, unknown>} */ (d.customer)
+        : null;
 
-    if (actor?.voi || actor?.coi) {
-      if (auth.activeRole === "vendor" && actor?.voi || auth.activeRole === "customer" && actor?.coi) {
-        if(auth.activeRole === "vendor"){
-          store.dispatch(set_orderInfo(actor.voi))
-          store.dispatch(set_orderList(actor.vol))
-        }else{
-          store.dispatch(set_orderInfo(actor.coi))
-          store.dispatch(set_orderList(actor.col))
-        }
-      }else{
-        if(auth.activeRole === "vendor"){
-          store.dispatch(set_orderInfo(payload.others.voi))
-          store.dispatch(set_orderList(payload.others.vol))
-        }else{
-          store.dispatch(set_orderInfo(payload.others.coi))
-          store.dispatch(set_orderList(payload.others.col))
-        }
+    if (auth.activeRole === 'vendor' && vendor) {
+      if (Array.isArray(vendor.vdl)) {
+        store.dispatch(set_disputeList(vendor.vdl));
+      }
+      if (vendor.vdi != null) {
+        store.dispatch(set_disputeInfo(vendor.vdi));
+      }
+    } else if (auth.activeRole === 'customer' && customer) {
+      if (Array.isArray(customer.cdl)) {
+        store.dispatch(set_disputeList(customer.cdl));
+      }
+      if (customer.cdi != null) {
+        store.dispatch(set_disputeInfo(customer.cdi));
       }
     }
+  }
 
+  const others = payload.others;
+  if (others && typeof others === 'object') {
+    const o = /** @type {Record<string, unknown>} */ (others);
+    if (auth.activeRole === 'vendor') {
+      applyOrderSliceUpdates(o.voi, o.vol);
+    } else {
+      applyOrderSliceUpdates(o.coi, o.col);
+    }
+  }
+
+  if (payload.actor && typeof payload.actor === 'object') {
+    const actor = /** @type {Record<string, unknown>} */ (payload.actor);
+    if (auth.activeRole === 'vendor') {
+      applyOrderSliceUpdates(actor.voi, actor.vol);
+      if (Array.isArray(actor.vdl)) {
+        store.dispatch(set_disputeList(actor.vdl));
+      }
+      if (actor.vdi != null) {
+        store.dispatch(set_disputeInfo(actor.vdi));
+      }
+    } else if (auth.activeRole === 'customer') {
+      applyOrderSliceUpdates(actor.coi, actor.col);
+      if (Array.isArray(actor.cdl)) {
+        store.dispatch(set_disputeList(actor.cdl));
+      }
+      if (actor.cdi != null) {
+        store.dispatch(set_disputeInfo(actor.cdi));
+      }
+    }
   }
 }
 
-/** @param {unknown} ack */
-export async function applySocketAckPayload(ack) {
-  applyOrderSocketPayload(ack);
-  applyReturnSocketPayload(ack);
-  applyDisputeSocketPayload(ack);
+/**
+ * Apply Redux updates for a single domain socket event (order / return / dispute only).
+ * @param {unknown} ack
+ * @param {string} event
+ */
+export async function applySocketAckPayload(ack, event) {
+  if (!isDomainSocketEvent(event)) return;
+
+  if (ORDER_SOCKET_EVENTS.includes(event)) {
+    await applyOrderSocketPayload(ack);
+  }
+  if (RETURN_SOCKET_EVENTS.includes(event)) {
+    applyReturnSocketPayload(ack);
+  }
+  if (DISPUTE_SOCKET_EVENTS.includes(event)) {
+    applyDisputeSocketPayload(ack);
+  }
 }
 
 /** @param {import('socket.io-client').Socket} socket */
@@ -119,9 +223,8 @@ function bindOrderSocketListeners(socket) {
   if (socket.__orderListenersBound) return;
   socket.__orderListenersBound = true;
 
-  const onOrderUpdate = async(res) => {
+  const onOrderUpdate = async (res) => {
     await Tools.playSound();
-    // console.log("this suppose to be customer listener---")
     applyOrderSocketPayload(res);
   };
 
@@ -133,9 +236,8 @@ function bindReturnSocketListeners(socket) {
   if (socket.__returnListenersBound) return;
   socket.__returnListenersBound = true;
 
-  const onReturnUpdate = async(res) => {
+  const onReturnUpdate = async (res) => {
     await Tools.playSound();
-    // console.log("this suppose to be customer listener---")
     applyReturnSocketPayload(res);
   };
 
@@ -147,9 +249,8 @@ function bindDisputeSocketListeners(socket) {
   if (socket.__disputeListenersBound) return;
   socket.__disputeListenersBound = true;
 
-  const onDisputeUpdate = async(res) => {
+  const onDisputeUpdate = async (res) => {
     await Tools.playSound();
-    // console.log("this suppose to be customer listener---")
     applyDisputeSocketPayload(res);
   };
 
@@ -175,11 +276,45 @@ function parseAck(payload) {
   return {
     success: Boolean(rec.success),
     dispute: rec.dispute ?? null,
-    others: rec.others ,
+    others: rec.others,
     result: rec.result,
     list: rec.list,
     message: String(rec.message ?? ''),
     error: rec.error != null ? String(rec.error) : '',
+  };
+}
+
+/**
+ * @param {Record<string, unknown>} [payload]
+ */
+async function prepareSocketPayload(payload = {}) {
+  const socket = await connectChatSocket();
+  if (!socket) return { socket: null, base: null };
+
+  const base =
+    payload && typeof payload === 'object' && !Array.isArray(payload)
+      ? /** @type {Record<string, unknown>} */ ({ ...payload })
+      : {};
+  if (base.app_role == null && base.appRole == null) {
+    const role = await getStoredActiveRole();
+    base.app_role = role === 'vendor' ? 'vendor' : 'customer';
+  }
+  return { socket, base };
+}
+
+/**
+ * @param {unknown} ack
+ */
+function resolveAckPromise(ack) {
+  const out = parseAck(ack);
+  return {
+    success: out.success,
+    dispute: out.dispute,
+    others: out.others,
+    result: out.result,
+    list: Array.isArray(out.list) ? out.list : null,
+    message: out.message,
+    error: out.error,
   };
 }
 
@@ -214,14 +349,10 @@ export async function connectChatSocket() {
       });
     }
 
-    // playNotificationSound();
-    // showInAppBanner(data);
-    
     bindOrderSocketListeners(socketSingleton);
     bindReturnSocketListeners(socketSingleton);
     bindDisputeSocketListeners(socketSingleton);
 
-    
     return socketSingleton;
   })();
 
@@ -231,39 +362,73 @@ export async function connectChatSocket() {
 }
 
 /**
+ * Chat-only socket ack — never updates order / return / dispute Redux.
+ * Use for: get_room_messages, create_message, get_rooms, create_room, typing, mark_message_as_read.
+ *
  * @template T
  * @param {string} event
- * @param {Record<string, unknown>} payload
- * @returns {Promise<{ success: boolean; result: T | null; list: unknown[] | null; message: string; error: string }>}
+ * @param {Record<string, unknown>} [payload]
+ */
+export async function emitChatSocketAck(event, payload = {}) {
+  if (!isChatSocketEvent(event)) {
+    console.warn(
+      `[chatSocket] emitChatSocketAck called with non-chat event "${event}". Use emitSocketAck for domain events.`,
+    );
+  }
+
+  const { socket, base } = await prepareSocketPayload(payload);
+  if (!socket || !base) {
+    return {
+      success: false,
+      result: null,
+      list: null,
+      message: 'Sign in required',
+      error: '',
+      dispute: null,
+      others: null,
+    };
+  }
+
+  return new Promise((resolve) => {
+    socket.emit(event, base, (ack) => {
+      resolve(resolveAckPromise(ack));
+    });
+  });
+}
+
+/**
+ * Order / return / dispute socket ack — updates Redux only for whitelisted domain events.
+ * Chat events must use {@link emitChatSocketAck} instead.
+ *
+ * @template T
+ * @param {string} event
+ * @param {Record<string, unknown>} [payload]
  */
 export async function emitSocketAck(event, payload = {}) {
-  const socket = await connectChatSocket();
-  if (!socket) {
-    return { success: false, result: null, message: 'Sign in required', error: '' };
+  if (isChatSocketEvent(event)) {
+    return emitChatSocketAck(event, payload);
   }
-  const base =
-    payload && typeof payload === 'object' && !Array.isArray(payload)
-      ? /** @type {Record<string, unknown>} */ ({ ...payload })
-      : {};
-  if (base.app_role == null && base.appRole == null) {
-    const role = await getStoredActiveRole();
-    base.app_role = role === 'vendor' ? 'vendor' : 'customer';
+
+  const { socket, base } = await prepareSocketPayload(payload);
+  if (!socket || !base) {
+    return {
+      success: false,
+      result: null,
+      list: null,
+      message: 'Sign in required',
+      error: '',
+      dispute: null,
+      others: null,
+    };
   }
+
   return new Promise((resolve) => {
     socket.emit(event, base, (ack) => {
       const out = parseAck(ack);
-      if (out.success) {
-        applySocketAckPayload(ack);
+      if (out.success && isDomainSocketEvent(event)) {
+        void applySocketAckPayload(ack, event);
       }
-      resolve({
-        success: out.success,
-        dispute: /** @type {T | null} */ (out.dispute),
-        others: out.others,
-        result: out.result,
-        list: out.list,
-        message: out.message,
-        error: out.error,
-      });
+      resolve(resolveAckPromise(ack));
     });
   });
 }

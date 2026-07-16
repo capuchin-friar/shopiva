@@ -22,7 +22,7 @@ import {
   scanConversationContext,
   scanMessage,
 } from '../moderation/messageModeration';
-import { connectChatSocket, emitSocketAck, getChatSocket } from '../socket/chatSocket';
+import { connectChatSocket, emitChatSocketAck, getChatSocket } from '../socket/chatSocket';
 import { setLastOpenedChatRoomId } from '../utils/lastOpenedChatRoom';
 import { useSelector } from 'react-redux';
 
@@ -142,7 +142,7 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
     setLoading(true);
     try {
       await connectChatSocket();
-      const out = await emitSocketAck('get_room_messages', {
+      const out = await emitChatSocketAck('get_room_messages', {
         room_id: roomId,
         limit: 100,
         app_role: appRolePayload,
@@ -193,53 +193,6 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
       };
     }, [roomId, loadMessages, mapMessage, storageScope]),
   );
-
-  const headerActions = useCallback(() => {
-    Alert.alert('Call', 'Voice and video calls will be available when connected.');
-  }, []);
-
-  useLayoutEffect(() => {
-    if (!chat) {
-      navigation.setOptions({
-        title: 'Inbox',
-        headerStyle: { backgroundColor: HEADER },
-        headerTintColor: '#FFFFFF',
-        headerTitleStyle: { color: '#FFFFFF', fontWeight: '600' },
-        headerShadowVisible: false,
-        headerBackTitle: 'Inbox',
-        headerRight: undefined,
-      });
-      return;
-    }
-    navigation.setOptions({
-      title: chat.name,
-      headerStyle: { backgroundColor: HEADER },
-      headerTintColor: '#FFFFFF',
-      headerTitleStyle: { color: '#FFFFFF', fontWeight: '600', fontSize: 18 },
-      headerShadowVisible: false,
-      headerBackTitle: 'Inbox',
-      // headerRight: () => (
-      //   <View style={styles.headerRight}>
-      //     <Pressable
-      //       hitSlop={12}
-      //       onPress={headerActions}
-      //       style={styles.headerIconBtn}
-      //       accessibilityLabel="Video call"
-      //     >
-      //       <Icon name="videocam-outline" size={24} color="#FFFFFF" />
-      //     </Pressable>
-      //     <Pressable
-      //       hitSlop={12}
-      //       onPress={headerActions}
-      //       style={styles.headerIconBtn}
-      //       accessibilityLabel="Voice call"
-      //     >
-      //       <Icon name="call-outline" size={22} color="#FFFFFF" />
-      //     </Pressable>
-      //   </View>
-      // ),
-    });
-  }, [navigation, chat, headerActions]);
 
   const bumpModerationLockIfNeeded = useCallback(() => {
     if (sessionModerationBlocksRef.current >= MODERATION_CONFIG.SESSION_BLOCKS_FOR_LOCK) {
@@ -297,7 +250,7 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
     setSending(true);
     void (async () => {
       try {
-        const out = await emitSocketAck('create_message', {
+        const out = await emitChatSocketAck('create_message', {
           room_id: roomId,
           type: 'text',
           content: t,

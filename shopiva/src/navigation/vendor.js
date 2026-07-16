@@ -5,7 +5,6 @@ import { useSelector } from 'react-redux';
 import { ProfileProvider } from '../context/ProfileContext';
 
 import { VendorHomeStackScreen } from '../stacks/vendor/Home';
-import { VendorChatStackScreen } from '../stacks/vendor/Chat';
 import { VendorProductStackScreen } from '../stacks/vendor/Product';
 import { VendorActivitiesStackScreen } from '../stacks/vendor/Activities';
 import { VendorProfileStackScreen } from '../stacks/vendor/Profile';
@@ -34,11 +33,8 @@ export default function VendorTabs() {
             let iconName = 'ellipse-outline';
             if (route.name === 'Home') iconName = focused ? 'home' : 'home-outline';
             else if (route.name === 'Activities') iconName = focused ? 'pulse' : 'pulse-outline';
-            else if (route.name === 'Chat') iconName = focused ? 'chatbubble' : 'chatbubble-outline';
-            else if (route.name === 'Dispute') iconName = focused ? 'alert-circle' : 'alert-circle-outline';
             else if (route.name === 'Profile') iconName = focused ? 'person-circle' : 'person-circle-outline';
             else if (route.name === 'Products') iconName = focused ? 'pricetags' : 'pricetags-outline';
-            else if (route.name === 'Inventory') iconName = focused ? 'cube' : 'cube-outline';
             return <Ionicons name={iconName} size={size} color={color} />;
           },
           tabBarActiveTintColor: '#00926E',
@@ -50,7 +46,6 @@ export default function VendorTabs() {
         })}
       >
         <Tab.Screen name="Home" component={VendorHomeStackScreen} />
-        <Tab.Screen name="Chat" component={VendorChatStackScreen} />
         <Tab.Screen name="Activities" component={VendorActivitiesStackScreen} />
         <Tab.Screen name="Products" component={VendorProductStackScreen} />
         <Tab.Screen name="Profile" component={VendorProfileStackScreen} />

@@ -225,6 +225,8 @@ export default function OrderDetailScreen() {
   const route = useRoute();
   const auth = useSelector(s => s.auth);
   const order = route.params?.order;
+  const orderIdParam =
+    order?.order_id ?? order?.orderId ?? order?.id ?? null;
   const [statusKey, setStatusKey] = useState(null);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [cancelledModalOpen, setCancelledModalOpen] = useState(false);
@@ -315,13 +317,25 @@ export default function OrderDetailScreen() {
   }, [orderInfo]);
 
   useEffect(() => {
-    dispatch(set_orderInfo(null));
+    if (orderIdParam == null || orderIdParam === '') return;
+
+    const loadedId =
+      orderInfo?.order?.id ??
+      orderInfo?.order?.order_id ??
+      null;
+    const sameOrderLoaded =
+      loadedId != null && String(loadedId) === String(orderIdParam);
+
+    if (!sameOrderLoaded) {
+      dispatch(set_orderInfo(null));
+    }
+
     if (auth.activeRole === 'customer') {
       (async () => {
         await connectChatSocket();
-        fetchBuyerOrder(route.params.order.order_id)
-          .then(({ order }) => {
-            dispatch(set_orderInfo(order));
+        fetchBuyerOrder(orderIdParam)
+          .then(({ order: detail }) => {
+            dispatch(set_orderInfo(detail));
           })
           .catch(err => console.log(err));
       })();
@@ -331,14 +345,14 @@ export default function OrderDetailScreen() {
         let { id: userId } = await getStoredUser();
         let shop = await fetchOwnerShops(userId);
         let sid = shop[0].id;
-        fetchShopOrderDetail(sid, route.params.order.order_id, userId)
-          .then(({ order }) => {
-            dispatch(set_orderInfo(order));
+        fetchShopOrderDetail(sid, orderIdParam, userId)
+          .then(({ order: detail }) => {
+            dispatch(set_orderInfo(detail));
           })
           .catch(err => console.log(err));
       })();
     }
-  }, [route, auth.activeRole, dispatch]);
+  }, [orderIdParam, auth.activeRole, dispatch]);
 
   const payKey = String(order?.paymentStatus ?? 'paid').toLowerCase();
   const payTheme = PAY_THEME[payKey] ?? PAY_THEME.paid;
@@ -558,7 +572,6 @@ export default function OrderDetailScreen() {
     navigation.navigate('Inbox', {
       chat:  {roomId: orderInfo.room.id, name: `Order #${orderInfo.order.id}`}
     });
-  
   };
 
   const onDownloadInvoice = () => {

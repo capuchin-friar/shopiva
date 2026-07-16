@@ -19,8 +19,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { getStoredUser } from '../auth/session';
 import { fetchOwnerShops, fetchShopOrders } from '../api';
 import { set_orderList } from '../../redux/orders';
-import { ESCROW_STATUS_THEME, STATUS_THEME, PAY_THEME, COLOR } from '../utils/statusTheme';
-import { useAuth } from '../hooks/useAuth';
+import { STATUS_THEME, COLOR } from '../utils/statusTheme';
 
 
 const FILTERS = [
@@ -140,8 +139,9 @@ export default function OrderListScreen() {
   }, [auth.activeRole, dispatch]);
 
   const data = useMemo(() => {
-    if (filter === 'all') return orderList;
-    return orderList.filter((o) => o.status === filter);
+    const list = Array.isArray(orderList) ? orderList : [];
+    if (filter === 'all') return list;
+    return list.filter((o) => o.status === filter);
   }, [filter, orderList]);
 
   const renderItem = useCallback(
