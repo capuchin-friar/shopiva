@@ -3,6 +3,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import React, { Suspense, lazy } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -48,7 +49,7 @@ function ProfileMainHeader({ navigation }) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.headerContainer, { paddingTop: Math.max(0, 12) }]}>
+    <View style={[styles.headerContainer, { paddingTop: Platform === 'ios' ? 0 : Math.max(0, 30) }]}>
       <Text style={styles.headerTitle}>Profile</Text>
       <TouchableOpacity
         onPress={() => navigation.navigate('Profile-settings')}
@@ -67,7 +68,7 @@ function ProfileSettingsHeader({ navigation }) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.backHeaderOuter, { paddingTop: 0 }]}>
+    <View style={[styles.backHeaderOuter, { paddingTop: Platform === 'ios' ? 0 : Math.max(0, 30) }]}>
       <View style={styles.backHeaderRow}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
