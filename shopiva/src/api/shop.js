@@ -148,6 +148,22 @@ export async function uploadProductImage(shopId, file, productId) {
   return readJson(res);
 }
 
+/**
+ * Upload delivery proof image to Cloudinary via API.
+ * POST /shop/delivery-evidence-upload (multipart field `file`)
+ * @param {{ uri: string; name: string; type: string }} file
+ * @returns {Promise<{ url: string; image?: { url: string; public_id?: string } }>}
+ */
+export async function uploadDeliveryEvidence(file) {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await apiFetchAuthMultipart('/shop/delivery-evidence-upload', {
+    method: 'POST',
+    body: form,
+  });
+  return readJson(res);
+}
+
 
 /**
  * Vendor data via shopId.

@@ -723,7 +723,7 @@ export default function ProfileShopInfoScreen() {
   const shopStatus = pickStr(shopRow, 'status', 'Status') || 'pending_approval';
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}>
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 28) + 24 }}

@@ -4,6 +4,7 @@ import type { ChatRoomRecord } from "../../models/chat.js";
 import { paystack } from "../paystack.js";
 import { listCartLinesForUser } from "./cart.js";
 import { notifyUser } from "../socketBroadcast.js";
+import { GetShopOwnerByShopIdService } from "../business/shop.js";
 
 function pickNumber(v: unknown): number | null {
   if (typeof v === "number" && Number.isFinite(v)) return v;
@@ -121,23 +122,32 @@ export async function confirmCartCheckoutAndCreateChatRoom(
     throw new Error("Could not resolve seller for this cart");
   }
 
-  const orderKey = txnId;
+  const pool = await db();
+
+  const { rows: orders } = await pool.query(
+    `SELECT * FROM orders WHERE payment_reference = $1`,
+    [reference]
+  );
+
+  console.log("order id", orders);
+  // const orderKey = txnId;
+  // const orderKey = 'order.id';
   const results: CheckoutConfirmRoomEntry[] = [];
 
-  for (const recipientId of vendorIds) {
-    if (recipientId === buyerUserId) {
-      throw new Error("Invalid checkout: buyer and seller cannot be the same");
-    }
+  await Promise.all(orders.map(async({id: orderKey, shop_id}) => {
+   
 
-    const existingId = await chatModel.findRoomForOrderAndUsers(orderKey, buyerUserId, recipientId);
+    const vid = (await GetShopOwnerByShopIdService(shop_id)).id;
+
+    const existingId = await chatModel.findRoomForOrderAndUsers(orderKey, buyerUserId, vid);
     if (existingId) {
       const room = await chatModel.getRoomById(existingId);
       if (!room) throw new Error("Chat room not found");
-      results.push({ room, existing: true, vendor_user_id: recipientId });
+      results.push({ room, existing: true, vendor_user_id: vid as any });
       const payload = { room, existing: true };
       notifyUser(buyerUserId, "room_created", payload);
-      notifyUser(recipientId, "room_created", payload);
-      continue;
+      notifyUser(vid as any, "room_created", payload);
+      // continue;
     }
 
     const room = await chatModel.createRoom({
@@ -145,14 +155,15 @@ export async function confirmCartCheckoutAndCreateChatRoom(
       initiator: buyerUserId,
       participants: [
         { user_id: buyerUserId, role: "buyer" },
-        { user_id: recipientId, role: "seller" },
+        { user_id: vid, role: "seller" },
       ],
     });
-    results.push({ room, existing: false, vendor_user_id: recipientId });
+
+    results.push({ room, existing: false, vendor_user_id: vid as any });
     const payload = { room, existing: false };
     notifyUser(buyerUserId, "room_created", payload);
-    notifyUser(recipientId, "room_created", payload);
-  }
+    notifyUser(vid as any, "room_created", payload);
+  }));
 
   await clearCartForUser(buyerUserId);
 

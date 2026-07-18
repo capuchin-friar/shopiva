@@ -25,6 +25,7 @@ import { connectChatSocket, emitSocketAck } from "../socket/chatSocket";
 import { set_orderInfo } from "../../redux/order";
 import { useDispatch } from "react-redux";
 import { fetchShopOwner } from "../api";
+import FormKeyboardAvoiding from "../components/FormKeyboardAvoiding";
 import {
     getCurrentCoordinates,
     requestLocationPermission,
@@ -252,9 +253,10 @@ function Acceptance({ data }) {
 
     return (
         <>
-            <View style={[styles.cnt, styles.processingRoot]}>
+            <FormKeyboardAvoiding style={[styles.cnt, styles.processingRoot]}>
                 {loading && <Spinner />}
                 <ScrollView
+              keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={[
                         styles.processingScrollContent,
@@ -543,7 +545,7 @@ function Acceptance({ data }) {
                         <Text style={styles.btnAcceptText}>Accept</Text>
                     </Pressable>
                 </View>
-            </View>
+            </FormKeyboardAvoiding>
         </>
     )
 }

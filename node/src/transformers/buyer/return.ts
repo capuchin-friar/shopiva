@@ -76,12 +76,22 @@ export const returnTransformer = async (
         [returnId]
     );
 
+    const { rows: [room] } = await pool.query(
+        `SELECT * 
+         FROM chat_rooms
+         WHERE order_id = $1`,
+        [order_items[0].order_id]
+    );
+
+    console.log(order_items[0])
+    console.log(room)
     return {
         user,
         shop: {
             ...shop,
             owner: shopOwner
         },
+        room,
         dispute,
         return: returnRow,
         return_items: formattedReturnItems,

@@ -1,5 +1,5 @@
 import { Alert } from 'react-native';
-import { apiFetchAuth } from './client';
+import { apiFetchAuth, apiFetchAuthMultipart } from './client';
 
 /**
  * @param {Response} res
@@ -29,6 +29,22 @@ export async function fetchBuyerOrder(orderId) {
   const id = encodeURIComponent(String(orderId ?? '').trim());
   if (!id) throw new Error('orderId is required');
   const res = await apiFetchAuth(`/buyer/orders/${id}`);
+  return readJson(res);
+}
+
+/**
+ * Upload dispute evidence image to Cloudinary via API.
+ * POST /buyer/disputes/evidence-upload (multipart field `file`)
+ * @param {{ uri: string; name: string; type: string }} file
+ * @returns {Promise<{ url: string; image?: { url: string; public_id?: string } }>}
+ */
+export async function uploadDisputeEvidence(file) {
+  const form = new FormData();
+  form.append('file', file);
+  const res = await apiFetchAuthMultipart('/buyer/disputes/evidence-upload', {
+    method: 'POST',
+    body: form,
+  });
   return readJson(res);
 }
 

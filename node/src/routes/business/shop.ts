@@ -48,6 +48,10 @@ import {
     productImageUploadMiddleware,
 } from "../../controllers/business/productImageUpload.js";
 import {
+    UploadDeliveryEvidenceController,
+    deliveryEvidenceUploadMiddleware,
+} from "../../controllers/business/deliveryEvidenceUpload.js";
+import {
     GetReturnsByShopController,
     GetReturnDetailByIdController,
 } from "../../controllers/business/return.js";
@@ -87,6 +91,12 @@ BusinessRouter.post(
   verifyToken,
   productImageUploadMiddleware,
   UploadProductImageController,
+);
+BusinessRouter.post(
+  "/shop/delivery-evidence-upload",
+  verifyToken,
+  deliveryEvidenceUploadMiddleware,
+  UploadDeliveryEvidenceController,
 );
 BusinessRouter.post("/shop/delete/:shopId/:id", authenticate, DeleteShopController);
 

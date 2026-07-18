@@ -625,7 +625,7 @@ export default function VendorCreateProductScreen() {
     <KeyboardAvoidingView
       style={[styles.root, { paddingTop: 0 }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={0}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
     >
       {/* <View style={styles.header}>
         <TouchableOpacity

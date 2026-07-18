@@ -488,7 +488,7 @@ export default function CartCheckoutScreen({ navigation }) {
     <KeyboardAvoidingView
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : 0}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
     >
       <View style={[styles.root, { paddingTop: 5 }]}>
         <StatusBar barStyle="dark-content" backgroundColor={CARD_BG} />

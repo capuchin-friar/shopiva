@@ -599,7 +599,7 @@ export default function DisputeDetailScreen() {
               {dispute.metadata.evidence.map((ev, idx) => (
                 <EvidenceGalleryItem
                   key={`${ev.uri}-${idx}`}
-                  uri={ev.uri}
+                  uri={ev.url}
                   kind={ev.kind}
                   caption={ev.caption}
                 />

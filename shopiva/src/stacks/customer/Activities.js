@@ -1,5 +1,5 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import Activities from '../../pages/Activities';
 import OrderListScreen from '../../pages/OrdersList';
 import OpenDispute from '../../pages/OpenDispute';
@@ -11,6 +11,7 @@ import ReturnListScreen from '../../pages/ReturnList';
 import ReturnDetailScreen from '../../pages/ReturnDetail';
 import ReturnActionScreen from '../../pages/ReturnAction';
 import ReviewSubmissionScreen from '../../pages/Review'
+import ChatRoomScreen from '../../pages/ChatRoom';
 const ActivitiesStack = createNativeStackNavigator();
 const activityOptions = {
   headerShown: true,
@@ -66,12 +67,23 @@ const reviewOpt = {
   headerBackVisible: false,
   headerShadowVisible: false,
 }
+const inboxOpt = {
+  title: 'Inbox',
+  headerBackTitle: 'Order',
+  headerShadowVisible: false,
+  headerStyle: { backgroundColor: '#075E54' },
+  headerTintColor: '#FFFFFF',
+  headerShown: true,
+  headerTitleStyle: { color: '#FFFFFF', fontWeight: '600' },
+  contentStyle: { backgroundColor: '#ECE5DD' },
+};
 /**
  * Orders tab: hub + nested orders and disputes stacks (customer).
  * Outer flow screens keep headers off so we do not nest two native-stack headers
  * (avoids duplicate bars and confusing back behavior with Order/Dispute stacks).
  */
 export function ActivitiesStackScreen() {
+ 
   return (
     <ActivitiesStack.Navigator screenOptions={{ headerShown: false }}>
       <ActivitiesStack.Screen name="Activities" component={Activities} options={activityOptions} />
@@ -79,6 +91,8 @@ export function ActivitiesStackScreen() {
       <ActivitiesStack.Screen name="Order-detail" component={OrderDetailScreen} options={orderDetailOpt}  />
       <ActivitiesStack.Screen name="Order-list" component={OrderDetailScreen} options={orderOpt} />
       <ActivitiesStack.Screen name="Order-action" component={OrderActionScreen} options={orderStatusUpdateOpt} />
+      
+      <ActivitiesStack.Screen name="Inbox" component={ChatRoomScreen} options={inboxOpt} />
       
       <ActivitiesStack.Screen
         name="Open-dispute"
@@ -93,6 +107,7 @@ export function ActivitiesStackScreen() {
       <ActivitiesStack.Screen name="Returns" component={ReturnListScreen} options={returnOpt} />
       <ActivitiesStack.Screen name="Return-detail" component={ReturnDetailScreen} options={returnDetailOpt} />
       <ActivitiesStack.Screen name="Return-action" component={ReturnActionScreen} options={returnStatusUpdateOpt} />
+
     </ActivitiesStack.Navigator>
   );
 }

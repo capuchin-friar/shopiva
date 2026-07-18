@@ -95,6 +95,7 @@ export default function PaymentSuccessScreen({ navigation, route }) {
     try {
       const data = await confirmCheckoutPayment({
         reference,
+        // order_id: route?.params?.order_id,
         shipping_naira: shipping,
       });
       const rawRooms = Array.isArray(data?.rooms) ? data.rooms : [];

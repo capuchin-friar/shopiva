@@ -74,6 +74,15 @@ export const returnTransformer = async (
         `SELECT * FROM paystack_transactions WHERE reference = $1`,
         [orderRef]
     );
+
+    const { rows: [room] } = await pool.query(
+        `SELECT * 
+         FROM chat_rooms
+         WHERE order_id = $1`,
+        [return_items[0].order_id]
+    );
+    console.log(return_items[0])
+    console.log(room)
     return {
         customer,
         shop: {
@@ -81,6 +90,7 @@ export const returnTransformer = async (
             owner: shopOwner
         },
         dispute,
+        room,
         return: returnRow,
         return_items: formattedReturnItems,
         return_events,

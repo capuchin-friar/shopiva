@@ -113,7 +113,7 @@ const server = app.listen(process.env.PORT, () => {
     const secretLen = (process.env.JWT_SECRET ?? "").trim().replace(/^"|"$/g, "").length;
     console.log(`JWT_SECRET loaded: ${secretLen > 0 ? "yes" : "NO - fix .env"}`);
 
-   nodeCron.schedule("*/30 * * * *", async () => {
+    nodeCron.schedule("*/30 * * * *", async () => {
         const pool = await db();
 
         const {

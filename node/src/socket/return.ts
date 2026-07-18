@@ -87,7 +87,7 @@ async function broadcastReturnUpdate(
     const recipientList = listForRole(recipientRole, vendorList, customerList);
 
     emitReturnUpdateToUser(recipient, event, result, recipientList);
-    // emitReturnUpdateToUser(actorId, event, result, actorList);
+    emitReturnUpdateToUser(actorId, event, result, actorList);
 
     return { result, list: actorList };
 }

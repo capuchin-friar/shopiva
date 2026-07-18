@@ -35,6 +35,8 @@ async function buildOrderLists(orderId: unknown): Promise<{
             ? customerOrdersTransformer(customerId)
             : Promise.resolve([]),
     ]);
+    // console.log("hello", vendorList)
+    // console.log("hello", customerList)
 
     return { result, vendorList, customerList };
 }
@@ -88,7 +90,7 @@ async function broadcastOrderUpdate(
     const recipientList = listForRole(recipientRole, vendorList, customerList);
 
     emitOrderUpdateToUser(recipient, event, result, recipientList);
-    // emitOrderUpdateToUser(actorId, event, result, actorList);
+    emitOrderUpdateToUser(actorId, event, result, actorList);
 
     return { result, list: actorList };
 }
@@ -525,6 +527,8 @@ export const handleOrderConfirmation = async(
         const {
             order_id, event_type, stage, actor_type, actor_id, outcome, notes, meta, recipient, reason
         } = payload;
+        console.log("recipient: ", recipient)
+
         const { rows } = await p.query(
             `
                 INSERT INTO order_events

@@ -22,18 +22,28 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { formatNaira } from '../utils/formatNaira';
-import { fetchBuyerOrder, fetchOwnerShops, fetchShopOrderDetail, fetchShopOwner } from '../api';
+import {
+  fetchBuyerOrder,
+  fetchOwnerShops,
+  fetchShopOrderDetail,
+  fetchShopOwner,
+} from '../api';
 import { useDispatch, useSelector } from 'react-redux';
 import { getStoredUser } from '../auth/session';
 import { connectChatSocket } from '../socket/chatSocket';
 import { set_orderInfo } from '../../redux/order';
-import { ESCROW_STATUS_THEME, STATUS_THEME, PAY_THEME, COLOR } from '../utils/statusTheme';
+import {
+  ESCROW_STATUS_THEME,
+  STATUS_THEME,
+  PAY_THEME,
+  COLOR,
+} from '../utils/statusTheme';
 import { set_disputeInfo } from '../../redux/dispute';
-
 
 function parseEventMeta(meta) {
   if (meta == null) return {};
-  if (typeof meta === 'object') return /** @type {Record<string, unknown>} */ (meta);
+  if (typeof meta === 'object')
+    return /** @type {Record<string, unknown>} */ (meta);
   if (typeof meta === 'string') {
     try {
       const parsed = JSON.parse(meta);
@@ -176,7 +186,12 @@ function SectionLabel({ children }) {
 function SummaryRow({ icon, label, value, last }) {
   return (
     <View style={[styles.summaryRow, last && styles.summaryRowLast]}>
-      <Icon name={icon} size={18} color={COLOR.MUTED} style={styles.summaryIcon} />
+      <Icon
+        name={icon}
+        size={18}
+        color={COLOR.MUTED}
+        style={styles.summaryIcon}
+      />
       <Text style={styles.summaryLabel}>{label}</Text>
       <View style={styles.summaryValue}>
         {typeof value === 'string' || typeof value === 'number' ? (
@@ -209,12 +224,13 @@ export default function OrderDetailScreen() {
   const insets = useSafeAreaInsets();
   const route = useRoute();
   const auth = useSelector(s => s.auth);
-  const order = (
-    route.params?.order
-  );
+  const order = route.params?.order;
+  const orderIdParam =
+    order?.order_id ?? order?.orderId ?? order?.id ?? null;
   const [statusKey, setStatusKey] = useState(null);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [cancelledModalOpen, setCancelledModalOpen] = useState(false);
+  const [statusInfoOpen, setStatusInfoOpen] = useState(false);
   const { orderInfo } = useSelector(s => s.orderInfo);
   const dispatch = useDispatch();
 
@@ -246,15 +262,15 @@ export default function OrderDetailScreen() {
       meta.cancelled_by === 'vendor' || meta.cancelled_by === 'customer'
         ? String(meta.cancelled_by)
         : actor === 'vendor' || actor === 'customer'
-          ? actor
-          : null;
+        ? actor
+        : null;
 
     const reason =
       meta.reason != null && String(meta.reason).trim()
         ? String(meta.reason).trim()
         : cancelEvent?.notes != null && String(cancelEvent.notes).trim()
-          ? String(cancelEvent.notes).trim()
-          : null;
+        ? String(cancelEvent.notes).trim()
+        : null;
 
     let message;
     if (cancelledBy === 'customer') {
@@ -296,20 +312,31 @@ export default function OrderDetailScreen() {
     return String(n).replace(/^ORD-/i, '');
   }, [order]);
 
-
   useEffect(() => {
     if (!orderInfo) return;
     setStatusKey(orderInfo?.order?.fulfillment_status);
   }, [orderInfo]);
 
   useEffect(() => {
-    dispatch(set_orderInfo(null));
+    if (orderIdParam == null || orderIdParam === '') return;
+
+    const loadedId =
+      orderInfo?.order?.id ??
+      orderInfo?.order?.order_id ??
+      null;
+    const sameOrderLoaded =
+      loadedId != null && String(loadedId) === String(orderIdParam);
+
+    if (!sameOrderLoaded) {
+      dispatch(set_orderInfo(null));
+    }
+
     if (auth.activeRole === 'customer') {
       (async () => {
         await connectChatSocket();
-        fetchBuyerOrder(route.params.order.order_id)
-          .then(({ order }) => {
-            dispatch(set_orderInfo(order));
+        fetchBuyerOrder(orderIdParam)
+          .then(({ order: detail }) => {
+            dispatch(set_orderInfo(detail));
           })
           .catch(err => console.log(err));
       })();
@@ -319,14 +346,14 @@ export default function OrderDetailScreen() {
         let { id: userId } = await getStoredUser();
         let shop = await fetchOwnerShops(userId);
         let sid = shop[0].id;
-        fetchShopOrderDetail(sid, route.params.order.order_id, userId)
-          .then(({ order }) => {
-            dispatch(set_orderInfo(order));
+        fetchShopOrderDetail(sid, orderIdParam, userId)
+          .then(({ order: detail }) => {
+            dispatch(set_orderInfo(detail));
           })
           .catch(err => console.log(err));
       })();
     }
-  }, [route, auth.activeRole, dispatch]);
+  }, [orderIdParam, auth.activeRole, dispatch]);
 
   const payKey = String(order?.paymentStatus ?? 'paid').toLowerCase();
   const payTheme = PAY_THEME[payKey] ?? PAY_THEME.paid;
@@ -334,10 +361,14 @@ export default function OrderDetailScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerTitle: () => (
-        <View style={{
-          width: "100%",
-          display: "flex", alignItems: "center", justifyContent: "center"
-        }}>
+        <View
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           <Text style={{ fontWeight: 700, fontSize: 18 }}>
             Order #{orderNumber}
           </Text>
@@ -536,16 +567,12 @@ export default function OrderDetailScreen() {
     return '';
   }, [orderInfo, auth.activeRole]);
 
+
   const onMail = () => {
     if (blockIfCancelled()) return;
-    if (!counterpartEmail) {
-      Alert.alert(
-        'Message',
-        'No email address is on file for this party yet. Use in-app chat when available.',
-      );
-      return;
-    }
-    Linking.openURL(`mailto:${counterpartEmail}`).catch(() => {});
+    navigation.navigate('Inbox', {
+      chat:  {roomId: orderInfo.room.id, name: `Order #${orderInfo.order.id}`}
+    });
   };
 
   const onDownloadInvoice = () => {
@@ -565,33 +592,32 @@ export default function OrderDetailScreen() {
   };
 
   const onCancelDelivery = useCallback(async () => {
-    if(!statusKey)return;
-    if (statusKey === "order_delivered") {
+    if (!statusKey) return;
+    if (statusKey === 'order_delivered') {
       Alert.alert(
-        "Cannot cancel order after delivery",
-        "This order has already been delivered. If there is an issue with the item, please raise a dispute instead.",
+        'Cannot cancel order after delivery',
+        'This order has already been delivered. If there is an issue with the item, please raise a dispute instead.',
         [
           {
-            text: "Close",
-            style: "cancel",
+            text: 'Close',
+            style: 'cancel',
           },
-          (!orderInfo?.dispute &&
-          {
-            text: "Raise Dispute",
+          !orderInfo?.dispute && {
+            text: 'Raise Dispute',
             onPress: () => {
-              navigation.navigate("Open-dispute", {
+              navigation.navigate('Open-dispute', {
                 orderId: order.id,
-              }); 
+              });
             },
-          })
-        ]
+          },
+        ],
       );
       return;
     }
     if (blockIfCancelled()) return;
     if (!orderInfo?.order) return;
 
-    if (auth.activeRole === 'customer' ) {
+    if (auth.activeRole === 'customer') {
       const u = await getStoredUser();
       const owners = await fetchShopOwner(orderInfo.order.shop_id);
       const vendorId = owners[0]?.id;
@@ -602,13 +628,13 @@ export default function OrderDetailScreen() {
         );
         return;
       }
-  
+
       const totalPaid = Number(
         orderInfo.order.total_paid ?? orderInfo.order.amount_paid ?? 0,
       );
       const postShipment = (orderInfo.order_events?.length ?? 0) > 3;
       const restockingFee = orderInfo.order.shipping_fee;
-  
+
       navigation.navigate('Order-action', {
         action: 'cancellation',
         data: {
@@ -625,9 +651,9 @@ export default function OrderDetailScreen() {
           restocking_fee: restockingFee,
         },
       });
-    }else{
+    } else {
       const u = await getStoredUser();
-  
+
       navigation.navigate('Order-action', {
         action: 'cancellation',
         data: {
@@ -642,36 +668,45 @@ export default function OrderDetailScreen() {
         },
       });
     }
-  }, [auth.activeRole, blockIfCancelled, navigation, order.id, orderInfo, statusKey]);
+  }, [
+    auth.activeRole,
+    blockIfCancelled,
+    navigation,
+    order.id,
+    orderInfo,
+    statusKey,
+  ]);
 
-  const onOpenDispute = useCallback(async() => {
-    if(orderInfo?.dispute){
+  const onOpenDispute = useCallback(async () => {
+    if (orderInfo?.dispute) {
       const [vendor] = await fetchShopOwner(orderInfo.shop.id);
-      console.log("vendor:",vendor)
-      dispatch(set_disputeInfo({
-        ...orderInfo.dispute,
-        order: orderInfo.order,
-        vendor,
-        customer: orderInfo.customer,
-        order_event: orderInfo.order_event,
-        order_items: orderInfo.order_items
-      }));
+      console.log('vendor:', vendor);
+      dispatch(
+        set_disputeInfo({
+          ...orderInfo.dispute,
+          order: orderInfo.order,
+          vendor,
+          customer: orderInfo.customer,
+          order_event: orderInfo.order_event,
+          order_items: orderInfo.order_items,
+        }),
+      );
       // Alert.alert(JSON.stringify(orderInfo.dispute));
-      navigation.navigate("Dispute-detail", {
+      navigation.navigate('Dispute-detail', {
         dispute: orderInfo.dispute,
         disputeId: orderInfo.dispute.id,
       });
       return;
     }
     if (blockIfCancelled()) return;
-    if(auth.activeRole === "customer"){
-      if(statusKey !== "order_delivered"){
+    if (auth.activeRole === 'customer') {
+      if (statusKey !== 'order_delivered') {
         Alert.alert(
           'Cannot open dispute at this stage',
           'To dispute this order, you must confirm you received the order from the vendor first',
           [{ text: 'OK' }],
         );
-      }else if(statusKey === "order_delivered"){
+      } else if (statusKey === 'order_delivered') {
         const oid =
           orderInfo?.order?.id ??
           orderInfo?.order?.order_id ??
@@ -679,14 +714,14 @@ export default function OrderDetailScreen() {
           order?.order_id;
         navigation.navigate('Open-dispute', { orderId: oid });
       }
-    }else{
-      if(statusKey !== "order_delivered"){
+    } else {
+      if (statusKey !== 'order_delivered') {
         Alert.alert(
           'Cannot open dispute at this stage',
           'To dispute this order, the buyer must confirm he/she received the order from   you (vendor) first',
           [{ text: 'OK' }],
         );
-      }else if(statusKey === "order_delivered"){
+      } else if (statusKey === 'order_delivered') {
         Alert.alert(
           'Buyer dispute',
           'Disputes are opened by the buyer from their account after delivery is confirmed.',
@@ -694,24 +729,33 @@ export default function OrderDetailScreen() {
         );
       }
     }
-  }, [auth.activeRole, blockIfCancelled, navigation, order, orderInfo, statusKey]);
+  }, [
+    auth.activeRole,
+    blockIfCancelled,
+    navigation,
+    order,
+    orderInfo,
+    statusKey,
+  ]);
 
   const onUpdateStatus = async () => {
     if (blockIfCancelled()) return;
     if (!orderInfo?.order) return;
-    if(statusKey === "order_disputed"){
+    if (statusKey === 'order_disputed') {
       const [vendor] = await fetchShopOwner(orderInfo.shop.id);
-      console.log("vendor:",vendor)
-      dispatch(set_disputeInfo({
-        ...orderInfo.dispute,
-        order: orderInfo.order,
-        vendor,
-        customer: orderInfo.customer,
-        order_event: orderInfo.order_event,
-        order_items: orderInfo.order_items
-      }));
+      console.log('vendor:', vendor);
+      dispatch(
+        set_disputeInfo({
+          ...orderInfo.dispute,
+          order: orderInfo.order,
+          vendor,
+          customer: orderInfo.customer,
+          order_event: orderInfo.order_event,
+          order_items: orderInfo.order_items,
+        }),
+      );
       // Alert.alert(JSON.stringify(orderInfo.dispute));
-      navigation.navigate("Dispute-detail", {
+      navigation.navigate('Dispute-detail', {
         dispute: orderInfo.dispute,
         disputeId: orderInfo.dispute.id,
       });
@@ -724,7 +768,10 @@ export default function OrderDetailScreen() {
       actor_id: u.id,
       outcome: 'pending',
       notes: '',
-      recipient: auth.activeRole === "vendor" ? orderInfo?.order?.customer_id : orderInfo?.shop?.ownerid,
+      recipient:
+        auth.activeRole === 'vendor'
+          ? orderInfo?.order?.customer_id
+          : orderInfo?.shop?.ownerid,
       meta: {},
     };
 
@@ -781,6 +828,8 @@ export default function OrderDetailScreen() {
           action: 'confirmation',
           data: {
             ...base,
+            recipient: orderInfo?.shop?.ownerid,
+            actor_type: 'customer',
             event_type: 'confirmation',
             stage: 'order_confirmed',
           },
@@ -876,14 +925,14 @@ export default function OrderDetailScreen() {
     //       ? 'Confirm Buyer Has Received The Order'
     //       : statusKey === 'order_confirmed' ? 'Your payout will be processed within 48 hours.'
     //       : "Awaiting Buyer's Confirmation"
-    //     : 
-    //   (auth.activeRole === 'customer') 
+    //     :
+    //   (auth.activeRole === 'customer')
     //   ? 'Confirm delivery' : ''
     // );
 
     let message;
-    if(auth.activeRole === 'vendor'){
-      switch(statusKey){
+    if (auth.activeRole === 'vendor') {
+      switch (statusKey) {
         case 'order_accepted':
           message = 'Click Here To Start Processing Order';
           break;
@@ -905,11 +954,14 @@ export default function OrderDetailScreen() {
         case 'order_rejected':
           message = 'You Declined this order';
           break;
-        default: 
+        case 'order_delivered':
+          message = "Awaiting Customer's Confirmation";
+          break;
+        default:
           message = "Awaiting Customer's Confirmation";
       }
-    }else{
-      switch(statusKey){
+    } else {
+      switch (statusKey) {
         case 'order_accepted':
           message = 'Your Order is being processed';
           break;
@@ -931,14 +983,13 @@ export default function OrderDetailScreen() {
         case 'order_rejected':
           message = 'Vendor Declined & cannot Fulfill this order';
           break;
-        default: 
-          message = "Confirm That You Received The Order";
+        default:
+          message = 'Confirm That You Received The Order';
       }
     }
 
-    return message
-  
-  }
+    return message;
+  };
 
   return (
     <View style={[styles.root, { paddingTop: 0 }]}>
@@ -1019,38 +1070,39 @@ export default function OrderDetailScreen() {
                 </Text>
               </View>
             ) : null}
-            {!isOrderCancelled && (statusKey !== "order_confirmed"  && statusKey !== "order_rejected") ? (
-            <View style={styles.escrowActions}>
-             { statusKey !== "order_disputed" &&
-             <Pressable
-                onPress={onCancelDelivery}
-                style={({ pressed }) => [
-                  styles.escrowBtn,
-                  styles.escrowBtnCancel,
-                  pressed && styles.pressed,
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel="Cancel delivery"
-              >
-                <Text style={styles.escrowBtnCancelText}>Cancel order</Text>
-              </Pressable>}
-              <Pressable
-                onPress={onOpenDispute}
-                style={({ pressed }) => [
-                  styles.escrowBtn,
-                  styles.escrowBtnSecondary,
-                  pressed && styles.pressed,
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel="Open dispute"
-              >
-                <Text style={styles.escrowBtnSecondaryText}>
-                  {
-                    orderInfo?.dispute ? "View dispute" : "Open dispute"
-                  }
-                </Text>
-              </Pressable>
-            </View>
+            {!isOrderCancelled &&
+            statusKey !== 'order_confirmed' &&
+            statusKey !== 'order_rejected' ? (
+              <View style={styles.escrowActions}>
+                {statusKey !== 'order_disputed' && (
+                  <Pressable
+                    onPress={onCancelDelivery}
+                    style={({ pressed }) => [
+                      styles.escrowBtn,
+                      styles.escrowBtnCancel,
+                      pressed && styles.pressed,
+                    ]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Cancel delivery"
+                  >
+                    <Text style={styles.escrowBtnCancelText}>Cancel order</Text>
+                  </Pressable>
+                )}
+                <Pressable
+                  onPress={onOpenDispute}
+                  style={({ pressed }) => [
+                    styles.escrowBtn,
+                    styles.escrowBtnSecondary,
+                    pressed && styles.pressed,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Open dispute"
+                >
+                  <Text style={styles.escrowBtnSecondaryText}>
+                    {orderInfo?.dispute ? 'View dispute' : 'Open dispute'}
+                  </Text>
+                </Pressable>
+              </View>
             ) : null}
           </View>
         )}
@@ -1088,7 +1140,11 @@ export default function OrderDetailScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Message customer"
                 >
-                  <Icon name="mail-outline" size={22} color={COLOR.BRAND_COLOR} />
+                  <Icon
+                    name="mail-outline"
+                    size={22}
+                    color={COLOR.BRAND_COLOR}
+                  />
                 </Pressable>
               </View>
             </View>
@@ -1116,7 +1172,11 @@ export default function OrderDetailScreen() {
                   accessibilityRole="button"
                   accessibilityLabel="Message vendor"
                 >
-                  <Icon name="mail-outline" size={22} color={COLOR.BRAND_COLOR} />
+                  <Icon
+                    name="mail-outline"
+                    size={22}
+                    color={COLOR.BRAND_COLOR}
+                  />
                 </Pressable>
               </View>
             </View>
@@ -1202,7 +1262,6 @@ export default function OrderDetailScreen() {
                 ]}
               >
                 <View style={styles.itemThumb}>
-                
                   {it.product.thumbnail_url ? (
                     <Image
                       source={{ uri: String(it.product.thumbnail_url) }}
@@ -1286,115 +1345,141 @@ export default function OrderDetailScreen() {
           { paddingBottom: Math.max(insets.bottom, 12) },
         ]}
       >
-        {!isOrderCancelled && orderInfo?.order_events?.length === 1 && auth.activeRole === "vendor" && (
-          <>
-            <Pressable
-              // onPress={onRefund}
-              onPress={e => {
-                if (blockIfCancelled()) return;
-                const u = getStoredUser();
-                navigation.navigate('Order-action', {
-                  action: 'acceptance',
-                  data: {
-                    order_id: orderInfo.order.id,
-                    event_type: 'acceptance',
-                    stage: 'order_accepted',
-                    actor_type: 'vendor',
-                    actor_id: u.id,
-                    outcome: 'success',
-                    notes: '',
-                    recipient: orderInfo.order.customer_id,
-                    meta: {},
-                  },
-                });
-              }}
-              style={({ pressed }) => [
-                styles.btnAccept,
-                pressed && styles.btnAcceptPressed,
-              ]}
-            >
-              <Text style={styles.btnAcceptText}>Accept</Text>
-            </Pressable>
+        {!isOrderCancelled &&
+          orderInfo?.order_events?.length === 1 &&
+          auth.activeRole === 'vendor' && (
+            <>
+              <Pressable
+                // onPress={onRefund}
+                onPress={e => {
+                  if (blockIfCancelled()) return;
+                  const u = getStoredUser();
+                  navigation.navigate('Order-action', {
+                    action: 'acceptance',
+                    data: {
+                      order_id: orderInfo.order.id,
+                      event_type: 'acceptance',
+                      stage: 'order_accepted',
+                      actor_type: 'vendor',
+                      actor_id: u.id,
+                      outcome: 'success',
+                      notes: '',
+                      recipient: orderInfo.order.customer_id,
+                      meta: {},
+                    },
+                  });
+                }}
+                style={({ pressed }) => [
+                  styles.btnAccept,
+                  pressed && styles.btnAcceptPressed,
+                ]}
+              >
+                <Text style={styles.btnAcceptText}>Accept</Text>
+              </Pressable>
 
+              <Pressable
+                // onPress={onResendInvoice}
+                onPress={e => {
+                  if (blockIfCancelled()) return;
+                  const u = getStoredUser();
+                  navigation.navigate('Order-action', {
+                    action: 'acceptance',
+                    data: {
+                      order_id: orderInfo.order.id,
+                      event_type: 'acceptance',
+                      stage: 'order_rejected',
+                      actor_type: 'vendor',
+                      actor_id: u.id,
+                      outcome: 'failure',
+                      notes: '',
+                      recipient: orderInfo.order.customer_id,
+                      meta: {},
+                    },
+                  });
+                }}
+                style={({ pressed }) => [
+                  styles.btnReject,
+                  pressed && styles.btnRejectPressed,
+                ]}
+              >
+                <Text style={styles.btnRejectText}>Reject</Text>
+              </Pressable>
+            </>
+          )}
+        {orderInfo?.order_events?.length > 1 &&
+          (statusKey !== 'order_delivered' &&
+          statusKey !== 'order_disputed' &&
+          auth.activeRole === 'customer' ? (
+            ''
+          ) : (
             <Pressable
-              // onPress={onResendInvoice}
-              onPress={e => {
+              onPress={() => {
                 if (blockIfCancelled()) return;
-                const u = getStoredUser();
-                navigation.navigate('Order-action', {
-                  action: 'acceptance',
-                  data: {
-                    order_id: orderInfo.order.id,
-                    event_type: 'acceptance',
-                    stage: 'order_rejected',
-                    actor_type: 'vendor',
-                    actor_id: u.id,
-                    outcome: 'failure',
-                    notes: '',
-                    recipient: orderInfo.order.customer_id,
-                    meta: {},
-                  },
-                });
+                // Terminal / waiting statuses — explain instead of navigating.
+                if (
+                  auth.activeRole === 'vendor' &&
+                  (statusKey === 'order_delivered' ||
+                    statusKey === 'order_confirmed' ||
+                    statusKey === 'order_cancelled' ||
+                    statusKey === 'order_rejected')
+                ) {
+                  setStatusInfoOpen(true);
+                  return;
+                }
+                if (
+                  auth.activeRole === 'customer' &&
+                  (statusKey === 'order_confirmed' ||
+                    statusKey === 'order_cancelled' ||
+                    statusKey === 'order_rejected')
+                ) {
+                  setStatusInfoOpen(true);
+                  return;
+                }
+                onUpdateStatus();
               }}
               style={({ pressed }) => [
-                styles.btnReject,
-                pressed && styles.btnRejectPressed,
+                styles.btnPrimary,
+                pressed && styles.btnPrimaryPressed,
+                {
+                  backgroundColor: STATUS_THEME[statusKey]?.dot,
+                },
               ]}
             >
-              <Text style={styles.btnRejectText}>Reject</Text>
+              <Text style={styles.btnPrimaryText}>
+                {statusKey === 'order_disputed'
+                  ? 'This Order Was Disputed, Click to View Dispute'
+                  : actionBtn()}
+              </Text>
             </Pressable>
-          </>
-        )}
-        {orderInfo?.order_events?.length > 1 &&  (
-          statusKey !== "order_delivered" && statusKey !== "order_disputed" && auth.activeRole === 'customer' ? '' : 
+        ))}
+
+        {auth.activeRole === 'customer' &&
+        statusKey !== 'order_delivered' &&
+        statusKey !== 'order_disputed' ? (
           <Pressable
-            onPress={onUpdateStatus}
-            // disabled={
-            //   statusKey !== 'order_delivered' || statusKey !== "order_disputed" && auth.activeRole === 'customer'
-            //     ? true 
-            //     : false
-            // }
+            onPress={e => {
+              if (blockIfCancelled()) return;
+              setStatusInfoOpen(true);
+            }}
             style={({ pressed }) => [
               styles.btnPrimary,
               pressed && styles.btnPrimaryPressed,
               {
-                backgroundColor: STATUS_THEME[statusKey]?.dot
-              }
+                backgroundColor: STATUS_THEME[statusKey]?.dot,
+              },
             ]}
           >
-            <Text style={styles.btnPrimaryText}>
-              {
-                statusKey === "order_disputed" 
-                ?
-                "This Order Was Disputed, Click to View Dispute"
-                :
-                actionBtn()
-              }
+            <Text
+              style={[styles.btnPrimaryText, { textTransform: 'capitalize' }]}
+            >
+              {statusKey === 'payment_received'
+                ? "Awaiting Vendor's Approval"
+                : actionBtn()}
             </Text>
           </Pressable>
+        ) : (
+          ''
         )}
-
-        {auth.activeRole === 'customer' && statusKey !== "order_delivered" && statusKey !== "order_disputed" ? 
-          <Pressable 
-          onPress={e => {
-            if (blockIfCancelled()) return;
-          }}
-          style={({ pressed }) => [
-            styles.btnPrimary,
-            pressed && styles.btnPrimaryPressed,
-            {
-              backgroundColor: STATUS_THEME[statusKey]?.dot
-            }
-          ]}
-          >
-             <Text style={[styles.btnPrimaryText, {textTransform: "capitalize"}]}>
-              {
-                statusKey === "payment_received"?
-                "Awaiting Vendor's Approval" : actionBtn()
-              }
-            </Text>
-          </Pressable>
-         : ''}
       </View>
 
       <Modal
@@ -1482,6 +1567,54 @@ export default function OrderDetailScreen() {
               style={({ pressed }) => [
                 styles.cancelledModalBtn,
                 pressed && styles.btnPrimaryPressed,
+              ]}
+            >
+              <Text style={styles.cancelledModalBtnText}>OK</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={statusInfoOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setStatusInfoOpen(false)}
+      >
+        <View style={styles.cancelledModalRoot}>
+          <Pressable
+            style={styles.sheetDismiss}
+            onPress={() => setStatusInfoOpen(false)}
+          />
+          <View style={styles.cancelledModalCard}>
+            <Icon
+              name="information-circle-outline"
+              size={44}
+              color={STATUS_THEME[statusKey]?.dot ?? COLOR.BRAND_COLOR}
+            />
+            <Text style={styles.cancelledModalTitle}>
+              {STATUS_THEME[statusKey]?.label ?? 'Order status'}
+            </Text>
+            <Text style={styles.cancelledModalBody}>
+              {statusKey === 'payment_received'
+                ? "Payment was received. The vendor still needs to accept this order before fulfillment can begin."
+                : statusKey === 'order_delivered' && auth.activeRole === 'vendor'
+                  ? 'This order has been delivered. Waiting for the customer to confirm they received it. Escrow will release funds after confirmation.'
+                  : statusKey === 'order_confirmed'
+                    ? auth.activeRole === 'vendor'
+                      ? 'The customer confirmed delivery. Your payout is being processed and should arrive within 24 hours.'
+                      : 'You confirmed delivery. Escrow will release the funds to the vendor shortly.'
+                    : `${actionBtn()}. No action is available for you at this step — the current status is "${STATUS_THEME[statusKey]?.label ?? statusKey}".`}
+            </Text>
+            <Pressable
+              onPress={() => setStatusInfoOpen(false)}
+              style={({ pressed }) => [
+                styles.cancelledModalBtn,
+                pressed && styles.btnPrimaryPressed,
+                {
+                  backgroundColor:
+                    STATUS_THEME[statusKey]?.dot ?? COLOR.BRAND_COLOR,
+                },
               ]}
             >
               <Text style={styles.cancelledModalBtnText}>OK</Text>

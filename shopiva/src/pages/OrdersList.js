@@ -19,15 +19,15 @@ import { useDispatch, useSelector } from 'react-redux';
 import { getStoredUser } from '../auth/session';
 import { fetchOwnerShops, fetchShopOrders } from '../api';
 import { set_orderList } from '../../redux/orders';
-import { ESCROW_STATUS_THEME, STATUS_THEME, PAY_THEME, COLOR } from '../utils/statusTheme';
-import { useAuth } from '../hooks/useAuth';
+import { STATUS_THEME, COLOR } from '../utils/statusTheme';
 
 
 const FILTERS = [
   { key: 'all', label: 'All' },
-  { key: 'pending', label: 'Pending' },
-  { key: 'processing', label: 'Processing' },
-  { key: 'delivered', label: 'Delivered' },
+  ...Object.entries(STATUS_THEME).map(([key, theme]) => ({
+    key,
+    label: theme.label,
+  })),
 ];
 
 function statusThemeFor(raw) {
@@ -43,6 +43,7 @@ function statusThemeFor(raw) {
   if (key.includes('process')) return STATUS_THEME.order_processing;
   if (key.includes('accept')) return STATUS_THEME.order_accepted;
   if (key.includes('dispute')) return STATUS_THEME.order_disputed;
+  if (key.includes('reject')) return STATUS_THEME.order_rejected;
   if (key.includes('payment') || key.includes('pending') || key.includes('paid'))
     return STATUS_THEME.payment_received;
   return STATUS_THEME.payment_received;
@@ -140,8 +141,11 @@ export default function OrderListScreen() {
   }, [auth.activeRole, dispatch]);
 
   const data = useMemo(() => {
-    if (filter === 'all') return orderList;
-    return orderList.filter((o) => o.status === filter);
+    const list = Array.isArray(orderList) ? orderList : [];
+    if (filter === 'all') return list;
+    return list.filter(
+      (o) => String(o.status ?? '').toLowerCase().trim() === filter,
+    );
   }, [filter, orderList]);
 
   const renderItem = useCallback(
