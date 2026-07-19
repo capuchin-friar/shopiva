@@ -337,7 +337,123 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
   }
 
   return (
-    <SafeAreaView style={styles.flex} edges={['top', 'left', 'right', 'bottom']}>
+    <>
+    {
+      Platform.OS === 'andorid' &&
+      <SafeAreaView style={styles.flex} edges={['top', 'left', 'right', 'bottom']}>
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : insets.bottom}
+        >
+          <View style={styles.flex}>
+            <FlatList
+              ref={listRef}
+              data={messages}
+              keyExtractor={keyExtractor}
+              renderItem={renderItem}
+              ListHeaderComponent={messages.length > 0 ? listHeader : null}
+              contentContainerStyle={listContentStyle}
+              onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+              ListEmptyComponent={
+                <View style={styles.emptyMessagesWrap}>
+                  {loading ? (
+                    <>
+                      <ActivityIndicator size="small" color="#00926e" />
+                      <Text style={styles.emptyMessagesText}>Loading messages…</Text>
+                    </>
+                  ) : (
+                    <Text style={styles.emptyMessagesText}>No messages yet. Say hello.</Text>
+                  )}
+                </View>
+              }
+            />
+
+            <View style={inputBarStyle}>
+              {moderationComposeLocked ? (
+                <Text style={styles.moderationLockBanner}>
+                  Messaging paused after repeated policy blocks. Unlocks in {lockRemainSec}s.
+                </Text>
+              ) : null}
+              <View style={styles.inputRow}>
+                {/* <Pressable
+                style={({ pressed }) => [styles.sideBtn, pressed && styles.sideBtnPressed]}
+                onPress={() => Alert.alert('Attach', 'Photos, documents and location will be available when connected.')}
+                accessibilityLabel="Attach"
+              >
+                <Icon name="add" size={28} color={MUTED} />
+              </Pressable> */}
+                <View style={styles.inputWrap}>
+                  <TextInput
+                    key={inputKey}
+                    style={styles.input}
+                    placeholder="Message"
+                    placeholderTextColor={MUTED}
+                    value={input}
+                    onChangeText={setInput}
+                    multiline
+                    maxLength={4000}
+                    accessibilityLabel="Message text"
+                    editable={!moderationComposeLocked}
+                  />
+                  {/* <Pressable
+                  style={({ pressed }) => [styles.inlineIcon, pressed && styles.sideBtnPressed]}
+                  onPress={() => Alert.alert('Stickers', 'Emoji and stickers picker will open here.')}
+                  accessibilityLabel="Emoji"
+                >
+                  <Icon name="happy-outline" size={24} color={MUTED} />
+                </Pressable> */}
+                </View>
+                <Pressable
+                  onPress={onSend}
+                  style={({ pressed }) => [
+                    styles.sendBtn,
+                    (pressed || sending || moderationComposeLocked) && styles.sendBtnPressed,
+                    moderationComposeLocked && styles.sendBtnDisabled,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Send message"
+                  disabled={sending || moderationComposeLocked}
+                >
+                  {sending ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Icon name="send" size={20} color="#FFFFFF" />}
+                </Pressable>
+                {/* {canSend ? (
+                <Pressable
+                onPress={onSend}
+                style={({ pressed }) => [styles.sendBtn, (pressed || sending) && styles.sendBtnPressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Send message"
+                disabled={sending}
+              >
+                {sending ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Icon name="send" size={20} color="#FFFFFF" />}
+              </Pressable>
+              ) : (
+                <Pressable
+                  style={({ pressed }) => [styles.sendBtn, styles.micBtn, pressed && styles.sendBtnPressed]}
+                  onPress={() => Alert.alert('Voice message', 'Hold to record will be available when connected.')}
+                  accessibilityLabel="Voice message"
+                >
+                  <Icon name="mic" size={22} color="#FFFFFF" />
+                </Pressable>
+              )} */}
+              </View>
+            </View>
+          </View>
+          <MessagePolicyViolationModal
+            visible={policyModalVisible}
+            variant={policyModalVariant}
+            onDismiss={() => {
+              setPolicyModalVisible(false);
+              setPolicyModalVariant('single');
+            }}
+          />
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    }
+    {
+      Platform.OS === 'ios' &&
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -447,7 +563,8 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
           }}
         />
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    }
+    </>
   );
 }
 
