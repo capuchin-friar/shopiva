@@ -76,17 +76,17 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
   const roomId = String(chat?.roomId ?? chat?.id ?? '').trim();
   const storageScope = chatRoleVariant === 'vendor' ? 'vendor' : 'customer';
   const appRolePayload = storageScope === 'vendor' ? 'vendor' : 'customer';
-  
+
 
   const [input, setInput] = useState('');
   /** Remount multiline TextInput after send so height collapses when cleared (RN layout quirk). */
   const [inputKey, setInputKey] = useState(0);
-  const [messages, setMessages] = useState(/** @type {Array<{ id: string; text: string; outgoing: boolean; timeLabel: string }>} */ ([]));
+  const [messages, setMessages] = useState(/** @type {Array<{ id: string; text: string; outgoing: boolean; timeLabel: string }>} */([]));
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [policyModalVisible, setPolicyModalVisible] = useState(false);
-  const [policyModalVariant, setPolicyModalVariant] = useState(/** @type {'single' | 'split'} */ ('single'));
-  const [moderationLockUntil, setModerationLockUntil] = useState(/** @type {number | null} */ (null));
+  const [policyModalVariant, setPolicyModalVariant] = useState(/** @type {'single' | 'split'} */('single'));
+  const [moderationLockUntil, setModerationLockUntil] = useState(/** @type {number | null} */(null));
   const [lockRemainSec, setLockRemainSec] = useState(0);
   const listRef = useRef(null);
   /** @type {React.MutableRefObject<Array<{ text: string; sentAt: number }>>} */
@@ -125,7 +125,7 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
       const senderId = Number(row.sender);
       const userId = Number(user?.id);
       const outgoing = Number.isFinite(senderId) && Number.isFinite(userId) ? senderId === userId : false;
-      const d = new Date(/** @type {string | number} */ (row.created_at ?? row.updated_at ?? Date.now()));
+      const d = new Date(/** @type {string | number} */(row.created_at ?? row.updated_at ?? Date.now()));
       const timeLabel = Number.isNaN(d.getTime()) ? '' : d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
       return {
         id: String(row.id ?? `msg-${Date.now()}`),
@@ -157,7 +157,7 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
           : [];
       const mapped = (Array.isArray(list) ? list : [])
         .filter((x) => x && typeof x === 'object')
-        .map((x) => mapMessage(/** @type {Record<string, unknown>} */ (x)))
+        .map((x) => mapMessage(/** @type {Record<string, unknown>} */(x)))
         .filter((x) => x.text);
       setMessages(mapped);
       requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: false }));
@@ -168,7 +168,7 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
 
   useFocusEffect(
     useCallback(() => {
-      if (!roomId) return () => {};
+      if (!roomId) return () => { };
       void setLastOpenedChatRoomId(roomId, storageScope);
       void loadMessages();
       const socket = getChatSocket();
@@ -319,8 +319,7 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
     () => [
       styles.inputBar,
       {
-        // paddingBottom: Math.max(insets.bottom, 8),
-        paddingBottom: 8,
+        paddingBottom: Math.max(insets.bottom, 8),
         paddingTop: 6,
       },
     ],
@@ -338,85 +337,86 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
-      <View style={styles.flex}>
-        <FlatList
-          ref={listRef}
-          data={messages}
-          keyExtractor={keyExtractor}
-          renderItem={renderItem}
-          ListHeaderComponent={messages.length > 0 ? listHeader : null}
-          contentContainerStyle={listContentStyle}
-          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyMessagesWrap}>
-              {loading ? (
-                <>
-                  <ActivityIndicator size="small" color="#00926e" />
-                  <Text style={styles.emptyMessagesText}>Loading messages…</Text>
-                </>
-              ) : (
-                <Text style={styles.emptyMessagesText}>No messages yet. Say hello.</Text>
-              )}
-            </View>
-          }
-        />
+    <SafeAreaView style={styles.flex} edges={['top', 'left', 'right', 'bottom']}>
+      <KeyboardAvoidingView
+        style={styles.flex}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : insets.bottom}
+      >
+        <View style={styles.flex}>
+          <FlatList
+            ref={listRef}
+            data={messages}
+            keyExtractor={keyExtractor}
+            renderItem={renderItem}
+            ListHeaderComponent={messages.length > 0 ? listHeader : null}
+            contentContainerStyle={listContentStyle}
+            onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.emptyMessagesWrap}>
+                {loading ? (
+                  <>
+                    <ActivityIndicator size="small" color="#00926e" />
+                    <Text style={styles.emptyMessagesText}>Loading messages…</Text>
+                  </>
+                ) : (
+                  <Text style={styles.emptyMessagesText}>No messages yet. Say hello.</Text>
+                )}
+              </View>
+            }
+          />
 
-        <View style={inputBarStyle}>
-          {moderationComposeLocked ? (
-            <Text style={styles.moderationLockBanner}>
-              Messaging paused after repeated policy blocks. Unlocks in {lockRemainSec}s.
-            </Text>
-          ) : null}
-          <View style={styles.inputRow}>
-            {/* <Pressable
+          <View style={inputBarStyle}>
+            {moderationComposeLocked ? (
+              <Text style={styles.moderationLockBanner}>
+                Messaging paused after repeated policy blocks. Unlocks in {lockRemainSec}s.
+              </Text>
+            ) : null}
+            <View style={styles.inputRow}>
+              {/* <Pressable
               style={({ pressed }) => [styles.sideBtn, pressed && styles.sideBtnPressed]}
               onPress={() => Alert.alert('Attach', 'Photos, documents and location will be available when connected.')}
               accessibilityLabel="Attach"
             >
               <Icon name="add" size={28} color={MUTED} />
             </Pressable> */}
-            <View style={styles.inputWrap}>
-              <TextInput
-                key={inputKey}
-                style={styles.input}
-                placeholder="Message"
-                placeholderTextColor={MUTED}
-                value={input}
-                onChangeText={setInput}
-                multiline
-                maxLength={4000}
-                accessibilityLabel="Message text"
-                editable={!moderationComposeLocked}
-              />
-              {/* <Pressable
+              <View style={styles.inputWrap}>
+                <TextInput
+                  key={inputKey}
+                  style={styles.input}
+                  placeholder="Message"
+                  placeholderTextColor={MUTED}
+                  value={input}
+                  onChangeText={setInput}
+                  multiline
+                  maxLength={4000}
+                  accessibilityLabel="Message text"
+                  editable={!moderationComposeLocked}
+                />
+                {/* <Pressable
                 style={({ pressed }) => [styles.inlineIcon, pressed && styles.sideBtnPressed]}
                 onPress={() => Alert.alert('Stickers', 'Emoji and stickers picker will open here.')}
                 accessibilityLabel="Emoji"
               >
                 <Icon name="happy-outline" size={24} color={MUTED} />
               </Pressable> */}
-            </View>
-            <Pressable
-              onPress={onSend}
-              style={({ pressed }) => [
-                styles.sendBtn,
-                (pressed || sending || moderationComposeLocked) && styles.sendBtnPressed,
-                moderationComposeLocked && styles.sendBtnDisabled,
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel="Send message"
-              disabled={sending || moderationComposeLocked}
-            >
-              {sending ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Icon name="send" size={20} color="#FFFFFF" />}
-            </Pressable>
-            {/* {canSend ? (
+              </View>
+              <Pressable
+                onPress={onSend}
+                style={({ pressed }) => [
+                  styles.sendBtn,
+                  (pressed || sending || moderationComposeLocked) && styles.sendBtnPressed,
+                  moderationComposeLocked && styles.sendBtnDisabled,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Send message"
+                disabled={sending || moderationComposeLocked}
+              >
+                {sending ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Icon name="send" size={20} color="#FFFFFF" />}
+              </Pressable>
+              {/* {canSend ? (
               <Pressable
               onPress={onSend}
               style={({ pressed }) => [styles.sendBtn, (pressed || sending) && styles.sendBtnPressed]}
@@ -435,18 +435,19 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
                 <Icon name="mic" size={22} color="#FFFFFF" />
               </Pressable>
             )} */}
+            </View>
           </View>
         </View>
-      </View>
-      <MessagePolicyViolationModal
-        visible={policyModalVisible}
-        variant={policyModalVariant}
-        onDismiss={() => {
-          setPolicyModalVisible(false);
-          setPolicyModalVariant('single');
-        }}
-      />
-    </KeyboardAvoidingView>
+        <MessagePolicyViolationModal
+          visible={policyModalVisible}
+          variant={policyModalVariant}
+          onDismiss={() => {
+            setPolicyModalVisible(false);
+            setPolicyModalVariant('single');
+          }}
+        />
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
