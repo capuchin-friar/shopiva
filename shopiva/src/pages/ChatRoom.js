@@ -341,7 +341,7 @@ export default function ChatRoomScreen({ chatRoleVariant = 'customer' }) {
     <KeyboardAvoidingView
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 110 : 0}
     >
       <View style={styles.flex}>
         <FlatList
