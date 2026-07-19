@@ -111,7 +111,7 @@ function PersonalInformationHeader({ navigation }) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={[styles.editProfileHeaderOuter, { paddingTop: 0 }]}>
+    <View style={[styles.editProfileHeaderOuter, { paddingTop: Platform === 'ios' ? 0 : Math.max(0, 30) }]}>
       <View style={styles.editProfileHeaderRow}>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
