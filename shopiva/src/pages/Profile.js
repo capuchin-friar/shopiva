@@ -193,12 +193,12 @@ export default function ProfileScreen() {
           </>
         ) : null}
         <View style={styles.menuDivider} />
-        <MenuRow
+        {/* <MenuRow
           icon="wallet-outline"
           title="Transactions"
           right={<Icon name="chevron-forward" size={20} color={BLACK} />}
           onPress={() => navigation.navigate('profile-transactions')}
-        />
+        /> */}
         <View style={styles.menuDivider} />
         <MenuRow
           iconComponent={<AiGlyph />}
