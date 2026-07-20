@@ -62,6 +62,39 @@ function initFirebaseAdmin() {
 initFirebaseAdmin();
 
 /**
+ * Flatten navigation keys onto FCM data (all values must be strings).
+ * Keeps full meta JSON for richer clients.
+ */
+function buildNavData(
+  title: string,
+  body: string,
+  meta: Record<string, any> | null | undefined,
+  extra: Record<string, string> = {}
+): Record<string, string> {
+  const m = meta && typeof meta === "object" ? meta : {};
+  const data: Record<string, string> = {
+    title: String(title ?? ""),
+    body: String(body ?? ""),
+    meta: JSON.stringify(m),
+    ...extra,
+  };
+
+  const put = (key: string, value: unknown) => {
+    if (value == null || value === "") return;
+    data[key] = String(value);
+  };
+
+  put("type", m.type ?? m.entity ?? m.kind ?? m.activity_type);
+  put("order_id", m.order_id ?? m.orderId);
+  put("dispute_id", m.dispute_id ?? m.disputeId);
+  put("return_id", m.return_id ?? m.returnId);
+  put("room_id", m.room_id ?? m.roomId);
+  put("room_name", m.room_name ?? m.roomName ?? m.name);
+
+  return data;
+}
+
+/**
  * Build a displayable FCM message (system banner when app is backgrounded / killed).
  * Data-only messages do not show a tray notification on iOS.
  */
@@ -116,12 +149,14 @@ export async function sendFcmForActivities(
   meta: Record<string, any>
 ) {
   try {
-    const message = buildDisplayMessage(token, title, body, {
-      title: String(title ?? ""),
-      body: String(body ?? ""),
-      media: JSON.stringify(media ?? null),
-      meta: JSON.stringify(meta ?? {}),
-    });
+    const message = buildDisplayMessage(
+      token,
+      title,
+      body,
+      buildNavData(title, body, meta, {
+        media: JSON.stringify(media ?? null),
+      })
+    );
 
     const response = await admin.messaging().send(message);
 
@@ -152,11 +187,16 @@ export async function sendFcmForNewMssg(
   meta: Record<string, any>
 ) {
   try {
-    const message = buildDisplayMessage(token, title, body, {
-      title: String(title ?? ""),
-      body: String(body ?? ""),
-      meta: JSON.stringify(meta ?? {}),
-    });
+    const messageMeta = {
+      type: "message",
+      ...(meta && typeof meta === "object" ? meta : {}),
+    };
+    const message = buildDisplayMessage(
+      token,
+      title,
+      body,
+      buildNavData(title, body, messageMeta)
+    );
 
     const response = await admin.messaging().send(message);
 

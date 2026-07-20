@@ -1,6 +1,6 @@
 import messaging from '@react-native-firebase/messaging';
 import {Alert, PermissionsAndroid, Platform} from 'react-native';
-import {navigate, navigationRef} from '../navigation/root';
+import {navigateToActivitiesScreen, navigationRef} from '../navigation/root';
 
 /**
  * Wait until APNs has handed iOS a device token (required before a usable FCM token).
@@ -14,6 +14,132 @@ async function waitForApnsToken(timeoutMs = 15000) {
     if (apnsToken) return apnsToken;
     await new Promise((r) => setTimeout(r, 500));
   }
+  return null;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function asString(value) {
+  if (value == null) return '';
+  return String(value).trim();
+}
+
+/**
+ * @param {Record<string, unknown>} meta
+ * @param {Record<string, unknown>} data
+ */
+function resolveNotificationTarget(meta, data) {
+  const merged = {...data, ...meta};
+  const type = asString(
+    merged.type || merged.entity || merged.kind || merged.activity_type,
+  ).toLowerCase();
+
+  const orderId = asString(
+    merged.order_id ?? merged.orderId ?? merged.order?.id ?? merged.order?.order_id,
+  );
+  const disputeId = asString(
+    merged.dispute_id ?? merged.disputeId ?? merged.dispute?.id,
+  );
+  const returnId = asString(
+    merged.return_id ?? merged.returnId ?? merged.return?.id ?? merged.returnItem?.return_id,
+  );
+  const roomId = asString(
+    merged.room_id ?? merged.roomId ?? merged.chat?.roomId ?? merged.chat?.id,
+  );
+  const roomName = asString(
+    merged.room_name ?? merged.roomName ?? merged.chat?.name ?? merged.name,
+  );
+
+  if (
+    type === 'message' ||
+    type === 'chat' ||
+    type === 'new_message' ||
+    type === 'mssg'
+  ) {
+    return roomId
+      ? {screen: 'Inbox', params: {chat: {roomId, name: roomName || 'Chat'}}}
+      : null;
+  }
+
+  if (type === 'order' || type === 'orders') {
+    return orderId
+      ? {
+          screen: 'Order-detail',
+          params: {
+            orderId,
+            order: {id: Number(orderId) || orderId, order_id: Number(orderId) || orderId},
+          },
+        }
+      : null;
+  }
+
+  if (type === 'dispute' || type === 'disputes') {
+    return disputeId
+      ? {
+          screen: 'Dispute-detail',
+          params: {disputeId, dispute: {id: Number(disputeId) || disputeId}},
+        }
+      : null;
+  }
+
+  if (type === 'return' || type === 'returns') {
+    return returnId
+      ? {
+          screen: 'Return-detail',
+          params: {
+            returnId,
+            returnItem: {return_id: Number(returnId) || returnId},
+          },
+        }
+      : null;
+  }
+
+  // Infer from which id is present when type is omitted.
+  if (roomId && !orderId && !disputeId && !returnId) {
+    return {
+      screen: 'Inbox',
+      params: {chat: {roomId, name: roomName || 'Chat'}},
+    };
+  }
+  if (disputeId) {
+    return {
+      screen: 'Dispute-detail',
+      params: {disputeId, dispute: {id: Number(disputeId) || disputeId}},
+    };
+  }
+  if (returnId) {
+    return {
+      screen: 'Return-detail',
+      params: {
+        returnId,
+        returnItem: {return_id: Number(returnId) || returnId},
+      },
+    };
+  }
+  if (orderId) {
+    return {
+      screen: 'Order-detail',
+      params: {
+        orderId,
+        order: {id: Number(orderId) || orderId, order_id: Number(orderId) || orderId},
+      },
+    };
+  }
+
+  // Explicit screen override (legacy)
+  const screen = asString(meta.screen || meta.route);
+  if (screen) {
+    return {
+      screen,
+      params:
+        meta.params && typeof meta.params === 'object'
+          ? /** @type {Record<string, unknown>} */ (meta.params)
+          : undefined,
+    };
+  }
+
   return null;
 }
 
@@ -59,8 +185,29 @@ export function parseFcmMessage(remoteMessage) {
 }
 
 /**
- * Handle tap / open from a notification (background or quit).
- * Supports optional meta.screen / meta.route for navigation.
+ * Retry until the root navigator is ready, then open the detail screen.
+ * @param {{ screen: string; params?: Record<string, unknown> }} target
+ */
+function navigateWhenReady(target) {
+  const tryNavigate = (attempt = 0) => {
+    if (navigationRef.isReady()) {
+      const ok = navigateToActivitiesScreen(target.screen, target.params);
+      if (!ok && attempt < 20) {
+        setTimeout(() => tryNavigate(attempt + 1), 250);
+      }
+      return;
+    }
+    if (attempt < 40) {
+      setTimeout(() => tryNavigate(attempt + 1), 250);
+    } else {
+      console.warn('[fcm] navigation not ready; skipped', target.screen);
+    }
+  };
+  setTimeout(() => tryNavigate(), 400);
+}
+
+/**
+ * Handle tap / open from a notification (background, quit, or foreground Alert).
  * @param {import('@react-native-firebase/messaging').FirebaseMessagingTypes.RemoteMessage | null | undefined} remoteMessage
  */
 export function handleNotificationOpen(remoteMessage) {
@@ -68,34 +215,21 @@ export function handleNotificationOpen(remoteMessage) {
   const parsed = parseFcmMessage(remoteMessage);
   console.log('[fcm] notification opened:', parsed);
 
-  const routeName =
-    typeof parsed.meta.screen === 'string'
-      ? parsed.meta.screen
-      : typeof parsed.meta.route === 'string'
-        ? parsed.meta.route
-        : null;
-  if (routeName) {
-    const params =
-      parsed.meta.params && typeof parsed.meta.params === 'object'
-        ? parsed.meta.params
-        : undefined;
-    const tryNavigate = (attempt = 0) => {
-      if (navigationRef.isReady()) {
-        navigate(routeName, params);
-        return;
-      }
-      if (attempt < 20) {
-        setTimeout(() => tryNavigate(attempt + 1), 250);
-      } else {
-        console.warn('[fcm] navigation not ready; skipped route', routeName);
-      }
-    };
-    setTimeout(() => tryNavigate(), 300);
+  const target = resolveNotificationTarget(
+    /** @type {Record<string, unknown>} */ (parsed.meta),
+    /** @type {Record<string, unknown>} */ (parsed.data),
+  );
+
+  if (!target?.screen) {
+    console.warn('[fcm] no navigation target in notification payload');
+    return;
   }
+
+  navigateWhenReady(target);
 }
 
 /**
- * Foreground message — no system banner for data-only payloads; show an Alert.
+ * Foreground message — show Alert; Open uses the same deep-link handler.
  * @param {import('@react-native-firebase/messaging').FirebaseMessagingTypes.RemoteMessage} remoteMessage
  */
 export function handleForegroundMessage(remoteMessage) {

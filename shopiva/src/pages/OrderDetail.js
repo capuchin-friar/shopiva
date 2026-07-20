@@ -226,7 +226,12 @@ export default function OrderDetailScreen() {
   const auth = useSelector(s => s.auth);
   const order = route.params?.order;
   const orderIdParam =
-    order?.order_id ?? order?.orderId ?? order?.id ?? null;
+    route.params?.orderId ??
+    route.params?.order_id ??
+    order?.order_id ??
+    order?.orderId ??
+    order?.id ??
+    null;
   const [statusKey, setStatusKey] = useState(null);
   const [actionsOpen, setActionsOpen] = useState(false);
   const [cancelledModalOpen, setCancelledModalOpen] = useState(false);

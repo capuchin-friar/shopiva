@@ -116,6 +116,7 @@ function DisputeDetailHeaderRight({ onOpenActions }) {
 export default function DisputeDetailScreen() {
   const dispatch = useDispatch();
   const navigation = useNavigation();
+  const route = useRoute();
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const auth = useSelector((s) => s.auth);
@@ -127,9 +128,55 @@ export default function DisputeDetailScreen() {
 
   const [actionsOpen, setActionsOpen] = useState(false);
 
+  const disputeIdParam =
+    route.params?.disputeId ??
+    route.params?.dispute_id ??
+    route.params?.dispute?.id ??
+    null;
+
   useEffect(() => {
     connectChatSocket();
   }, []);
+
+  useEffect(() => {
+    if (disputeIdParam == null || disputeIdParam === '') return;
+    const currentId = dispute?.id ?? dispute?.dispute?.id;
+    if (currentId != null && String(currentId) === String(disputeIdParam)) {
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        if (auth?.activeRole === 'customer') {
+          const result = await fetchBuyerDispute(disputeIdParam);
+          if (!cancelled) {
+            dispatch(set_disputeInfo(result?.dispute ?? result));
+          }
+        } else {
+          const user = await getStoredUser();
+          const userId = user?.id;
+          if (!userId) return;
+          const shops = await fetchOwnerShops(userId);
+          const sid = shops?.[0]?.id;
+          if (!sid) return;
+          const result = await fetchShopDispute(sid, disputeIdParam, userId);
+          if (!cancelled) {
+            dispatch(set_disputeInfo(result?.dispute ?? result));
+          }
+        }
+      } catch (err) {
+        console.log('[DisputeDetail] load failed:', err);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [disputeIdParam, auth?.activeRole, dispatch, dispute?.id]);
 
  
   const openActions = useCallback(() => {
