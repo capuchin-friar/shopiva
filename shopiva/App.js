@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { StatusBar, useColorScheme } from 'react-native';
+import { Platform, StatusBar, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { WIPE_STORAGE_ON_LAUNCH } from './src/auth/devAuth';
@@ -7,6 +7,7 @@ import { clearAllShopivaStorage } from './src/auth/session';
 import { getPaystackPublicKey, isPaystackConfigured, warnIfPaystackLiveInDev } from './src/config/paystack';
 import { getPaystackProvider } from './src/paystack/paystackNativeGate';
 import NavigationHandler from './src/navigation/index';
+import { requestPermission, requestAndroidPermission } from './src/utils/firebaseTokenReqConfig';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -16,6 +17,15 @@ function App() {
       void clearAllShopivaStorage();
     }
     warnIfPaystackLiveInDev();
+  }, []);
+
+  useEffect(() => {
+    if(Platform.OS === 'ios'){
+      requestPermission();
+    }
+    // if(Platform.OS === 'android'){
+    //   requestAndroidPermission();
+    // }
   }, []);
 
   const paystackPublicKey = getPaystackPublicKey();
@@ -48,6 +58,5 @@ function App() {
     </GestureHandlerRootView>
   );
 }
-
 
 export default App;

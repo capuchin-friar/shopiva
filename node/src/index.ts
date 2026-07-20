@@ -25,6 +25,7 @@ import { escrow } from "./services/escrow.js";
 import nodeCron from "node-cron";
 import { paystack } from "./services/paystack.js";
 import { error } from "console";
+import { sendFcmForActivities } from "./services/firebaseConfig.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Load .env from node project root so it matches Next (same secret regardless of cwd)
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
@@ -164,6 +165,20 @@ const server = app.listen(process.env.PORT, () => {
     });
 });
 
+
+app.post('/notify', async(req, res) => {
+  // const { token, title, body, media, price, product_id } = req.body;
+  const { token, data } = req.body;
+  const {title, body, media, meta } = data
+
+  let result = await sendFcmForActivities(token, title, body, media, meta);
+  if (result.success) {
+    res.send({ status: 'Notification sent!', success: true});
+  }else{
+    console.log(result)
+    res.status(500).send({err: result.error})
+  }
+});
 
 
 
