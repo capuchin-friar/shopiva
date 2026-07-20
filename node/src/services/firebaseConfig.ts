@@ -61,6 +61,53 @@ function initFirebaseAdmin() {
 
 initFirebaseAdmin();
 
+/**
+ * Build a displayable FCM message (system banner when app is backgrounded / killed).
+ * Data-only messages do not show a tray notification on iOS.
+ */
+function buildDisplayMessage(
+  token: string,
+  title: string,
+  body: string,
+  data: Record<string, string>
+) {
+  const safeTitle = String(title || "Shopiva");
+  const safeBody = String(body || "");
+
+  return {
+    token,
+    notification: {
+      title: safeTitle,
+      body: safeBody,
+    },
+    data,
+    android: {
+      priority: "high" as const,
+      notification: {
+        title: safeTitle,
+        body: safeBody,
+        sound: "default",
+      },
+    },
+    apns: {
+      headers: {
+        "apns-priority": "10",
+      },
+      payload: {
+        aps: {
+          alert: {
+            title: safeTitle,
+            body: safeBody,
+          },
+          sound: "default",
+          // Ensures delivery when app is backgrounded / not running
+          "content-available": 1,
+        },
+      },
+    },
+  };
+}
+
 export async function sendFcmForActivities(
   token: string,
   title: string,
@@ -69,15 +116,12 @@ export async function sendFcmForActivities(
   meta: Record<string, any>
 ) {
   try {
-    const message = {
-      token,
-      data: {
-        title,
-        body,
-        media: JSON.stringify(media),
-        meta: JSON.stringify(meta),
-      },
-    };
+    const message = buildDisplayMessage(token, title, body, {
+      title: String(title ?? ""),
+      body: String(body ?? ""),
+      media: JSON.stringify(media ?? null),
+      meta: JSON.stringify(meta ?? {}),
+    });
 
     const response = await admin.messaging().send(message);
 
@@ -108,18 +152,11 @@ export async function sendFcmForNewMssg(
   meta: Record<string, any>
 ) {
   try {
-    const message = {
-      token,
-      notification: {
-        title,
-        body,
-      },
-      data: {
-        title,
-        body,
-        meta: JSON.stringify(meta),
-      },
-    };
+    const message = buildDisplayMessage(token, title, body, {
+      title: String(title ?? ""),
+      body: String(body ?? ""),
+      meta: JSON.stringify(meta ?? {}),
+    });
 
     const response = await admin.messaging().send(message);
 

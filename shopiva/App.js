@@ -7,7 +7,11 @@ import { clearAllShopivaStorage } from './src/auth/session';
 import { getPaystackPublicKey, isPaystackConfigured, warnIfPaystackLiveInDev } from './src/config/paystack';
 import { getPaystackProvider } from './src/paystack/paystackNativeGate';
 import NavigationHandler from './src/navigation/index';
-import { requestPermission, requestAndroidPermission } from './src/utils/firebaseTokenReqConfig';
+import {
+  requestPermission,
+  requestAndroidPermission,
+  setupFcmListeners,
+} from './src/utils/firebaseTokenReqConfig';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -20,12 +24,22 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if(Platform.OS === 'ios'){
-      requestPermission();
-    }
-    // if(Platform.OS === 'android'){
-    //   requestAndroidPermission();
-    // }
+    let cancelled = false;
+
+    (async () => {
+      if (Platform.OS === 'android') {
+        await requestAndroidPermission();
+      }
+      if (!cancelled) {
+        await requestPermission();
+      }
+    })();
+
+    const unsubscribe = setupFcmListeners();
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
   const paystackPublicKey = getPaystackPublicKey();
