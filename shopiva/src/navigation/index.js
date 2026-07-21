@@ -9,6 +9,7 @@ import {
   StatusBar,
   StyleSheet,
 } from 'react-native';
+import axios from 'axios'
 import { NavigationContainer } from '@react-navigation/native';
 import { parseOAuthCallbackUrl, oauthErrorMessage } from '../api/oauth';
 import AuthBootstrap from '../auth/AuthBootstrap';
@@ -19,6 +20,10 @@ import Tools from "../utils/gen"
 import { set_nested_nav } from '../../redux/nested_nav';
 import { navigationRef } from './root';
 import { connectChatSocket } from '../socket/chatSocket';
+import { DEFAULT_API_BASE_URL } from '../api/config';
+import { getMessaging } from '@react-native-firebase/messaging';
+import { getStoredUser } from '../auth/session';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export { navigationRef, navigate } from './root';
 
@@ -64,6 +69,48 @@ function NavigationTree() {
 
   useEffect(() => {
     connectChatSocket()
+  }, []);
+
+  useEffect(() => {
+    async function getFcm () {
+      const u = await getStoredUser();
+      if(!u) return;
+      if(u.devicetoken) return;
+      const fcm = await AsyncStorage.getItem("fcm");
+      if(!fcm)return;
+      axios.post(`${DEFAULT_API_BASE_URL}/update-fcm`, { 
+        u_id: u?.id,
+        fcm: fcm
+      })
+      .then((res) => {
+        //  console.log(res.data)
+      })
+      .catch(err => {
+        //  console.log(err)
+      })
+    }
+    getFcm()
+  }, []);
+
+  useEffect(() => {
+    getMessaging().onTokenRefresh(async(token) => {
+      // Send new token to your backend
+      // updateUserFcmToken(token);
+      const u = await getStoredUser();
+      console.log("device", token)
+
+      if(!token)return;
+      axios.post(`${DEFAULT_API_BASE_URL}/update-fcm`, {
+        u_id: u?.id,
+        fcm: token
+      })
+      .then((res) => {
+        // console.log(res.data)
+      })
+      .catch(err => {
+        // console.log(err)
+      })
+    });
   }, [])
 
   return (

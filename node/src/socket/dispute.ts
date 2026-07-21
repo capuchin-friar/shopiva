@@ -17,12 +17,30 @@ import { ordersTransformer as vendorOrdersTransformer } from "../transformers/bu
 
 import { orderTransformer as customerOrderTransFormer } from "../transformers/buyer/order.js";
 import { ordersTransformer as customerOrdersTransformer } from "../transformers/buyer/orders.js";
+import { sendFcmForActivities } from "../services/firebaseConfig.js";
 
 type DisputeSocketPayload = {
   // result: unknown;
   others: unknown;
   disputes: unknown;
 };
+
+
+function fcmMssg(event: string) {
+  switch (event) {
+    case "raise_dispute":
+      return "Bad news! The buyer has raised a dispute for this order.";
+
+    case "dispute_acceptance":
+      return "The seller accepted the dispute claim.";
+
+    case "dispute_escalation":
+      return "This seller rejected the dispute claim and has escalated the dispute to the admin.";
+
+    default:
+      return "You have a new update regarding your order.";
+  }
+}
 
 async function resolveOrderParties(orderId: number | null): Promise<{
   shopId: number | null;
@@ -62,6 +80,11 @@ async function broadcastDisputeUpdate(
   orderId: any,
   disputeId: any
 ): Promise<DisputeSocketPayload> {
+
+  console.log("event", event)
+  console.log("actorId", actorId)
+  console.log("disputeId", disputeId)
+
   let voi;
   let vol;
   let coi;
@@ -97,16 +120,44 @@ async function broadcastDisputeUpdate(
     notifyUser(recipient, event, {
       actor: { coi, col, cdl, cdi },
     });
-    notifyUser(actorId, event, {
-      actor: { voi, vol, vdl, vdi },
-    });
+    // notifyUser(actorId, event, {
+    //   actor: { voi, vol, vdl, vdi },
+    // });
+    let msg = fcmMssg(event);
+    if(event === "raise_dispute"){
+      db().then(async(pool) => {
+    
+        const {rows: [{devicetoken}]} = await pool.query(`SELECT devicetoken FROM users WHERE id = $1`, [recipient]);
+        sendFcmForActivities(
+            devicetoken /**token */,
+            "New Update From Dispute Activity" /** title */,
+            msg /**body */,
+            "null" /** media */,
+            { type: "dispute", dispute_id: disputeId } /** meta */,
+        );
+      })
+    }
   } else {
     notifyUser(recipient, event, {
       actor: { voi, vol, vdl, vdi },
     });
-    notifyUser(actorId, event, {
-      actor: { coi, col, cdl, cdi },
-    });
+    // notifyUser(actorId, event, {
+    //   actor: { coi, col, cdl, cdi },
+    // });
+    let msg = fcmMssg(event);
+    if(event !== "raise_dispute"){
+      db().then(async(pool) => {
+    
+        const {rows: [{devicetoken}]} = await pool.query(`SELECT devicetoken FROM users WHERE id = $1`, [recipient]);
+        sendFcmForActivities(
+            devicetoken /**token */,
+            "New Update From Dispute Activity" /** title */,
+            msg /**body */,
+            "null" /** media */,
+            { type: "dispute", dispute_id: disputeId } /** meta */,
+        );
+      })
+    }
   }
 
   const others = role === "vendor" ? { voi, vol } : { coi, col };
@@ -268,7 +319,6 @@ export const handleDisputeResponse = async(
     );
   }
 }
-
 
 export const handleDisputeEscalation = async(
   userId: number,

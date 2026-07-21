@@ -20,11 +20,13 @@ function pickError(data, res) {
  * @returns {Promise<{ ok: boolean; status: number; user: object | null; message: string }>}
  */
 export async function fetchCurrentUserOrStatus() {
+
   const res = await apiFetchAuth('/user/authorization', {
     method: 'POST',
     body: '{}',
   });
   const data = await res.json().catch(() => ({}));
+
   return {
     ok: res.ok,
     status: res.status,

@@ -22,9 +22,9 @@ export async function SignupController(req: Request, res: Response) {
 
 export async function SigninController(req: Request, res: Response) {
     try {
-        const { email, password } = req.body;
+        const { email, password, fcmToken } = req.body;
         
-        const result = await SigninService({ email, password });
+        const result = await SigninService({ email, password, fcmToken });
         
         res.status(200).json({
             message: "Login successful",

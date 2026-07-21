@@ -101,6 +101,26 @@ app.get("/return/:orderId", async (req, res) => {
   res.json({ok: true, id: rows[0]});
 });
 
+app.post('/update-fcm', async(req, res) => {
+  console.log(req.body)
+
+  const {
+    fcm, u_id: user_id
+  } = req.body;
+  const pool  = await db();
+  try {
+    const result = await pool.query(
+      `UPDATE users SET devicetoken = $1 WHERE id = $2
+       RETURNING *`,
+      [fcm, user_id]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error inserting notification:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 // Routes
 app.use("/api/oauth", OAuthRouter);
 app.use(UserRouter);

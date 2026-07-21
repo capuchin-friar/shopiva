@@ -14,6 +14,7 @@ export interface NewUserDocument{
 export interface AuthData{
     email: string,
     password: string,
+    fcmToken: string
 }
 
 

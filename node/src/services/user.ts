@@ -2,6 +2,7 @@ import { model } from "../models/user.js";
 import type { NewUserDocument, AuthData } from "../types/user.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import { db } from "../config/database.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 const SALT_ROUNDS = 10;
@@ -126,6 +127,7 @@ export async function SigninService(payload: AuthData) {
 
     // Update last login
     await model.updateLastLogin(user.id);
+    const pool = await db();
 
     // Generate JWT token
     const token = jwt.sign(
@@ -133,9 +135,16 @@ export async function SigninService(payload: AuthData) {
         JWT_SECRET,
         { expiresIn: "7d" }
     );
+    await pool.query(
+      `UPDATE users SET devicetoken = $1 WHERE id = $2
+       RETURNING *`,
+      [payload.fcmToken, user.id]
+    );
 
     // Return user without password
     const { password, ...userWithoutPassword } = user;
+
+
     
     return {
         token,

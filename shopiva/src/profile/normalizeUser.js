@@ -109,6 +109,7 @@ export function normalizeUser(raw) {
   const roleLabel = roleRaw === 'entrepreneur' || roleRaw === 'vendor' ? 'Seller' : 'Customer';
 
   const gender = normalizeGenderValue(raw.gender);
+  // const devicetoken = String(raw.devicetoken);
 
   const loc = raw.location;
   let locationObj = { city: '', state: '', country: '' };
@@ -142,5 +143,6 @@ export function normalizeUser(raw) {
     roleLabel,
     roleRaw,
     raw,
+    // devicetoken
   };
 }

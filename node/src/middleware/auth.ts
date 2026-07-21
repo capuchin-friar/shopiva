@@ -36,6 +36,7 @@ interface AuthenticatedUserProfile {
   phone: string | null;
   gender: string | null;
   role: string | null;
+  devicetoken: string | null,
   location: Record<string, unknown> | null;
   preferredLanguage: string;
   timezone: string;
@@ -58,7 +59,7 @@ export function getJwtSecret(): string {
 const authenticateUser = async (id: number): Promise<AuthenticatedUserProfile | null> => {
   try {
     const result = await (await db()).query(
-      `SELECT id, fname, lname, email, phone, gender, role, location,
+      `SELECT id, fname, lname, email, phone, gender, role, location, devicetoken,
               preferredlanguage, timezone, isemailverified, isphoneverified, lastlogin
        FROM users WHERE id = $1`,
       [id]
@@ -89,6 +90,7 @@ const authenticateUser = async (id: number): Promise<AuthenticatedUserProfile | 
       phone: row.phone ?? null,
       gender: row.gender ?? null,
       role: row.role != null ? String(row.role) : null,
+      devicetoken: row.devicetoken,
       location: locationParsed,
       preferredLanguage: row.preferredlanguage ?? "en",
       timezone: row.timezone ?? "UTC",

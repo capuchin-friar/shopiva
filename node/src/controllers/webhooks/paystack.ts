@@ -11,6 +11,7 @@ import { ordersTransformer as buyerOrdersTransformer } from "../../transformers/
 import { ordersTransformer as vendorOrdersTransformer } from "../../transformers/business/orders.js";
 import { GetShopOwnerByShopIdService } from "../../services/business/shop.js";
 import { escrow } from "../../services/escrow.js";
+import { sendFcmForActivities } from "../../services/firebaseConfig.js";
 const secret = process.env.PAYSTACK_SECRET_KEY;
 
 
@@ -213,6 +214,8 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
     .emit(
       "payment_received",{ list: await buyerOrdersTransformer(customer_id) }
     );
+    
+    // "Your payment has been received successfully. The seller has been notified."
 
     for(let order of orders){
       const shop_id = order.shop_id;
@@ -220,6 +223,23 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
       io.to(`user:${vid}`)
       .emit(
         "payment_received",{ list: await vendorOrdersTransformer(shop_id) }
+      );
+
+      const {rows: [{vendorDevicetoken}]} = await pool.query(`SELECT devicetoken FROM users WHERE id = $1`, [vid]);
+      sendFcmForActivities(
+        vendorDevicetoken /**token */,
+        "New Update From Order Activity" /** title */,
+        `A customer just made a purchase from your inventory! Please ensure to respond immediately` /**body */,
+        "null" /** media */,
+        { type: "order", order_id: order.id } /** meta */,
+      );
+      const {rows: [{buyerDevicetoken}]} = await pool.query(`SELECT devicetoken FROM users WHERE id = $1`, [customer_id]);
+      sendFcmForActivities(
+        buyerDevicetoken /**token */,
+        "New Update From Order Activity" /** title */,
+        `Your payment has been received successfully. The seller has been notified.` /**body */,
+        "null" /** media */,
+        { type: "order", order_id: order.id } /** meta */,
       );
     }
     res.status(200).json({ success: true, message: "Webhook processed successfully" });

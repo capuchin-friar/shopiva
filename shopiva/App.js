@@ -12,6 +12,9 @@ import {
   requestAndroidPermission,
   setupFcmListeners,
 } from './src/utils/firebaseTokenReqConfig';
+import messaging from '@react-native-firebase/messaging';
+import Tools from './src/utils/gen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -40,6 +43,16 @@ function App() {
       cancelled = true;
       unsubscribe();
     };
+  }, []);
+
+  useEffect(() => {
+    messaging()
+    .getToken()
+    .then(async(token) => {
+      console.log('Device FCM Token:', token);
+      await AsyncStorage.setItem("fcm", (token));
+      // await (await Tools.Memory()).store('fcm', token);
+    });
   }, []);
 
   const paystackPublicKey = getPaystackPublicKey();

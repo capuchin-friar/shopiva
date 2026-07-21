@@ -4,6 +4,40 @@ import { returnTransformer } from "../transformers/business/return.js";
 import { returnsTransformer as vendorReturnsTransformer } from "../transformers/business/returns.js";
 import { returnsTransformer as customerReturnsTransformer } from "../transformers/buyer/returns.js";
 import { notifyUser } from "../services/socketBroadcast.js";
+import { sendFcmForActivities } from "../services/firebaseConfig.js";
+
+
+function fcmMssg(event: string) {
+  switch (event) {
+    case "return_acceptance":
+      return "Great news! The buyer has accepted your return and will begin processing it shortly.";
+
+    case "return_processing":
+      return "Your return is currently being prepared by the buyer.";
+
+    case "return_shipping":
+      return "Your return has been shipped and is on its way to you.";
+
+    case "return_out_for_delivery":
+      return "Your return is out for delivery and should arrive soon.";
+
+    case "return_delivered":
+      return "Your return has been marked as delivered. Please confirm receipt if everything is in return.";
+
+    case "return_confirmed":
+      return "Thank you! You've confirmed receipt of your return. The transaction is now complete.";
+
+    case "return_disputed":
+      return "A dispute has been opened for this return. We'll review the case and keep you updated.";
+
+    case "return_cancelled":
+      return "This return has been cancelled. If you made a payment, any applicable refund will be processed.";
+
+    default:
+      return "You have a new update regarding your return.";
+  }
+}
+
 
 /** Room name must match `client.join(\`user:${userId}\`)` in services/socket.ts */
 function parseRecipientUserId(recipient: unknown): number | null {
@@ -54,6 +88,7 @@ function emitReturnUpdateToUser(
     event: string,
     result: unknown,
     list: unknown[],
+    returnId: string | any
 ): void {
     const id = parseRecipientUserId(userId);
     if (id == null) {
@@ -61,6 +96,19 @@ function emitReturnUpdateToUser(
         return;
     }
     notifyUser(id, event, { result, list });
+    let msg = fcmMssg(event);
+    
+    db().then(async(pool) => {
+    
+        const {rows: [{devicetoken}]} = await pool.query(`SELECT devicetoken FROM users WHERE id = $1`, [id]);
+        sendFcmForActivities(
+            devicetoken /**token */,
+            "New Update From Return Activity" /** title */,
+            msg /**body */,
+            "null" /** media */,
+            { type: "return", return_id: returnId } /** meta */,
+        );
+    })
 }
 
 /**
@@ -86,8 +134,8 @@ async function broadcastReturnUpdate(
     const actorList = listForRole(actor, vendorList, customerList);
     const recipientList = listForRole(recipientRole, vendorList, customerList);
 
-    emitReturnUpdateToUser(recipient, event, result, recipientList);
-    emitReturnUpdateToUser(actorId, event, result, actorList);
+    emitReturnUpdateToUser(recipient, event, result, recipientList, returnId);
+    // emitReturnUpdateToUser(actorId, event, result, actorList, orderId);
 
     return { result, list: actorList };
 }
