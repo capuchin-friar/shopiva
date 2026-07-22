@@ -267,15 +267,15 @@ export default function OrderDetailScreen() {
       meta.cancelled_by === 'vendor' || meta.cancelled_by === 'customer'
         ? String(meta.cancelled_by)
         : actor === 'vendor' || actor === 'customer'
-        ? actor
-        : null;
+          ? actor
+          : null;
 
     const reason =
       meta.reason != null && String(meta.reason).trim()
         ? String(meta.reason).trim()
         : cancelEvent?.notes != null && String(cancelEvent.notes).trim()
-        ? String(cancelEvent.notes).trim()
-        : null;
+          ? String(cancelEvent.notes).trim()
+          : null;
 
     let message;
     if (cancelledBy === 'customer') {
@@ -434,10 +434,10 @@ export default function OrderDetailScreen() {
       key === 'released'
         ? 'Amount released'
         : key === 'refunded'
-        ? 'Amount refunded'
-        : key === 'held'
-        ? 'Amount held'
-        : 'Escrow amount';
+          ? 'Amount refunded'
+          : key === 'held'
+            ? 'Amount held'
+            : 'Escrow amount';
     const rawTotal =
       orderInfo?.order?.total_paid ?? orderInfo?.order?.amount_paid;
     const num = Number(rawTotal);
@@ -544,7 +544,7 @@ export default function OrderDetailScreen() {
     if (auth.activeRole === 'vendor') {
       const u = orderInfo?.user;
       if (u && typeof u === 'object') {
-        const e = pickStr(/** @type {Record<string, unknown>} */ (u), [
+        const e = pickStr(/** @type {Record<string, unknown>} */(u), [
           'email',
         ]);
         if (e) return e;
@@ -561,7 +561,7 @@ export default function OrderDetailScreen() {
         if (e1) return e1;
         const owner = so.owner;
         if (owner && typeof owner === 'object') {
-          const e2 = pickStr(/** @type {Record<string, unknown>} */ (owner), [
+          const e2 = pickStr(/** @type {Record<string, unknown>} */(owner), [
             'email',
           ]);
           if (e2) return e2;
@@ -574,9 +574,10 @@ export default function OrderDetailScreen() {
 
 
   const onMail = () => {
+    console.log('counterpartEmail:', orderInfo);
     if (blockIfCancelled()) return;
     navigation.navigate('Inbox', {
-      chat:  {roomId: orderInfo.room.id, name: `Order #${orderInfo.order.id}`}
+      chat: { roomId: orderInfo.room.id, name: `Order #${orderInfo.order.id}` }
     });
   };
 
@@ -592,7 +593,7 @@ export default function OrderDetailScreen() {
     if (blockIfCancelled()) return;
     Alert.alert('Refund order', `Refund order #${orderNumber}?`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Refund', style: 'destructive', onPress: () => {} },
+      { text: 'Refund', style: 'destructive', onPress: () => { } },
     ]);
   };
 
@@ -855,49 +856,49 @@ export default function OrderDetailScreen() {
         onMail();
       },
     },
-    {
-      key: 'status',
-      label: 'Update status',
-      icon: 'refresh-outline',
-      onPress: () => {
-        closeActions();
-        onUpdateStatus();
-      },
-    },
-    {
-      key: 'invoice',
-      label: 'Download invoice',
-      icon: 'download-outline',
-      onPress: () => {
-        closeActions();
-        onDownloadInvoice();
-      },
-    },
-    {
-      key: 'refund',
-      label: 'Refund order',
-      icon: 'return-up-back-outline',
-      onPress: () => {
-        closeActions();
-        onRefund();
-      },
-      destructive: true,
-    },
+    // {
+    //   key: 'status',
+    //   label: 'Update status',
+    //   icon: 'refresh-outline',
+    //   onPress: () => {
+    //     closeActions();
+    //     onUpdateStatus();
+    //   },
+    // },
+    // {
+    //   key: 'invoice',
+    //   label: 'Download invoice',
+    //   icon: 'download-outline',
+    //   onPress: () => {
+    //     closeActions();
+    //     onDownloadInvoice();
+    //   },
+    // },
+    // {
+    //   key: 'refund',
+    //   label: 'Refund order',
+    //   icon: 'return-up-back-outline',
+    //   onPress: () => {
+    //     closeActions();
+    //     onRefund();
+    //   },
+    //   destructive: true,
+    // },
     ...(auth.activeRole === 'vendor' &&
-    orderInfo?.order_events?.length > 1 &&
-    !isOrderCancelled
+      orderInfo?.order_events?.length > 1 &&
+      !isOrderCancelled
       ? [
-          {
-            key: 'cancel-order',
-            label: 'Cancel order',
-            icon: 'close-circle-outline',
-            onPress: () => {
-              closeActions();
-              onCancelDelivery();
-            },
-            destructive: true,
+        {
+          key: 'cancel-order',
+          label: 'Cancel order',
+          icon: 'close-circle-outline',
+          onPress: () => {
+            closeActions();
+            onCancelDelivery();
           },
-        ]
+          destructive: true,
+        },
+      ]
       : []),
   ];
 
@@ -1029,7 +1030,7 @@ export default function OrderDetailScreen() {
             label="Shipping Method"
             value={String(
               orderInfo?.order?.shipping_method?.split('_').join(' ') ||
-                'Awaiting shipment',
+              'Awaiting shipment',
             )}
           />
           <SummaryRow
@@ -1037,7 +1038,7 @@ export default function OrderDetailScreen() {
             label="Estimated Delivery Date"
             value={String(
               orderInfo?.order?.estimated_delivery_date?.split('_').join(' ') ||
-                'Not Available',
+              'Not Available',
             )}
           />
           <SummaryRow
@@ -1076,8 +1077,8 @@ export default function OrderDetailScreen() {
               </View>
             ) : null}
             {!isOrderCancelled &&
-            statusKey !== 'order_confirmed' &&
-            statusKey !== 'order_rejected' ? (
+              statusKey !== 'order_confirmed' &&
+              statusKey !== 'order_rejected' ? (
               <View style={styles.escrowActions}>
                 {statusKey !== 'order_disputed' && (
                   <Pressable
@@ -1121,8 +1122,7 @@ export default function OrderDetailScreen() {
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>
                   {initialsOf(
-                    `${orderInfo?.user?.fname || orderInfo?.customer?.fname} ${
-                      orderInfo?.user?.lname || orderInfo?.customer?.lname
+                    `${orderInfo?.user?.fname || orderInfo?.customer?.fname} ${orderInfo?.user?.lname || orderInfo?.customer?.lname
                     }`,
                   )}
                 </Text>
@@ -1130,9 +1130,8 @@ export default function OrderDetailScreen() {
               <View style={styles.customerTitleRow}>
                 <View style={styles.customerNameCol}>
                   <Text style={styles.customerName} numberOfLines={1}>
-                    {`${orderInfo?.user?.fname || orderInfo?.customer?.fname} ${
-                      orderInfo?.user?.lname || orderInfo?.customer?.lname
-                    }`}
+                    {`${orderInfo?.user?.fname || orderInfo?.customer?.fname} ${orderInfo?.user?.lname || orderInfo?.customer?.lname
+                      }`}
                   </Text>
                 </View>
                 <Pressable
@@ -1240,11 +1239,11 @@ export default function OrderDetailScreen() {
               </View>
             ) : null}
             {!displayShipping.street &&
-            !displayShipping.street2 &&
-            !displayShipping.city &&
-            !displayShipping.state &&
-            !displayShipping.country &&
-            !displayShipping.zip ? (
+              !displayShipping.street2 &&
+              !displayShipping.city &&
+              !displayShipping.state &&
+              !displayShipping.country &&
+              !displayShipping.zip ? (
               <View style={[styles.kvRow, styles.kvRowAlignTop]}>
                 <Text style={styles.kvLabel}>Address</Text>
                 <Text style={[styles.kvValue, styles.kvAddress]}>
@@ -1334,10 +1333,10 @@ export default function OrderDetailScreen() {
             label="Total"
             value={fmt(
               orderInfo?.order?.shipping_fee &&
-                orderInfo.order_items.reduce(
-                  (acc, curr) => acc + parseInt(curr.total_price),
-                  0,
-                ) + Number(orderInfo?.order?.shipping_fee || 0),
+              orderInfo.order_items.reduce(
+                (acc, curr) => acc + parseInt(curr.total_price),
+                0,
+              ) + Number(orderInfo?.order?.shipping_fee || 0),
             )}
             bold
           />
@@ -1413,8 +1412,8 @@ export default function OrderDetailScreen() {
           )}
         {orderInfo?.order_events?.length > 1 &&
           (statusKey !== 'order_delivered' &&
-          statusKey !== 'order_disputed' &&
-          auth.activeRole === 'customer' ? (
+            statusKey !== 'order_disputed' &&
+            auth.activeRole === 'customer' ? (
             ''
           ) : (
             <Pressable
@@ -1456,11 +1455,11 @@ export default function OrderDetailScreen() {
                   : actionBtn()}
               </Text>
             </Pressable>
-        ))}
+          ))}
 
         {auth.activeRole === 'customer' &&
-        statusKey !== 'order_delivered' &&
-        statusKey !== 'order_disputed' ? (
+          statusKey !== 'order_delivered' &&
+          statusKey !== 'order_disputed' ? (
           <Pressable
             onPress={e => {
               if (blockIfCancelled()) return;

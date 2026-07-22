@@ -303,7 +303,7 @@ export default function ReturnDetailScreen() {
 
   const [vendor_id, set_vendor_id] = useState(null);
   useEffect(() => {
-    if(!returnInfo)return;
+    if (!returnInfo) return;
     (async () => {
       const owners = await fetchShopOwner(returnInfo?.return?.shop_id);
       set_vendor_id(owners[0]?.id);
@@ -322,7 +322,7 @@ export default function ReturnDetailScreen() {
       (async () => {
         await connectChatSocket();
         fetchBuyerReturn(route.params?.returnItem?.return_id ?? route.params.returnId)
-          .then(({return: result}) => {
+          .then(({ return: result }) => {
             dispatch(set_returnInfo(result));
           })
           .catch(err => console.log(err));
@@ -334,7 +334,7 @@ export default function ReturnDetailScreen() {
         let shop = await fetchOwnerShops(userId);
         let sid = shop[0].id;
         fetchShopReturnDetail(sid, route.params?.returnItem?.return_id ?? route.params.returnId, userId)
-          .then(({return: result}) => {
+          .then(({ return: result }) => {
             dispatch(set_returnInfo(result));
           })
           .catch(err => console.log(err));
@@ -470,7 +470,7 @@ export default function ReturnDetailScreen() {
     if (auth.activeRole === 'vendor') {
       const u = returnInfo?.user;
       if (u && typeof u === 'object') {
-        const e = pickStr(/** @type {Record<string, unknown>} */ (u), [
+        const e = pickStr(/** @type {Record<string, unknown>} */(u), [
           'email',
         ]);
         if (e) return e;
@@ -487,7 +487,7 @@ export default function ReturnDetailScreen() {
         if (e1) return e1;
         const owner = so.owner;
         if (owner && typeof owner === 'object') {
-          const e2 = pickStr(/** @type {Record<string, unknown>} */ (owner), [
+          const e2 = pickStr(/** @type {Record<string, unknown>} */(owner), [
             'email',
           ]);
           if (e2) return e2;
@@ -501,7 +501,7 @@ export default function ReturnDetailScreen() {
   const onMail = () => {
     if (blockIfCancelled()) return;
     navigation.navigate('Inbox', {
-      chat:  {roomId: returnInfo.room.id, name: `Order #${returnInfo.return.id}`}
+      chat: { roomId: returnInfo.room.id, name: `Order #${returnInfo.return.id}` }
     });
   };
 
@@ -517,12 +517,12 @@ export default function ReturnDetailScreen() {
     if (blockIfCancelled()) return;
     Alert.alert('Refund return', `Refund return #${returnNumber}?`, [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Refund', style: 'destructive', onPress: () => {} },
+      { text: 'Refund', style: 'destructive', onPress: () => { } },
     ]);
   };
 
   const onCancelReturn = useCallback(async () => {
-    if(!statusKey)return;
+    if (!statusKey) return;
     if (statusKey === "return_delivered") {
       Alert.alert(
         "Cannot cancel return after delivery",
@@ -548,7 +548,7 @@ export default function ReturnDetailScreen() {
     if (blockIfCancelled()) return;
     if (!returnInfo?.return) return;
 
-    if (auth.activeRole === 'customer' ) {
+    if (auth.activeRole === 'customer') {
       const u = await getStoredUser();
       const owners = await fetchShopOwner(returnInfo.return.shop_id);
       const vendorId = owners[0]?.id;
@@ -559,13 +559,13 @@ export default function ReturnDetailScreen() {
         );
         return;
       }
-  
+
       const totalPaid = Number(
         returnInfo.return.return_shipping_fee ?? 0,
       );
       const postShipment = (returnInfo.return_events?.length ?? 0) > 3;
       const restockingFee = Number(returnInfo.return.return_shipping_fee ?? 0);
-  
+
       navigation.navigate('Return-action', {
         action: 'cancellation',
         data: {
@@ -582,9 +582,9 @@ export default function ReturnDetailScreen() {
           restocking_fee: restockingFee,
         },
       });
-    }else{
+    } else {
       const u = await getStoredUser();
-  
+
       navigation.navigate('Return-action', {
         action: 'cancellation',
         data: {
@@ -602,7 +602,7 @@ export default function ReturnDetailScreen() {
   }, [auth.activeRole, blockIfCancelled, navigation, returnInfo, statusKey]);
 
   const onUpdateStatus = async () => {
-    
+
     if (blockIfCancelled()) return;
     if (!returnInfo?.return) return;
     const u = await getStoredUser();
@@ -689,49 +689,49 @@ export default function ReturnDetailScreen() {
         onMail();
       },
     },
-    {
-      key: 'status',
-      label: 'Update status',
-      icon: 'refresh-outline',
-      onPress: () => {
-        closeActions();
-        onUpdateStatus();
-      },
-    },
-    {
-      key: 'invoice',
-      label: 'Download invoice',
-      icon: 'download-outline',
-      onPress: () => {
-        closeActions();
-        onDownloadInvoice();
-      },
-    },
-    {
-      key: 'refund',
-      label: 'Refund return',
-      icon: 'return-up-back-outline',
-      onPress: () => {
-        closeActions();
-        onRefund();
-      },
-      destructive: true,
-    },
+    // {
+    //   key: 'status',
+    //   label: 'Update status',
+    //   icon: 'refresh-outline',
+    //   onPress: () => {
+    //     closeActions();
+    //     onUpdateStatus();
+    //   },
+    // },
+    // {
+    //   key: 'invoice',
+    //   label: 'Download invoice',
+    //   icon: 'download-outline',
+    //   onPress: () => {
+    //     closeActions();
+    //     onDownloadInvoice();
+    //   },
+    // },
+    // {
+    //   key: 'refund',
+    //   label: 'Refund return',
+    //   icon: 'return-up-back-outline',
+    //   onPress: () => {
+    //     closeActions();
+    //     onRefund();
+    //   },
+    //   destructive: true,
+    // },
     ...(auth.activeRole === 'vendor' &&
-    returnInfo?.return_events?.length > 1 &&
-    !isReturnCancelled
+      returnInfo?.return_events?.length > 1 &&
+      !isReturnCancelled
       ? [
-          {
-            key: 'cancel-return',
-            label: 'Cancel return',
-            icon: 'close-circle-outline',
-            onPress: () => {
-              closeActions();
-              onCancelReturn();
-            },
-            destructive: true,
+        {
+          key: 'cancel-return',
+          label: 'Cancel return',
+          icon: 'close-circle-outline',
+          onPress: () => {
+            closeActions();
+            onCancelReturn();
           },
-        ]
+          destructive: true,
+        },
+      ]
       : []),
   ];
 
@@ -752,8 +752,8 @@ export default function ReturnDetailScreen() {
   }
   const actionBtn = () => {
     let message;
-    if(auth.activeRole === 'customer'){
-      switch(statusKey){
+    if (auth.activeRole === 'customer') {
+      switch (statusKey) {
         case 'return_accepted':
           message = 'Start processing';
           break;
@@ -772,11 +772,11 @@ export default function ReturnDetailScreen() {
         case 'return_delivered':
           message = 'Awaiting review';
           break;
-        default: 
+        default:
           message = 'Awaiting review';
       }
-    }else{
-      switch(statusKey){
+    } else {
+      switch (statusKey) {
         case 'return_accepted':
           message = 'Return processing';
           break;
@@ -795,7 +795,7 @@ export default function ReturnDetailScreen() {
         case 'return_delivered':
           message = 'Confirm delivery';
           break;
-        default: 
+        default:
           message = 'Awaiting approval';
       }
     }
@@ -831,7 +831,7 @@ export default function ReturnDetailScreen() {
               returnInfo?.return?.shipping_address &&
               String(
                 Object.values(JSON.parse(returnInfo?.return?.shipping_address)).join(", ")
-            )}
+              )}
           />
 
           <SummaryRow
@@ -839,7 +839,7 @@ export default function ReturnDetailScreen() {
             label="Shipping Method"
             value={String(
               returnInfo?.return?.shipping_method?.split('_').join(' ') ||
-                'Awaiting shipment',
+              'Awaiting shipment',
             )}
           />
           <SummaryRow
@@ -847,7 +847,7 @@ export default function ReturnDetailScreen() {
             label="Estimated Delivery Date"
             value={String(
               returnInfo?.return?.estimated_delivery_date?.split('_').join(' ') ||
-                'Not Available',
+              'Not Available',
             )}
           />
           <SummaryRow
@@ -873,20 +873,20 @@ export default function ReturnDetailScreen() {
               </View>
             ) : null}
             {!isReturnCancelled ? (
-            <View style={styles.escrowActions}>
-              <Pressable
-                onPress={onCancelReturn}
-                style={({ pressed }) => [
-                  styles.escrowBtn,
-                  styles.escrowBtnCancel,
-                  pressed && styles.pressed,
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel="Cancel return"
-              >
-                <Text style={styles.escrowBtnCancelText}>Cancel return</Text>
-              </Pressable>
-            </View>
+              <View style={styles.escrowActions}>
+                <Pressable
+                  onPress={onCancelReturn}
+                  style={({ pressed }) => [
+                    styles.escrowBtn,
+                    styles.escrowBtnCancel,
+                    pressed && styles.pressed,
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel return"
+                >
+                  <Text style={styles.escrowBtnCancelText}>Cancel return</Text>
+                </Pressable>
+              </View>
             ) : null}
           </View>
         )}
@@ -900,8 +900,7 @@ export default function ReturnDetailScreen() {
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>
                   {initialsOf(
-                    `${returnInfo?.user?.fname || returnInfo?.customer?.fname} ${
-                      returnInfo?.user?.lname || returnInfo?.customer?.lname
+                    `${returnInfo?.user?.fname || returnInfo?.customer?.fname} ${returnInfo?.user?.lname || returnInfo?.customer?.lname
                     }`,
                   )}
                 </Text>
@@ -909,9 +908,8 @@ export default function ReturnDetailScreen() {
               <View style={styles.customerTitleRow}>
                 <View style={styles.customerNameCol}>
                   <Text style={styles.customerName} numberOfLines={1}>
-                    {`${returnInfo?.user?.fname || returnInfo?.customer?.fname} ${
-                      returnInfo?.user?.lname || returnInfo?.customer?.lname
-                    }`}
+                    {`${returnInfo?.user?.fname || returnInfo?.customer?.fname} ${returnInfo?.user?.lname || returnInfo?.customer?.lname
+                      }`}
                   </Text>
                 </View>
                 <Pressable
@@ -1011,11 +1009,11 @@ export default function ReturnDetailScreen() {
               </View>
             ) : null}
             {!displayShipping.street &&
-            !displayShipping.street2 &&
-            !displayShipping.city &&
-            !displayShipping.state &&
-            !displayShipping.country &&
-            !displayShipping.zip ? (
+              !displayShipping.street2 &&
+              !displayShipping.city &&
+              !displayShipping.state &&
+              !displayShipping.country &&
+              !displayShipping.zip ? (
               <View style={[styles.kvRow, styles.kvRowAlignTop]}>
                 <Text style={styles.kvLabel}>Address</Text>
                 <Text style={[styles.kvValue, styles.kvAddress]}>
@@ -1084,9 +1082,9 @@ export default function ReturnDetailScreen() {
             value={fmt(
               Array.isArray(returnInfo.return_items)
                 ? returnInfo.return_items.reduce(
-                    (acc, curr) => acc + parseInt(curr.total_price, 10),
-                    0,
-                  )
+                  (acc, curr) => acc + parseInt(curr.total_price, 10),
+                  0,
+                )
                 : 0,
             )}
             muted
@@ -1106,11 +1104,11 @@ export default function ReturnDetailScreen() {
             label="Total"
             value={fmt(
               // returnInfo?.return?.return_shipping_fee &&
-                returnInfo.return_items&&
-                returnInfo.return_items.reduce(
-                  (acc, curr) => acc + parseInt(curr.total_price),
-                  0,
-                ) + Number(returnInfo?.return?.shipping_fee || 0),
+              returnInfo.return_items &&
+              returnInfo.return_items.reduce(
+                (acc, curr) => acc + parseInt(curr.total_price),
+                0,
+              ) + Number(returnInfo?.return?.shipping_fee || 0),
             )}
             bold
           />
@@ -1182,48 +1180,48 @@ export default function ReturnDetailScreen() {
             </Pressable>
           </>
         )}
-        {returnInfo?.return_events?.length > 1 &&  (
-          statusKey !== "return_delivered" && auth.activeRole === 'vendor' ? '' : 
-          <Pressable
-            onPress={() => {
-              if (blockIfCancelled()) return;
-              // Terminal / waiting statuses — explain instead of navigating.
-              if (
-                auth.activeRole === 'customer' &&
-                (statusKey === 'return_delivered' ||
-                  statusKey === 'return_confirmed' ||
-                  statusKey === 'return_cancelled')
-              ) {
-                setStatusInfoOpen(true);
-                return;
-              }
-              if (
-                auth.activeRole === 'vendor' &&
-                (statusKey === 'return_confirmed' ||
-                  statusKey === 'return_cancelled')
-              ) {
-                setStatusInfoOpen(true);
-                return;
-              }
-              onUpdateStatus();
-            }}
-            style={({ pressed }) => [
-              styles.btnPrimary,
-              pressed && styles.btnPrimaryPressed,
-              {
-                backgroundColor: RETURN_STATUS_THEME[statusKey]?.dot
-              }
-            ]}
-          >
-            <Text style={styles.btnPrimaryText} numberOfLines={1}>
-              {
-                actionBtn()
-              }
-            </Text>
-          </Pressable>
+        {returnInfo?.return_events?.length > 1 && (
+          statusKey !== "return_delivered" && auth.activeRole === 'vendor' ? '' :
+            <Pressable
+              onPress={() => {
+                if (blockIfCancelled()) return;
+                // Terminal / waiting statuses — explain instead of navigating.
+                if (
+                  auth.activeRole === 'customer' &&
+                  (statusKey === 'return_delivered' ||
+                    statusKey === 'return_confirmed' ||
+                    statusKey === 'return_cancelled')
+                ) {
+                  setStatusInfoOpen(true);
+                  return;
+                }
+                if (
+                  auth.activeRole === 'vendor' &&
+                  (statusKey === 'return_confirmed' ||
+                    statusKey === 'return_cancelled')
+                ) {
+                  setStatusInfoOpen(true);
+                  return;
+                }
+                onUpdateStatus();
+              }}
+              style={({ pressed }) => [
+                styles.btnPrimary,
+                pressed && styles.btnPrimaryPressed,
+                {
+                  backgroundColor: RETURN_STATUS_THEME[statusKey]?.dot
+                }
+              ]}
+            >
+              <Text style={styles.btnPrimaryText} numberOfLines={1}>
+                {
+                  actionBtn()
+                }
+              </Text>
+            </Pressable>
         )}
 
-        {auth.activeRole === 'vendor' && statusKey !== "return_delivered"? 
+        {auth.activeRole === 'vendor' && statusKey !== "return_delivered" ?
           <Pressable
             onPress={() => {
               if (blockIfCancelled()) return;
@@ -1238,13 +1236,13 @@ export default function ReturnDetailScreen() {
             ]}
           >
             <Text style={styles.btnPrimaryText} numberOfLines={1}>
-            {
-              statusKey === "return_initiated"?
-              'Awaiting approval' : actionBtn()
-            }
-          </Text>
-        </Pressable>
-        : ''}
+              {
+                statusKey === "return_initiated" ?
+                  'Awaiting approval' : actionBtn()
+              }
+            </Text>
+          </Pressable>
+          : ''}
       </View>
 
       <Modal

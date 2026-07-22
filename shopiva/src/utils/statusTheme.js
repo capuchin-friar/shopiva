@@ -135,14 +135,14 @@ export const ESCROW_STATUS_THEME = {
   },
 };
 export const COLOR = ({
-    BRAND_COLOR: "#00926e",
-    BRAND_COLOR_LITE: "#00bc8d",
-    NEUTRAL: "#FFF",
-    DARK: "#111111",
-    MUTED: "#8E8E93",
-    HAIR: "#ECECEE'",
-    TEXT: "#1A1A1A",
-    BG: "#F2F2F4"
+  BRAND_COLOR: "#00926e",
+  BRAND_COLOR_LITE: "#00bc8d",
+  NEUTRAL: "#FFF",
+  DARK: "#111111",
+  MUTED: "#8E8E93",
+  HAIR: "#ECECEE'",
+  TEXT: "#1A1A1A",
+  BG: "#F2F2F4"
 });
 
 export const RETURN_STATUS_THEME = {
