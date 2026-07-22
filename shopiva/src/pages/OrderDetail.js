@@ -313,7 +313,7 @@ export default function OrderDetailScreen() {
   const closeActions = useCallback(() => setActionsOpen(false), []);
 
   const orderNumber = useMemo(() => {
-    const n = order?.orderId ?? order?.order_id ?? '1928';
+    const n = order?.orderId ?? order?.order_id ?? '';
     return String(n).replace(/^ORD-/i, '');
   }, [order]);
 

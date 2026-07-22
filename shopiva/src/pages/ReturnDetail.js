@@ -297,7 +297,7 @@ export default function ReturnDetailScreen() {
   const closeActions = useCallback(() => setActionsOpen(false), []);
 
   const returnNumber = useMemo(() => {
-    const n = returnInfo?.return?.id ?? '1928';
+    const n = returnInfo?.return?.id ?? '';
     return String(n).replace(/^ORD-/i, '');
   }, [returnInfo]);
 
