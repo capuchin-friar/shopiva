@@ -632,15 +632,15 @@ export const handleOrderConfirmation = async (
 
     const { rows } = await p.query(
       `
-                INSERT INTO order_events
-                (
-                    order_id, event_type, stage, actor_type, actor_id, outcome, notes, meta, created_at
-                )
-                VALUES(
-                    $1, $2, $3, $4, $5, $6, $7, $8::jsonb, NOW()
-                )
-                RETURNING *
-            `,
+      INSERT INTO order_events
+      (
+        order_id, event_type, stage, actor_type, actor_id, outcome, notes, meta, created_at
+      )
+      VALUES(
+        $1, $2, $3, $4, $5, $6, $7, $8::jsonb, NOW()
+      )
+      RETURNING *
+      `,
       [
         order_id,
         event_type,

@@ -424,20 +424,20 @@ export default function DisputeDetailScreen() {
   const scrollBottomPad = fabBottom + 72;
   const getButtonText = () => {
     if (dispute.status === "resolved") {
-      return "Click here to view Return";
+      return 'View return';
     }
 
     if (dispute.status === "escalated") {
-      return "Dispute Escalated, Contact Support!";
+      return 'Contact support';
     }
 
     if (dispute.status === "open") {
       return isCustomer
-        ? "Awaiting vendor's response"
-        : "Accept claim";
+        ? 'Awaiting response'
+        : 'Accept claim';
     }
 
-    return "";
+    return '';
   };
   return (
     <View style={styles.root}>
@@ -681,7 +681,7 @@ export default function DisputeDetailScreen() {
             // disabled={dispute.status === "escalated"};
           >
             {dispute.status === "open" && <Icon name="checkmark-circle" size={20} color={WHITE} />}
-            <Text style={styles.fabAcceptText}>{
+            <Text style={styles.fabAcceptText} numberOfLines={1}>{
               getButtonText()
             }</Text>
           </Pressable>
@@ -1114,8 +1114,9 @@ const styles = StyleSheet.create({
   },
   fabAcceptText: {
     color: WHITE,
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '700',
+    includeFontPadding: false,
   },
   fabSecondary: {
     flexDirection: 'row',

@@ -939,57 +939,57 @@ export default function OrderDetailScreen() {
     if (auth.activeRole === 'vendor') {
       switch (statusKey) {
         case 'order_accepted':
-          message = 'Click Here To Start Processing Order';
+          message = 'Start processing';
           break;
         case 'order_processing':
-          message = 'Click Here To Start Shipping Order';
+          message = 'Start shipping';
           break;
         case 'order_shipping':
-          message = 'Click Here To Notify Customer For Pickup';
+          message = 'Ready for pickup';
           break;
         case 'order_out_for_delivery':
-          message = 'Click Here To Confirm Customer Has Received The Order';
+          message = 'Confirm delivery';
           break;
         case 'order_confirmed':
-          message = 'Your Payout Will Be Processed Within 24 Hrs.';
+          message = 'Payment pending';
           break;
         case 'order_cancelled':
-          message = 'This order was cancelled';
+          message = 'Order cancelled';
           break;
         case 'order_rejected':
-          message = 'You Declined this order';
+          message = 'Order rejected';
           break;
         case 'order_delivered':
-          message = "Awaiting Customer's Confirmation";
+          message = 'Awaiting review';
           break;
         default:
-          message = "Awaiting Customer's Confirmation";
+          message = 'Awaiting review';
       }
     } else {
       switch (statusKey) {
         case 'order_accepted':
-          message = 'Your Order is being processed';
+          message = 'Processing order';
           break;
         case 'order_processing':
-          message = 'Vendor already started shipping';
+          message = 'Shipping in progress';
           break;
         case 'order_shipping':
-          message = 'Vendor Has shipped Your Order';
+          message = 'Order shipped';
           break;
         case 'order_out_for_delivery':
-          message = 'Your Order Is Out For Delivery';
+          message = 'Out for delivery';
           break;
         case 'order_confirmed':
-          message = 'Escrow Will Now Release The Funds To The Customer';
+          message = 'Payment releasing';
           break;
         case 'order_cancelled':
-          message = 'This order was cancelled';
+          message = 'Order cancelled';
           break;
         case 'order_rejected':
-          message = 'Vendor Declined & cannot Fulfill this order';
+          message = 'Order rejected';
           break;
         default:
-          message = 'Confirm That You Received The Order';
+          message = 'Confirm delivery';
       }
     }
 
@@ -1450,9 +1450,9 @@ export default function OrderDetailScreen() {
                 },
               ]}
             >
-              <Text style={styles.btnPrimaryText}>
+              <Text style={styles.btnPrimaryText} numberOfLines={1}>
                 {statusKey === 'order_disputed'
-                  ? 'This Order Was Disputed, Click to View Dispute'
+                  ? 'View dispute'
                   : actionBtn()}
               </Text>
             </Pressable>
@@ -1475,10 +1475,11 @@ export default function OrderDetailScreen() {
             ]}
           >
             <Text
-              style={[styles.btnPrimaryText, { textTransform: 'capitalize' }]}
+              style={styles.btnPrimaryText}
+              numberOfLines={1}
             >
               {statusKey === 'payment_received'
-                ? "Awaiting Vendor's Approval"
+                ? 'Awaiting approval'
                 : actionBtn()}
             </Text>
           </Pressable>
@@ -2226,9 +2227,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLOR.BRAND_COLOR_LITE,
   },
   btnPrimaryText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     color: COLOR.NEUTRAL,
+    includeFontPadding: false,
   },
   btnAccept: {
     flex: 1,

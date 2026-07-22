@@ -41,7 +41,7 @@ export const STATUS_THEME = {
     bg: '#FEFCE8',
     dot: '#CA8A04',
     text: '#854D0E',
-    label: 'Order accepted',
+    label: 'Accepted',
   },
 
   order_processing: {
@@ -62,7 +62,7 @@ export const STATUS_THEME = {
     bg: '#E0F2FE',
     dot: '#0284C7',
     text: '#075985',
-    label: 'Out For Delivery',
+    label: 'Out for delivery',
   },
 
   order_delivered: {
@@ -76,14 +76,14 @@ export const STATUS_THEME = {
     bg: '#ECFEFF',
     dot: '#0891B2',
     text: '#155E75',
-    label: 'Order confirmed',
+    label: 'Confirmed',
   },
 
   order_disputed: {
     bg: '#FEF2F2',
     dot: '#DC2626',
     text: '#991B1B',
-    label: 'Order disputed',
+    label: 'Disputed',
   },
 
   order_cancelled: {
@@ -97,7 +97,7 @@ export const STATUS_THEME = {
     bg: '#FFF1F2',
     dot: '#E11D48',
     text: '#9F1239',
-    label: 'Order Rejected',
+    label: 'Rejected',
   }
 };
 export const ESCROW_STATUS_THEME = {
@@ -150,14 +150,14 @@ export const RETURN_STATUS_THEME = {
     bg: '#FEFCE8',
     dot: '#CA8A04',
     text: '#854D0E',
-    label: 'Return Initiated',
+    label: 'Initiated',
   },
 
   return_accepted: {
     bg: '#FEF3C7',
     dot: '#D97706',
     text: '#92400E',
-    label: 'Return accepted',
+    label: 'Accepted',
   },
 
   return_processing: {
@@ -178,7 +178,7 @@ export const RETURN_STATUS_THEME = {
     bg: '#E0F2FE',
     dot: '#0284C7',
     text: '#075985',
-    label: 'Out For Delivery',
+    label: 'Out for delivery',
   },
 
   return_delivered: {

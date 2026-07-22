@@ -14,13 +14,12 @@ import {
   ActivityIndicator,
   Dimensions,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
-import StarRating from 'react-native-star-rating-widget';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useSelector } from 'react-redux';
 import { getStoredUser } from '../auth/session';
 import dayjs from 'dayjs';
 import { createReview } from '../api';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const PAGE_BG = '#F5F5F5';
 const WHITE = '#FFFFFF';
@@ -88,172 +87,179 @@ const ReviewSubmissionScreen = ({ navigation }) => {
     option => option.id === reviewType,
   );
 
-  useEffect(() => {
-    console.log('review params---order:', order);
-  }, [order]);
+  const renderStars = () => (
+    <View style={styles.starRow}>
+      {[1, 2, 3, 4, 5].map(value => (
+        <TouchableOpacity
+          key={value}
+          onPress={() => setRating(value)}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={`Rate ${value} out of 5 stars`}
+        >
+          <Ionicons
+            name={value <= rating ? 'star' : 'star-outline'}
+            size={36}
+            color={value <= rating ? '#0D9488' : '#C7C7CC'}
+            style={styles.starIcon}
+          />
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-    >
-      {isSubmitting && (
-        <View
-          style={{
-            flex: 1,
-            width: Dimensions.get('window').width,
-            height: Dimensions.get('window').height,
-            justifyContent: 'center',
-            alignItems: 'center',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            zIndex: 100,
-            backgroundColor: 'rgba(255, 251, 246, 0.2)', // Fully transparent
-          }}
-        >
-          <ActivityIndicator size="large" color="#0D9488" />
-        </View>
-      )}
-      <View style={styles.contentContainer}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContainer}
-          showsVerticalScrollIndicator={false}
-        >
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
+        {isSubmitting && (
           <View
             style={{
-              flexDirection: 'row',
-              alignItems: 'flex-start',
-              backgroundColor: 'rgba(13, 148, 136, 0.25)',
-              borderWidth: 1,
-              borderColor: 'rgba(13, 148, 136, 0.25)',
-              borderRadius: 5,
-              padding: 14,
-              marginVertical: 6,
+              flex: 1,
+              width: Dimensions.get('window').width,
+              height: Dimensions.get('window').height,
+              justifyContent: 'center',
+              alignItems: 'center',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              zIndex: 100,
+              backgroundColor: 'rgba(255, 251, 246, 0.2)', // Fully transparent
             }}
           >
-            <Text
-              style={{
-                fontSize: 18,
-                marginRight: 8,
-              }}
-            >
-              ℹ️
-            </Text>
-
-            <Text
-              style={{
-                flex: 1,
-                fontSize: 14,
-                lineHeight: 20,
-                color: '#000',
-              }}
-            >
-              Your feedback helps other buyers make informed decisions and helps
-              vendors improve their services. Please rate your experience with
-              this order.
-            </Text>
+            <ActivityIndicator size="large" color="#0D9488" />
           </View>
-          <View style={styles.ratingSection}>
-            <Text style={styles.sectionTitle}>Overall Rating</Text>
-            <View style={styles.starContainer}>
-              <StarRating
-                rating={rating}
-                onChange={setRating}
-                starSize={40}
-                color="#0D9488"
-                starStyle={styles.starStyle}
-              />
-              <Text style={styles.ratingText}>
-                {rating === 0
-                  ? 'Tap stars to rate'
-                  : `${rating.toFixed(1)} / 5.0`}
+        )}
+        <View style={styles.contentContainer}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContainer}
+            showsVerticalScrollIndicator={false}
+          >
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'flex-start',
+                backgroundColor: 'rgba(13, 148, 136, 0.25)',
+                borderWidth: 1,
+                borderColor: 'rgba(13, 148, 136, 0.25)',
+                borderRadius: 5,
+                padding: 14,
+                marginVertical: 6,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 18,
+                  marginRight: 8,
+                }}
+              >
+                ℹ️
+              </Text>
+              <Text
+                style={{
+                  flex: 1,
+                  fontSize: 14,
+                  lineHeight: 20,
+                  color: '#000',
+                }}
+              >
+                Your feedback helps other buyers make informed decisions and helps
+                vendors improve their services. Please rate your experience with
+                this order.
               </Text>
             </View>
-          </View>
-
-          <View style={styles.reviewTypeSection}>
-            <Text style={styles.sectionTitle}>How was your experience?</Text>
-            <View style={styles.reviewOptions}>
-              {reviewOptions.map(option => (
-                <TouchableOpacity
-                  key={option.id}
-                  style={[
-                    styles.reviewOption,
-                    reviewType === option.id && styles.selectedReviewOption,
-                    reviewType === option.id && {
-                      backgroundColor: option.color,
-                    },
-                  ]}
-                  onPress={() => setReviewType(option.id)}
-                >
-                  <Ionicons
-                    name={option.icon}
-                    size={20}
-                    color={reviewType === option.id ? '#fff' : option.color}
-                  />
-                  <Text
-                    style={[
-                      styles.reviewOptionText,
-                      reviewType === option.id &&
-                        styles.selectedReviewOptionText,
-                    ]}
-                  >
-                    {option.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            <View style={styles.ratingSection}>
+              <Text style={styles.sectionTitle}>Overall Rating</Text>
+              <View style={styles.starContainer}>
+                {renderStars()}
+                <Text style={styles.ratingText}>
+                  {rating === 0 ? 'Tap stars to rate' : `${rating.toFixed(1)} / 5.0`}
+                </Text>
+              </View>
             </View>
+            <View style={styles.reviewTypeSection}>
+              <Text style={styles.sectionTitle}>How was your experience?</Text>
+              <View style={styles.reviewOptions}>
+                {reviewOptions.map(option => (
+                  <TouchableOpacity
+                    key={option.id}
+                    style={[
+                      styles.reviewOption,
+                      reviewType === option.id && styles.selectedReviewOption,
+                      reviewType === option.id && {
+                        backgroundColor: option.color,
+                      },
+                    ]}
+                    onPress={() => setReviewType(option.id)}
+                  >
+                    <Ionicons
+                      name={option.icon}
+                      size={20}
+                      color={reviewType === option.id ? '#fff' : option.color}
+                    />
+                    <Text
+                      style={[
+                        styles.reviewOptionText,
+                        reviewType === option.id &&
+                        styles.selectedReviewOptionText,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+            <View style={styles.commentSection}>
+              <Text style={styles.sectionTitle}>
+                Share your experience (Optional)
+              </Text>
+              <TextInput
+                style={styles.commentInput}
+                multiline
+                numberOfLines={6}
+                placeholder="What did you like or dislike? How was the product quality, delivery experience, etc.?"
+                value={comment}
+                onChangeText={setComment}
+                textAlignVertical="top"
+              />
+              <Text style={styles.charCount}>
+                {comment.length}/500 characters
+              </Text>
+            </View>
+          </ScrollView>
+          {/* Fixed Submit Button at Bottom */}
+          <View style={styles.fixedButtonContainer}>
+            <TouchableOpacity
+              style={[
+                styles.submitButton,
+                isSubmitting && styles.submitButtonDisabled,
+              ]}
+              onPress={handleSubmit}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <Text style={styles.submitButtonText}>Submitting...</Text>
+              ) : (
+                <Text style={styles.submitButtonText}>Submit Review</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.cancelButton]}
+              onPress={e => {
+                navigation.navigate('Activities');
+              }}
+              disabled={isSubmitting}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
           </View>
-
-          <View style={styles.commentSection}>
-            <Text style={styles.sectionTitle}>
-              Share your experience (Optional)
-            </Text>
-            <TextInput
-              style={styles.commentInput}
-              multiline
-              numberOfLines={6}
-              placeholder="What did you like or dislike? How was the product quality, delivery experience, etc.?"
-              value={comment}
-              onChangeText={setComment}
-              textAlignVertical="top"
-            />
-            <Text style={styles.charCount}>
-              {comment.length}/500 characters
-            </Text>
-          </View>
-        </ScrollView>
-
-        {/* Fixed Submit Button at Bottom */}
-        <View style={styles.fixedButtonContainer}>
-          <TouchableOpacity
-            style={[
-              styles.submitButton,
-              isSubmitting && styles.submitButtonDisabled,
-            ]}
-            onPress={handleSubmit}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <Text style={styles.submitButtonText}>Submitting...</Text>
-            ) : (
-              <Text style={styles.submitButtonText}>Submit Review</Text>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.cancelButton]}
-            onPress={e => {
-              navigation.navigate('Activities');
-            }}
-            disabled={isSubmitting}
-          >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
@@ -400,7 +406,12 @@ const styles = StyleSheet.create({
   starContainer: {
     alignItems: 'center',
   },
-  starStyle: {
+  starRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  starIcon: {
     marginHorizontal: 2,
   },
   ratingText: {
@@ -481,8 +492,8 @@ const styles = StyleSheet.create({
     right: 0,
     height: 70,
     paddingHorizontal: 15,
-    paddingTop: 10, 
-    paddingBottom: 10, 
+    paddingTop: 10,
+    paddingBottom: 10,
     display: 'flex',
     flexDirection: 'row-reverse',
     justifyContent: 'space-between',
