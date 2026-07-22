@@ -8,12 +8,11 @@ import { getPaystackPublicKey, isPaystackConfigured, warnIfPaystackLiveInDev } f
 import { getPaystackProvider } from './src/paystack/paystackNativeGate';
 import NavigationHandler from './src/navigation/index';
 import {
+  getFcmToken,
   requestPermission,
   requestAndroidPermission,
   setupFcmListeners,
 } from './src/utils/firebaseTokenReqConfig';
-import messaging from '@react-native-firebase/messaging';
-import Tools from './src/utils/gen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 function App() {
@@ -30,11 +29,19 @@ function App() {
     let cancelled = false;
 
     (async () => {
-      if (Platform.OS === 'android') {
-        await requestAndroidPermission();
-      }
-      if (!cancelled) {
-        await requestPermission();
+      try {
+        if (Platform.OS === 'android') {
+          const granted = await requestAndroidPermission();
+          if (!granted && Platform.Version >= 33) {
+            return;
+          }
+        }
+
+        if (!cancelled) {
+          await requestPermission();
+        }
+      } catch (error) {
+        console.warn('[fcm] initial setup failed:', error instanceof Error ? error.message : String(error));
       }
     })();
 
@@ -46,13 +53,24 @@ function App() {
   }, []);
 
   useEffect(() => {
-    messaging()
-    .getToken()
-    .then(async(token) => {
-      console.log('Device FCM Token:', token);
-      await AsyncStorage.setItem("fcm", (token));
-      // await (await Tools.Memory()).store('fcm', token);
-    });
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const token = await getFcmToken();
+        if (!token || cancelled) {
+          return;
+        }
+        console.log('Device FCM Token:', token);
+        await AsyncStorage.setItem('fcm', token);
+      } catch (error) {
+        console.warn('Device FCM Token Error:', error instanceof Error ? error.message : String(error));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const paystackPublicKey = getPaystackPublicKey();
@@ -68,14 +86,14 @@ function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <SafeAreaProvider style={{flex: 1}}>
+      <SafeAreaProvider style={{ flex: 1 }}>
         {PaystackProvider ? (
           <PaystackProvider
-             publicKey={paystackPublicKey}
+            publicKey={paystackPublicKey}
             currency="NGN"
             defaultChannels={['card', 'ussd', 'bank']}
             debug={__DEV__}
-          > 
+          >
             {appBody}
           </PaystackProvider>
         ) : (

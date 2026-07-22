@@ -5,7 +5,7 @@
 module.exports = {
   project: {
     android: {
-      packageName: 'com.shopiva',
+      packageName: 'com.thetabeam.shopiva',
     },
   },
 };

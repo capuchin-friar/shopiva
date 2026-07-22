@@ -1,6 +1,6 @@
 import messaging from '@react-native-firebase/messaging';
-import {Alert, PermissionsAndroid, Platform} from 'react-native';
-import {navigateToActivitiesScreen, navigationRef} from '../navigation/root';
+import { Alert, PermissionsAndroid, Platform } from 'react-native';
+import { navigateToActivitiesScreen, navigationRef } from '../navigation/root';
 
 /**
  * Wait until APNs has handed iOS a device token (required before a usable FCM token).
@@ -31,7 +31,7 @@ function asString(value) {
  * @param {Record<string, unknown>} data
  */
 function resolveNotificationTarget(meta, data) {
-  const merged = {...data, ...meta};
+  const merged = { ...data, ...meta };
   const type = asString(
     merged.type || merged.entity || merged.kind || merged.activity_type,
   ).toLowerCase();
@@ -59,40 +59,40 @@ function resolveNotificationTarget(meta, data) {
     type === 'mssg'
   ) {
     return roomId
-      ? {screen: 'Inbox', params: {chat: {roomId, name: roomName || 'Chat'}}}
+      ? { screen: 'Inbox', params: { chat: { roomId, name: roomName || 'Chat' } } }
       : null;
   }
 
   if (type === 'order' || type === 'orders') {
     return orderId
       ? {
-          screen: 'Order-detail',
-          params: {
-            orderId,
-            order: {id: Number(orderId) || orderId, order_id: Number(orderId) || orderId},
-          },
-        }
+        screen: 'Order-detail',
+        params: {
+          orderId,
+          order: { id: Number(orderId) || orderId, order_id: Number(orderId) || orderId },
+        },
+      }
       : null;
   }
 
   if (type === 'dispute' || type === 'disputes') {
     return disputeId
       ? {
-          screen: 'Dispute-detail',
-          params: {disputeId, dispute: {id: Number(disputeId) || disputeId}},
-        }
+        screen: 'Dispute-detail',
+        params: { disputeId, dispute: { id: Number(disputeId) || disputeId } },
+      }
       : null;
   }
 
   if (type === 'return' || type === 'returns') {
     return returnId
       ? {
-          screen: 'Return-detail',
-          params: {
-            returnId,
-            returnItem: {return_id: Number(returnId) || returnId},
-          },
-        }
+        screen: 'Return-detail',
+        params: {
+          returnId,
+          returnItem: { return_id: Number(returnId) || returnId },
+        },
+      }
       : null;
   }
 
@@ -100,13 +100,13 @@ function resolveNotificationTarget(meta, data) {
   if (roomId && !orderId && !disputeId && !returnId) {
     return {
       screen: 'Inbox',
-      params: {chat: {roomId, name: roomName || 'Chat'}},
+      params: { chat: { roomId, name: roomName || 'Chat' } },
     };
   }
   if (disputeId) {
     return {
       screen: 'Dispute-detail',
-      params: {disputeId, dispute: {id: Number(disputeId) || disputeId}},
+      params: { disputeId, dispute: { id: Number(disputeId) || disputeId } },
     };
   }
   if (returnId) {
@@ -114,7 +114,7 @@ function resolveNotificationTarget(meta, data) {
       screen: 'Return-detail',
       params: {
         returnId,
-        returnItem: {return_id: Number(returnId) || returnId},
+        returnItem: { return_id: Number(returnId) || returnId },
       },
     };
   }
@@ -123,7 +123,7 @@ function resolveNotificationTarget(meta, data) {
       screen: 'Order-detail',
       params: {
         orderId,
-        order: {id: Number(orderId) || orderId, order_id: Number(orderId) || orderId},
+        order: { id: Number(orderId) || orderId, order_id: Number(orderId) || orderId },
       },
     };
   }
@@ -181,7 +181,7 @@ export function parseFcmMessage(remoteMessage) {
     (typeof data.body === 'string' ? data.body : '') ||
     '';
 
-  return {title, body, data, meta, media};
+  return { title, body, data, meta, media };
 }
 
 /**
@@ -216,8 +216,8 @@ export function handleNotificationOpen(remoteMessage) {
   console.log('[fcm] notification opened:', parsed);
 
   const target = resolveNotificationTarget(
-    /** @type {Record<string, unknown>} */ (parsed.meta),
-    /** @type {Record<string, unknown>} */ (parsed.data),
+    /** @type {Record<string, unknown>} */(parsed.meta),
+    /** @type {Record<string, unknown>} */(parsed.data),
   );
 
   if (!target?.screen) {
@@ -239,7 +239,7 @@ export function handleForegroundMessage(remoteMessage) {
   if (!parsed.title && !parsed.body) return;
 
   Alert.alert(parsed.title || 'Shopiva', parsed.body || '', [
-    {text: 'Dismiss', style: 'cancel'},
+    { text: 'Dismiss', style: 'cancel' },
     {
       text: 'Open',
       onPress: () => handleNotificationOpen(remoteMessage),
@@ -292,39 +292,54 @@ export function registerFcmBackgroundHandler() {
 }
 
 export async function requestPermission() {
-  const authStatus = await messaging().requestPermission();
+  try {
+    const authStatus = await messaging().requestPermission();
 
-  const enabled =
-    authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-    authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+    const enabled =
+      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
-  if (!enabled) {
-    console.warn('[fcm] notification permission not granted:', authStatus);
-    return null;
-  }
-
-  if (Platform.OS === 'ios') {
-    const apnsToken = await waitForApnsToken();
-    console.log('APNs Token:', apnsToken);
-    if (!apnsToken) {
-      console.warn(
-        '[fcm] No APNs token yet. Use a real device, enable Push Notifications capability, and confirm Bundle ID matches Firebase (com.thetabeam.shopiva).',
-      );
+    if (!enabled) {
+      console.warn('[fcm] notification permission not granted:', authStatus);
       return null;
     }
-  }
 
-  const fcmToken = await messaging().getToken();
-  console.log('FCM Token:', fcmToken);
-  return fcmToken;
+    if (Platform.OS === 'ios') {
+      const apnsToken = await waitForApnsToken();
+      console.log('APNs Token:', apnsToken);
+      if (!apnsToken) {
+        console.warn(
+          '[fcm] No APNs token yet. Use a real device, enable Push Notifications capability, and confirm Bundle ID matches Firebase (com.thetabeam.shopiva).',
+        );
+        return null;
+      }
+    }
+
+    const fcmToken = await messaging().getToken();
+    console.log('FCM Token:', fcmToken);
+    return fcmToken;
+  } catch (error) {
+    console.warn(
+      '[fcm] permission/token setup failed:',
+      error instanceof Error ? error.message : String(error),
+    );
+    return null;
+  }
 }
 
 export async function requestAndroidPermission() {
   if (Platform.OS === 'android' && Platform.Version >= 33) {
-    await PermissionsAndroid.request(
+    const status = await PermissionsAndroid.request(
       PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
     );
+
+    if (status !== PermissionsAndroid.RESULTS.GRANTED) {
+      console.warn('[fcm] POST_NOTIFICATIONS permission was not granted:', status);
+      return false;
+    }
   }
+
+  return true;
 }
 
 export async function getFcmToken() {
@@ -335,7 +350,15 @@ export async function getFcmToken() {
       return null;
     }
   }
-  const token = await messaging().getToken();
-  console.log('FCM Token:', token);
-  return token;
+  try {
+    const token = await messaging().getToken();
+    console.log('FCM Token:', token);
+    return token;
+  } catch (error) {
+    console.warn(
+      '[fcm] getFcmToken failed:',
+      error instanceof Error ? error.message : String(error),
+    );
+    return null;
+  }
 }

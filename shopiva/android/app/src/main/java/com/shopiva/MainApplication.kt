@@ -1,4 +1,4 @@
-package com.shopiva
+package com.thetabeam.shopiva
 
 import android.app.Application
 import com.facebook.react.PackageList

@@ -2,7 +2,6 @@ import admin from "firebase-admin";
 import dotenv from "dotenv";
 import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
-// import serviceAccount from "../../shopiva-f66b6-firebase-adminsdk-fbsvc-c25ec3e07b.json" with { type: "json" };
 dotenv.config();
 
 function initFirebaseAdmin() {
