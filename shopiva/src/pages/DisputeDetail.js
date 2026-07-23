@@ -61,7 +61,7 @@ function MetaCell({ label, value, valueIsLink }) {
           {value}
         </Text>
       ) : (
-        <Text style={[styles.metaStrong, {textTransform: "capitalize"}]} numberOfLines={2}>
+        <Text style={[styles.metaStrong, { textTransform: "capitalize" }]} numberOfLines={2}>
           {value}
         </Text>
       )}
@@ -178,7 +178,7 @@ export default function DisputeDetailScreen() {
     };
   }, [disputeIdParam, auth?.activeRole, dispatch, dispute?.id]);
 
- 
+
   const openActions = useCallback(() => {
     setActionsOpen(true);
   }, []);
@@ -193,10 +193,10 @@ export default function DisputeDetailScreen() {
       navigation.setOptions({ headerRight: undefined });
       return undefined;
     }
-    
+
     navigation.setOptions({
       headerTitle: () => (
-        <View style={[styles.statusRow, {flexDirection: "column"}]}>
+        <View style={[styles.statusRow, { flexDirection: "column" }]}>
           <Text style={styles.disputeId}>{dispute.dispute_ref}</Text>
           <View style={[styles.statusPill, { backgroundColor: pill.bg }]}>
             <Text style={[styles.statusPillText, { color: pill.fg, textTransform: "capitalize" }]}>{statusText}</Text>
@@ -228,23 +228,23 @@ export default function DisputeDetailScreen() {
     }
   };
 
-  const onAcceptOffer = async() => {
-    if(dispute.status === "escalated"){
+  const onAcceptOffer = async () => {
+    if (dispute.status === "escalated") {
       await makeCall(9047263572);
       return;
     }
 
-    if(dispute.status === "resolved"){
+    if (dispute.status === "resolved") {
       setLoading(true)
       let id = await fetchReturnId(dispute.order_id, auth.activeRole);
       setLoading(false)
-      navigation.navigate("Return-detail",{
+      navigation.navigate("Return-detail", {
         returnId: id.id,
       });
       return;
     }
     if (dispute.status === "open") {
-      if(isCustomer)return;
+      if (isCustomer) return;
       navigation.navigate("Dispute-action", {
         action: "acceptance",
         data: {
@@ -279,7 +279,7 @@ export default function DisputeDetailScreen() {
       ],
     );
 
-                             
+
   };
   let escalateDispute = async (params) => {
     setLoading(true);
@@ -373,9 +373,9 @@ export default function DisputeDetailScreen() {
 
   const renderOrderItems = useCallback((dispute, index) => {
 
-    return(  
+    return (
       <>
-        
+
         <View style={styles.tableRow}>
           <Text style={[styles.tableCell, styles.tableHName]} numberOfLines={2}>
             {dispute.name ?? '—'}
@@ -466,15 +466,15 @@ export default function DisputeDetailScreen() {
 
             {!isResolved ? (
               <>
-                <Pressable
+                {/* <Pressable
                   style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
                   onPress={onEscalate}
                 >
                   <Icon name="trending-up-outline" size={22} color={BLACK} />
                   <Text style={styles.actionRowLabel}>Escalate dispute</Text>
-                </Pressable>
+                </Pressable> */}
 
-                {isCustomer ? (
+                {/* {isCustomer ? (
                   <Pressable
                     style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
                     onPress={onAddEvidence}
@@ -482,7 +482,7 @@ export default function DisputeDetailScreen() {
                     <Icon name="images-outline" size={22} color={BLACK} />
                     <Text style={styles.actionRowLabel}>Add evidence</Text>
                   </Pressable>
-                ) : null}
+                ) : null} */}
 
                 {!isCustomer ? (
                   <Pressable
@@ -510,7 +510,7 @@ export default function DisputeDetailScreen() {
                   <Text style={styles.actionRowLabel}>Contact support</Text>
                 </Pressable>
 
-                {isCustomer ? (
+                {/* {isCustomer ? (
                   <Pressable
                     style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
                     onPress={onWithdraw}
@@ -518,17 +518,17 @@ export default function DisputeDetailScreen() {
                     <Icon name="remove-circle-outline" size={22} color="#C62828" />
                     <Text style={styles.actionRowLabelDestructive}>Withdraw dispute</Text>
                   </Pressable>
-                ) : null}
+                ) : null} */}
               </>
             ) : (
               <>
-                <Pressable
+                {/* <Pressable
                   style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
                   onPress={onDownloadSummary}
                 >
                   <Icon name="download-outline" size={22} color={BLACK} />
                   <Text style={styles.actionRowLabel}>Download summary</Text>
-                </Pressable>
+                </Pressable> */}
 
                 <Pressable
                   style={({ pressed }) => [styles.actionRow, pressed && styles.actionRowPressed]}
@@ -599,7 +599,7 @@ export default function DisputeDetailScreen() {
           <View style={styles.metaGrid}>
             <MetaCell
               label={counterpartLabel}
-              value={isCustomer ? `${dispute?.vendor?.fname} ${dispute?.vendor?.lname}`: `${dispute?.customer?.fname} ${dispute?.customer?.lname}`}
+              value={isCustomer ? `${dispute?.vendor?.fname} ${dispute?.vendor?.lname}` : `${dispute?.customer?.fname} ${dispute?.customer?.lname}`}
             />
             <MetaCell label="Order date" value={dayjs().to(dayjs(dispute?.order?.created_at))} />
             <MetaCell label="Delivery date" value={dayjs().to(dayjs(dispute?.order_event?.created_at))} />
@@ -678,17 +678,17 @@ export default function DisputeDetailScreen() {
               backgroundColor: STATUS_PILL[dispute.status]?.fg
             }]}
             onPress={onAcceptOffer}
-            // disabled={dispute.status === "escalated"};
+          // disabled={dispute.status === "escalated"};
           >
             {dispute.status === "open" && <Icon name="checkmark-circle" size={20} color={WHITE} />}
             <Text style={styles.fabAcceptText} numberOfLines={1}>{
               getButtonText()
             }</Text>
           </Pressable>
-          
+
           {
             !isCustomer &&
-            dispute.status === "open" && 
+            dispute.status === "open" &&
             <Pressable
               style={({ pressed }) => [styles.fabMore, pressed && styles.fabPressed]}
               onPress={onEscalate}
@@ -696,7 +696,7 @@ export default function DisputeDetailScreen() {
               <Text style={styles.fabSecondaryText}>Deny (Escalate)</Text>
             </Pressable>
           }
-          </View>
+        </View>
       )}
     </View>
   );

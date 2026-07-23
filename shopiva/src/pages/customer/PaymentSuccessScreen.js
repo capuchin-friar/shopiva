@@ -262,7 +262,7 @@ export default function PaymentSuccessScreen({ navigation, route }) {
           ) : null}
         </View>
 
-        <Pressable
+        {/* <Pressable
           style={[
             styles.primaryBtn,
             (confirmLoading || Boolean(reference && !hasConfirmedChats && !confirmError)) && styles.primaryBtnDisabled,
@@ -276,7 +276,7 @@ export default function PaymentSuccessScreen({ navigation, route }) {
           ) : (
             <Text style={styles.primaryBtnText}>Continue to chat</Text>
           )}
-        </Pressable>
+        </Pressable> */}
         {reference && confirmError ? (
           <Text style={styles.helperMuted}>
             Your payment went through; if chat setup fails, tap the error above to retry or contact support with your reference.
