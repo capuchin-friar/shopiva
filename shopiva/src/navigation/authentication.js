@@ -5,9 +5,10 @@ import CustomerTab from './customer';
 import VendorTabs from './vendor';
 import AuthPurposeScreen from '../pages/auth/AuthPurpose';
 import LoginScreen from '../pages/auth/LoginScreen';
-// import OnboardingProfileScreen from '../pages/auth/OnboardingProfileScreen';
+import OnboardingProfileScreen from '../pages/auth/OnboardingProfileScreen';
 import SignUpScreen from '../pages/auth/SignUpScreen';
 import VerifyCodeScreen from '../pages/auth/VerifyCodeScreen';
+import ShopSetupScreen from '../pages/auth/ShopSetup';
 // import WelcomeScreen from '../pages/auth/WelcomeScreen';
 import { SplashScreen } from '../pages/SplashScreen';
 import { useAuth } from '../hooks/useAuth';
@@ -38,6 +39,7 @@ export default function RootNavigator() {
       >
         <AuthStack.Screen name="Splash" component={SplashScreen} />
         <AuthStack.Screen name="AuthPurpose" component={AuthPurposeScreen} />
+        <AuthStack.Screen name='Shop-Onboarding' component={ShopSetupScreen} />
         <AuthStack.Screen
           name="Login"
           component={LoginScreen}
@@ -59,9 +61,12 @@ export default function RootNavigator() {
       initialRouteName={isGuest ? 'home' : initialAppRoute}
       screenOptions={{ headerShown: false }}
     >
-      {/* {!isGuest ? (
+      {!isGuest ? (
         <AppStack.Screen name="OnboardingProfile" component={OnboardingProfileScreen} />
-      ) : null} */}
+      ) : null}
+      {!isGuest ? (
+        <AppStack.Screen name="Shop-Onboarding" component={ShopSetupScreen} />
+      ) : null}
       <AppStack.Screen
         key={`home-${activeRole}`}
         name="home"

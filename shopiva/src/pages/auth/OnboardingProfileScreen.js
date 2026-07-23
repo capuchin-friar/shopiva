@@ -19,7 +19,7 @@ import {
   updateUserPhone,
   updateUserProfileFields,
 } from '../../api/user';
-import { getStoredAccessToken, getStoredUser, saveSession } from '../../auth/session';
+import { getStoredAccessToken, getStoredPreAuthChoice, getStoredUser, saveSession } from '../../auth/session';
 import {
   getCurrentCoordinates,
   requestLocationPermission,
@@ -174,12 +174,24 @@ export default function OnboardingProfileScreen({ navigation }) {
       const updatedProfile = (await fetchCurrentUserOrStatus()).user;
       await saveSession(token, updatedProfile ?? profileRes.user ?? phoneRes.user ?? null);
 
-      navigation.dispatch(
-        CommonActions.reset({
-          index: 0,
-          routes: [{ name: 'home' }],
-        }),
-      );
+      const preAuthChoice = await getStoredPreAuthChoice();
+      const isVendorIntent = preAuthChoice === 'vendor';
+
+      if (!isVendorIntent) {
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [{ name: 'home' }],
+          }),
+        );
+      } else {
+        navigation.dispatch(
+          CommonActions.reset({
+            index: 0,
+            routes: [{ name: 'Shop-Onboarding' }],
+          }),
+        );
+      }
     } catch (e) {
       Alert.alert('Error', e instanceof Error ? e.message : String(e));
     } finally {

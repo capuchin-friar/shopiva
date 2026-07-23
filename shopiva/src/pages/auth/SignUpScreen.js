@@ -33,8 +33,8 @@ export default function SignUpScreen({ navigation, route }) {
   const emailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
   const goLogin = useCallback(
-    () => navigation.navigate('Login', { allowSkip }),
-    [navigation, allowSkip],
+    () => navigation.navigate('Login', { allowSkip, intentRole: route?.params?.intentRole }),
+    [navigation, allowSkip, route?.params?.intentRole],
   );
 
   const onSocial = useCallback(
@@ -127,7 +127,7 @@ export default function SignUpScreen({ navigation, route }) {
           <Text style={styles.brand}>Shopiva</Text>
         </View>
 
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={[styles.socialBtn, oauthBusy && styles.socialBtnBusy]}
           onPress={() => onSocial('google')}
           activeOpacity={0.85}
@@ -153,7 +153,7 @@ export default function SignUpScreen({ navigation, route }) {
         >
           <Icon name="logo-apple" size={24} color="#000000" />
           <Text style={styles.socialBtnText}>Continue with Apple</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <Text style={styles.label}>Name</Text>
         <View style={styles.inputWrap}>

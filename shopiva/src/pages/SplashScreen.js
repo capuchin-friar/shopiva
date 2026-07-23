@@ -12,9 +12,10 @@ export function SplashScreen(){
 
     useEffect(() => {
         setTimeout(() => {
-            navigation.navigate("AuthPurpose");
-        }, 3000);
-    }, [])
+            navigation.navigate("AuthPurpose"); 
+            // navigation.navigate("Shop-Onboarding"); 
+        }, 2000);
+    }, [navigation])
 
     
 

@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -23,6 +24,7 @@ export default function LoginScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const { enterGuestMode } = useAuth();
   const allowSkip = route?.params?.allowSkip !== false;
+  const role = route?.params?.intentRole;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -30,8 +32,8 @@ export default function LoginScreen({ navigation, route }) {
   const emailLooksValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
   const goSignUp = useCallback(
-    () => navigation.navigate('SignUp', { allowSkip }),
-    [navigation, allowSkip],
+    () => navigation.navigate('SignUp', { allowSkip, intentRole: role }),
+    [navigation, allowSkip, role],
   );
 
   const onSocial = useCallback(
@@ -105,12 +107,15 @@ export default function LoginScreen({ navigation, route }) {
       >
         <View style={styles.logoBlock}>
           <View style={styles.logoMark}>
-            <Icon name="triangle" size={36} color="#000000" />
+            <Image
+              source={require('../../assets/Shopiva.png')}
+              style={{ height: 50, width: 50 }}
+            />
           </View>
           <Text style={styles.brand}>Shopiva</Text>
         </View>
 
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={[styles.socialBtn, oauthBusy && styles.socialBtnBusy]}
           onPress={() => onSocial('google')}
           activeOpacity={0.85}
@@ -136,7 +141,7 @@ export default function LoginScreen({ navigation, route }) {
         >
           <Icon name="logo-apple" size={24} color="#000000" />
           <Text style={styles.socialBtnText}>Continue with Apple</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         <Text style={styles.label}>Email or username</Text>
         <View style={styles.inputWrap}>

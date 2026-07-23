@@ -114,6 +114,7 @@ export async function UpdatePhoneController(req: Request, res: Response) {
             user: result
         });
     } catch (err) {
+        console.log(err)
         res.status(400).json({
             error: err instanceof Error ? err.message : String(err)
         });

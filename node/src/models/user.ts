@@ -34,9 +34,9 @@ export class model{
 
         const { rows } = await pool.query(
             `INSERT INTO users (role, fname, lname, email, provider, password, createdAt, deviceId)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING *`,
-            [role, fname, lname, email, provider, password, new Date(), JSON.stringify([deviceId])]
+            [role, fname, lname, email, provider, password, new Date(), deviceId]
         );
         return rows[0];
     });
@@ -70,6 +70,8 @@ export class model{
             `SELECT COUNT(*) AS count FROM users WHERE phone = $1`,
             [phone]
         );
+        console.log(rows)
+        console.log(phone)
         return rows[0].count;
     })
 

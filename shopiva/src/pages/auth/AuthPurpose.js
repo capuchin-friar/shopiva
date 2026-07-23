@@ -21,7 +21,7 @@ export default function AuthPurposeScreen({ navigation }) {
 
   const goCustomer = useCallback(() => {
     void setPreAuthChoice('customer');
-    navigation.replace('Login', { allowSkip: true });
+    navigation.replace('Login', { allowSkip: true, intentRole: 'customer' });
   }, [navigation, setPreAuthChoice]);
 
   const goVendor = useCallback(() => {

@@ -1,3 +1,5 @@
+import { hasVendorShop } from '../api/shop';
+
 /**
  * Post-signup onboarding: “Almost there” profile (phone, gender, location).
  * Shown only after creating an account (not after login). Guests never see it (`isGuest`).
@@ -50,4 +52,40 @@ export function resolvePostAuthRoute(user, opts = {}) {
     return 'home';
   }
   return 'OnboardingProfile';
+}
+
+/**
+ * @param {object | null | undefined} user
+ * @param {{
+ *   fromSignup?: boolean;
+ *   preferredRole?: string | null;
+ *   preAuthChoice?: string | null;
+ * }} [opts]
+ * @returns {Promise<'home' | 'OnboardingProfile' | 'Shop-Onboarding'>}
+ */
+export async function resolveInitialAppRoute(user, opts = {}) {
+  const fromSignup = Boolean(opts.fromSignup);
+  const wantsVendor =
+    opts.preferredRole === 'vendor' || opts.preAuthChoice === 'vendor';
+
+  if (fromSignup && !isProfileOnboardingDone(user)) {
+    return 'OnboardingProfile';
+  }
+
+  // Vendor login (existing account): shop setup when no shop yet.
+  // Vendor signup always passes through OnboardingProfile above first.
+  if (!fromSignup && wantsVendor) {
+    try {
+      const hasShop = await hasVendorShop();
+      if (!hasShop) return 'Shop-Onboarding';
+    } catch {
+      return 'Shop-Onboarding';
+    }
+  }
+
+  if (fromSignup) {
+    return resolvePostAuthRoute(user, { fromSignup: true });
+  }
+
+  return 'home';
 }
