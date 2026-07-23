@@ -225,12 +225,13 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
         "payment_received",{ list: await vendorOrdersTransformer(shop_id) }
       );
 
-      const {rows: [{vendorDevicetoken}]} = await pool.query(`SELECT devicetoken FROM users WHERE id = $1`, [vid]);
       io.to(`user:${vid}`)
       .emit(
         "payment_received",{ list: await vendorOrdersTransformer(shop_id) }
       );
+      const {rows: [{ devicetoken: vendorDevicetoken}]} = await pool.query(`SELECT devicetoken FROM users WHERE id = $1`, [vid]);
       console.log("vendorDevicetoken: ", vendorDevicetoken);
+
       sendFcmForActivities(
         vendorDevicetoken /**token */,
         "New Update From Order Activity" /** title */,
