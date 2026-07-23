@@ -41,18 +41,7 @@ const homeOpt = (styles) => ({
       />
     </View>
   ),
-  headerLeft: () => (
-
-    <View style={styles.homeHeaderLogoCnt}>
-      <Image
-        source={SHOPIVA_LOGO}
-        style={styles.homeHeaderLogo}
-        resizeMode="contain"
-        accessibilityIgnoresInvertColors
-      />
-    </View>
-
-  ),
+  
 });
 const vendorsOpt = (navigation) => ({
   title: 'Vendors',
