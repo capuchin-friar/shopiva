@@ -1,9 +1,16 @@
 import { useMemo, useState } from 'react';
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Platform,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { Dropdown } from 'react-native-element-dropdown';
 import Video from 'react-native-video';
 import mvp_data from '../../data/mvp_category.json';
 import { useNavigation } from '@react-navigation/native';
+import { getStoredAccessToken } from '../../auth/session';
 /** Metro bundles this as a numeric asset id — pass to `source` directly. */
 const CUSTOMER_VIDEO = require('../../assets/customer.mp4');
 
@@ -14,7 +21,7 @@ export default function HomeScreen() {
   const navigation = useNavigation();
   const categoryOptions = useMemo(
     () =>
-      Object.keys(mvp_data).map((key) => ({
+      Object.keys(mvp_data).map(key => ({
         label: key.charAt(0).toUpperCase() + key.slice(1).toLowerCase(),
         value: key,
       })),
@@ -32,10 +39,12 @@ export default function HomeScreen() {
     navigation.navigate('Vendors', { category });
   }
 
-
+  (async () => {
+    const token = await getStoredAccessToken();
+    console.log('token: ', token);
+  })();
   return (
     <View style={styles.root}>
-
       <View style={StyleSheet.absoluteFill} collapsable={false}>
         <Video
           source={CUSTOMER_VIDEO}
@@ -47,7 +56,7 @@ export default function HomeScreen() {
           playInBackground={false}
           useTextureView={Platform.OS === 'android'}
           hideShutterView={Platform.OS === 'android'}
-          onError={(e) => console.log('Video error:', e)}
+          onError={e => console.log('Video error:', e)}
           onLoad={() => console.log('Video loaded')}
         />
       </View>
@@ -59,7 +68,9 @@ export default function HomeScreen() {
           <Text style={styles.title}>
             Delivery straight to your doorstep — within minutes.
           </Text>
-          <Text style={styles.label}>What category of product do you like?</Text>
+          <Text style={styles.label}>
+            What category of product do you like?
+          </Text>
         </View>
 
         <View style={styles.dropdownBlock}>
@@ -79,7 +90,7 @@ export default function HomeScreen() {
             placeholder="Select category"
             searchPlaceholder="Search categories..."
             value={category}
-            onChange={(item) => {
+            onChange={item => {
               setCategory(item.value);
               setCategoryGateError('');
             }}
@@ -89,7 +100,11 @@ export default function HomeScreen() {
           ) : null}
         </View>
 
-        <TouchableOpacity style={styles.btn} onPress={handleExplore} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={styles.btn}
+          onPress={handleExplore}
+          activeOpacity={0.85}
+        >
           <Text style={styles.btnText}>Explore Vendors</Text>
         </TouchableOpacity>
       </View>
@@ -186,5 +201,5 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.6)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
-  }
+  },
 });

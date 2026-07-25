@@ -1,5 +1,8 @@
+import DeviceInfo from 'react-native-device-info';
 import { apiFetchAuth } from './client';
 import { getApiBaseUrl } from './config';
+import { Platform } from 'react-native';
+import axios from 'axios';
 
 /**
  * @param {unknown} data
@@ -176,3 +179,28 @@ export async function pingApi() {
   const res = await fetch(`${base}/health`);
   return res.ok;
 }
+
+
+
+export const checkForUpdate = async () => {
+  try {
+    const base = getApiBaseUrl();
+    const currentVersion = DeviceInfo.getVersion();
+    const platformConfig =
+    Platform.OS === 'ios' ? 'ios' : 'android';
+      console.log("currentVersion: ", currentVersion);
+      console.log("platformConfig: ", platformConfig);
+
+    const { data } = await axios.get(`${base}/config/app-version`, {
+      params: {
+        _v: currentVersion,
+        _os: platformConfig,
+      },
+    });
+
+    return data;
+    // App is up to date
+  } catch (error) {
+    console.error('Failed to check app version:', error);
+  }
+};

@@ -75,6 +75,65 @@ app.get("/health", (_req, res) => {
     res.status(200).json({ ok: true, service: "shopiva-api" });
 });
 
+app.get('/config/app-version', (req, res) => {
+    const {
+        _v, _os
+    } = req.query;
+    console.log(req.query)
+
+    if (_os === 'ios') {
+        let latestVersion = process.env.IOS_LATEST_VERSION;
+        let storeUrl = process.env.IOS_STORE_URL;
+
+        console.log('latestVersion: ', latestVersion === _v)
+
+        if (_v === latestVersion) {
+            res.json({
+                isLatest: true,
+                storeUrl: '',
+                os: _os
+            })
+        }else{
+            res.json({
+                isLatest: false,
+                storeUrl: storeUrl,
+                os: _os
+            })
+        }
+    }else if (_os === 'android') {
+        let latestVersion = process.env.ANDROID_LATEST_VERSION;
+        let storeUrl = process.env.ANDROID_STORE_URL;
+
+        if (_v?.toString() === latestVersion?.toString()) {
+            res.json({
+                isLatest: true,
+                storeUrl: '',
+                os: _os
+            })
+        }else{
+            res.json({
+                isLatest: false,
+                storeUrl: storeUrl,
+                os: _os
+            })
+        }
+    }
+
+
+    // res.json({
+    //     ios: {
+    //         latestVersion: process.env.IOS_LATEST_VERSION,
+    //         minimumVersion: process.env.IOS_MINIMUM_VERSION,
+    //         storeUrl: process.env.IOS_STORE_URL,
+    //     },
+    //     android: {
+    //         latestVersion: process.env.ANDROID_LATEST_VERSION,
+    //         minimumVersion: process.env.ANDROID_MINIMUM_VERSION,
+    //         storeUrl: process.env.ANDROID_STORE_URL,
+    //     },
+    // });
+});
+
 // Swagger Documentation
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
     explorer: true,
@@ -88,38 +147,38 @@ app.get("/api-docs.json", (req, res) => {
     res.send(swaggerSpec);
 });
 app.get("/return/:orderId", async (req, res) => {
-  const { orderId } = req.params;
+    const { orderId } = req.params;
 
-  const pool = await db();
+    const pool = await db();
 
-  const { rows } = await pool.query(
-    "SELECT id FROM returns WHERE order_id = $1",
-    [orderId]
-  );
-  console.log("id:", rows[0])
+    const { rows } = await pool.query(
+        "SELECT id FROM returns WHERE order_id = $1",
+        [orderId]
+    );
+    console.log("id:", rows[0])
 
-  res.json({ok: true, id: rows[0]});
+    res.json({ ok: true, id: rows[0] });
 });
 
-app.post('/update-fcm', async(req, res) => {
-  console.log(req.body)
+app.post('/update-fcm', async (req, res) => {
+    console.log(req.body)
 
-  const {
-    fcm, u_id: user_id
-  } = req.body;
-  const pool  = await db();
-  try {
-    const result = await pool.query(
-      `UPDATE users SET devicetoken = $1 WHERE id = $2
+    const {
+        fcm, u_id: user_id
+    } = req.body;
+    const pool = await db();
+    try {
+        const result = await pool.query(
+            `UPDATE users SET devicetoken = $1 WHERE id = $2
        RETURNING *`,
-      [fcm, user_id]
-    );
+            [fcm, user_id]
+        );
 
-    res.status(201).json(result.rows[0]);
-  } catch (err) {
-    console.error('Error inserting notification:', err);
-    res.status(500).json({ error: 'Server error' });
-  }
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        console.error('Error inserting notification:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
 });
 // Routes
 app.use("/api/oauth", OAuthRouter);
@@ -142,7 +201,7 @@ const server = app.listen(process.env.PORT, () => {
         } = await pool.query(
             `SELECT * FROM shop_payouts WHERE status = $1`, ["pending"]
         )
-        
+
         for (const payout of payouts) {
             try {
 
@@ -166,7 +225,7 @@ const server = app.listen(process.env.PORT, () => {
                     recipient: shop_payout_accounts.provider_recipient_id,
                     reason: `Shopiva Payout for Order #${payout.order_id}`,
                     reference: ref
-                })as any;
+                }) as any;
 
                 if (status && message === "Transfer has been queued") {
                     await escrow.finalize({
@@ -186,18 +245,18 @@ const server = app.listen(process.env.PORT, () => {
 });
 
 
-app.post('/notify', async(req, res) => {
-  // const { token, title, body, media, price, product_id } = req.body;
-  const { token, data } = req.body;
-  const {title, body, media, meta } = data
+app.post('/notify', async (req, res) => {
+    // const { token, title, body, media, price, product_id } = req.body;
+    const { token, data } = req.body;
+    const { title, body, media, meta } = data
 
-  let result = await sendFcmForActivities(token, title, body, media, meta);
-  if (result.success) {
-    res.send({ status: 'Notification sent!', success: true});
-  }else{
-    console.log(result)
-    res.status(500).send({err: result.error})
-  }
+    let result = await sendFcmForActivities(token, title, body, media, meta);
+    if (result.success) {
+        res.send({ status: 'Notification sent!', success: true });
+    } else {
+        console.log(result)
+        res.status(500).send({ err: result.error })
+    }
 });
 
 
@@ -278,6 +337,6 @@ io.on("connection", (client: any) => {
 })
 
 export const getIo = () => {
-    if(!io) throw error("Socket is not available now");
+    if (!io) throw error("Socket is not available now");
     return io;
 }
