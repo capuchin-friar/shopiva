@@ -147,6 +147,7 @@ export async function confirmCartCheckoutAndCreateChatRoom(
       const payload = { room, existing: true };
       notifyUser(buyerUserId, "room_created", payload);
       notifyUser(vid as any, "room_created", payload);
+      return;
       // continue;
     }
 

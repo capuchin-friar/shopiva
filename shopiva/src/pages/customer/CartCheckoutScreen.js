@@ -403,8 +403,9 @@ export default function CartCheckoutScreen({ navigation }) {
           res && typeof res === 'object' && 'reference' in res
             ? String(/** @type {{ reference?: string }} */ (res).reference)
             : reference;
+            console.log("reference", reference)
         navigation.replace('Payment-success', {
-          reference: (refStr.split("-").length > 1 ? refStr.split("-").splice(-1) : refStr),
+          reference: refStr,
           subtotal,
           shipping: shippingCost,
           total: total,
