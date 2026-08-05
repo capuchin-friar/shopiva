@@ -458,11 +458,57 @@ const options: swaggerJsdoc.Options = {
       },
 
       // ==================== USER MANAGEMENT ====================
-      '/user/delete/{id}': {
+      '/api/account': {
         delete: {
           tags: ['Users'],
+          summary: 'Delete own account permanently',
+          description: 'Permanently deletes the authenticated user account and removes/anonymizes related personal data. This action cannot be undone.',
+          security: [{ bearerAuth: [] }],
+          requestBody: {
+            required: false,
+            content: {
+              'application/json': {
+                schema: {
+                  type: 'object',
+                  properties: {
+                    password: { type: 'string', description: 'Required for local/password accounts' },
+                    oauthProvider: { type: 'string', enum: ['google', 'facebook', 'apple'] },
+                    oauthReauthenticated: { type: 'boolean' },
+                    oauthReauthenticatedAt: { type: 'string', format: 'date-time' },
+                    oauthReauthToken: { type: 'string', description: 'Fresh JWT obtained from OAuth re-authentication flow' }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            '200': {
+              description: 'Account deleted successfully',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      success: { type: 'boolean', example: true },
+                      message: { type: 'string', example: 'Account deleted successfully.' }
+                    }
+                  }
+                }
+              }
+            },
+            '401': { description: 'Unauthorized' },
+            '403': { description: 'Forbidden / invalid password' },
+            '422': { description: 'Re-authentication required' },
+            '500': { description: 'Internal server error' }
+          }
+        }
+      },
+      '/user/delete/{id}': {
+        delete: {
+          deprecated: true,
+          tags: ['Users'],
           summary: 'Delete user account',
-          description: 'Soft deletes a user account. The account can be recreated by signing up again.',
+          description: 'Legacy self-delete endpoint. Prefer DELETE /api/account.',
           security: [{ bearerAuth: [] }],
           parameters: [
             {

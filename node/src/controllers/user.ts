@@ -45,15 +45,77 @@ export async function DeleteUserController(req: Request, res: Response) {
             return;
         }
 
-        await DeleteUserService(req.params.id as unknown as number);
+        const authReq = req as AuthRequest;
+        if (Number(authReq.user?.id) !== Number(req.params.id)) {
+            res.status(403).json({ error: "Forbidden" });
+            return;
+        }
+
+        await DeleteUserService(Number(req.params.id), {
+            password: req.body?.password,
+            oauthProvider: req.body?.oauthProvider,
+            oauthReauthenticated: req.body?.oauthReauthenticated,
+            oauthReauthenticatedAt: req.body?.oauthReauthenticatedAt,
+            oauthReauthToken: req.body?.oauthReauthToken,
+        });
         
         res.status(200).json({
-            message: "User deleted successfully"
+            success: true,
+            message: "Account deleted successfully."
         });
     } catch (err) {
-        res.status(500).json({
-            error: err instanceof Error ? err.message : String(err)
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.toLowerCase().includes("invalid password")) {
+            res.status(403).json({ error: message });
+            return;
+        }
+        if (message.toLowerCase().includes("required") || message.toLowerCase().includes("reauth")) {
+            res.status(422).json({ error: message });
+            return;
+        }
+        if (message.toLowerCase().includes("not found")) {
+            res.status(404).json({ error: message });
+            return;
+        }
+        res.status(500).json({ error: message });
+    }
+}
+
+export async function DeleteMyAccountController(req: AuthRequest, res: Response) {
+    try {
+        const userId = Number(req.user?.id);
+        if (!Number.isFinite(userId) || userId <= 0) {
+            res.status(401).json({ error: "Unauthorized" });
+            return;
+        }
+
+        await DeleteUserService(userId, {
+            password: req.body?.password,
+            oauthProvider: req.body?.oauthProvider,
+            oauthReauthenticated: req.body?.oauthReauthenticated,
+            oauthReauthenticatedAt: req.body?.oauthReauthenticatedAt,
+            oauthReauthToken: req.body?.oauthReauthToken,
         });
+
+        res.status(200).json({
+            success: true,
+            message: "Account deleted successfully."
+        });
+    } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        if (message.toLowerCase().includes("invalid password")) {
+            res.status(403).json({ error: message });
+            return;
+        }
+        if (message.toLowerCase().includes("required") || message.toLowerCase().includes("reauth")) {
+            res.status(422).json({ error: message });
+            return;
+        }
+        if (message.toLowerCase().includes("not found")) {
+            res.status(404).json({ error: message });
+            return;
+        }
+        res.status(500).json({ error: message });
     }
 }
 

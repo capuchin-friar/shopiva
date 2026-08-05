@@ -1,6 +1,6 @@
 import express from "express";
 import { authenticate, authenticateUser, verifyToken, type AuthRequest } from "../middleware/auth.js";
-import { DeleteUserController, SigninController, SignupController, UpdateEmailController, UpdatePasswordController, UpdatePhoneController, UpdatePhotoController, UpdateProfileController, UpdateRoleController } from "../controllers/user.js";
+import { DeleteMyAccountController, DeleteUserController, SigninController, SignupController, UpdateEmailController, UpdatePasswordController, UpdatePhoneController, UpdatePhotoController, UpdateProfileController, UpdateRoleController } from "../controllers/user.js";
 
 export const UserRouter = express.Router();
 
@@ -19,6 +19,7 @@ UserRouter.post("/user/authorization", verifyToken, async(req: AuthRequest, res)
 });
 
 // Protected routes (use middleware)
+UserRouter.delete('/api/account', verifyToken, DeleteMyAccountController);
 UserRouter.delete('/user/delete/:id', authenticate, DeleteUserController);
 UserRouter.put('/user/role/update/:id', authenticate, UpdateRoleController);
 UserRouter.put('/user/email/update/:id', authenticate, UpdateEmailController);

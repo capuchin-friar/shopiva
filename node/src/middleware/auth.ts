@@ -33,6 +33,8 @@ interface AuthenticatedUserProfile {
   fname: string;
   lname: string;
   email: string;
+  provider: string;
+  accountstatus: string;
   phone: string | null;
   gender: string | null;
   role: string | null;
@@ -59,7 +61,7 @@ export function getJwtSecret(): string {
 const authenticateUser = async (id: number): Promise<AuthenticatedUserProfile | null> => {
   try {
     const result = await (await db()).query(
-      `SELECT id, fname, lname, email, phone, gender, role, location, devicetoken,
+      `SELECT id, fname, lname, email, provider, accountstatus, phone, gender, role, location, devicetoken,
               preferredlanguage, timezone, isemailverified, isphoneverified, lastlogin
        FROM users WHERE id = $1`,
       [id]
@@ -87,6 +89,8 @@ const authenticateUser = async (id: number): Promise<AuthenticatedUserProfile | 
       fname: row.fname,
       lname: row.lname,
       email: row.email,
+      provider: String(row.provider ?? "local"),
+      accountstatus: String(row.accountstatus ?? "active"),
       phone: row.phone ?? null,
       gender: row.gender ?? null,
       role: row.role != null ? String(row.role) : null,
@@ -105,11 +109,11 @@ const authenticateUser = async (id: number): Promise<AuthenticatedUserProfile | 
 };
 
 // Middleware to verify JWT token
-const verifyToken = (
+const verifyToken = async (
   req: AuthRequest,
   res: Response,
   next: NextFunction
-): void => {
+): Promise<void> => {
   const token = req.headers.authorization?.split(" ")[1];
 
   
@@ -125,7 +129,12 @@ const verifyToken = (
   }
   try {
     const decoded = jwt.verify(token, secret) as { id: number; email: string };
-    req.user = decoded;
+    const user = await authenticateUser(Number(decoded.id));
+    if (!user || user.accountstatus.toLowerCase() === "deleted") {
+      res.status(401).json({ message: "Invalid or expired token" });
+      return;
+    }
+    req.user = { id: user.id, email: user.email };
     next();
   } catch (error) {
     const reason = error instanceof Error ? error.message : "Invalid or expired token";
@@ -143,18 +152,34 @@ const authenticate = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    verifyToken(req, res, async () => {
-      console.log(req.params)
+    await verifyToken(req, res, async () => {
+      const tokenUserId = Number(req.user?.id);
+      if (!Number.isFinite(tokenUserId) || tokenUserId <= 0) {
+        res.status(401).json({ message: "Unauthorized" });
+        return;
+      }
 
-      if (req.params) {
-        const user = await authenticateUser(req.params.id as unknown as number);
-        if (!user) {
-          res.status(404).json({ message: "User not found" });
+      const paramIdRaw = req.params?.id;
+      if (paramIdRaw != null) {
+        const paramId = Number(paramIdRaw);
+        if (!Number.isFinite(paramId) || paramId <= 0) {
+          res.status(400).json({ message: "Invalid user id" });
           return;
         }
-        req.user = user;
-        next();
+        if (paramId !== tokenUserId) {
+          res.status(403).json({ message: "Forbidden" });
+          return;
+        }
       }
+
+      const user = await authenticateUser(tokenUserId);
+      if (!user) {
+        res.status(404).json({ message: "User not found" });
+        return;
+      }
+
+      req.user = user;
+      next();
     });
   } catch (error) {
     res.status(500).json({ message: "Authentication error" });

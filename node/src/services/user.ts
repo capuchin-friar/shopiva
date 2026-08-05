@@ -3,9 +3,73 @@ import type { NewUserDocument, AuthData } from "../types/user.js";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import { db } from "../config/database.js";
+import type { PoolClient } from "pg";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 const SALT_ROUNDS = 10;
+
+type DeleteAccountPayload = {
+    password?: string;
+    oauthProvider?: "google" | "facebook" | "apple";
+    oauthReauthenticated?: boolean;
+    oauthReauthenticatedAt?: string;
+    oauthReauthToken?: string;
+};
+
+const OAUTH_REAUTH_WINDOW_MS = 10 * 60 * 1000;
+
+async function tableExists(client: PoolClient, tableName: string): Promise<boolean> {
+    const { rows } = await client.query<{ exists: string | null }>(
+        "SELECT to_regclass($1) AS exists",
+        [`public.${tableName}`]
+    );
+    return rows[0]?.exists != null;
+}
+
+async function executeIfTableExists(
+    client: PoolClient,
+    tableName: string,
+    sql: string,
+    params: unknown[]
+): Promise<void> {
+    if (!(await tableExists(client, tableName))) {
+        return;
+    }
+    await client.query(sql, params);
+}
+
+function normalizeProvider(value: unknown): "local" | "google" | "facebook" | "apple" {
+    const provider = String(value ?? "local").trim().toLowerCase();
+    if (provider === "google" || provider === "facebook" || provider === "apple") {
+        return provider;
+    }
+    return "local";
+}
+
+function validateOAuthReauthWindow(when: string | undefined): boolean {
+    if (!when) return false;
+    const parsed = Date.parse(when);
+    if (!Number.isFinite(parsed)) return false;
+    return Date.now() - parsed <= OAUTH_REAUTH_WINDOW_MS;
+}
+
+function verifyOAuthReauthTokenForUser(token: string | undefined, userId: number): boolean {
+    if (!token) return false;
+    try {
+        const decoded = jwt.verify(String(token), JWT_SECRET) as {
+            id?: number | string;
+            iat?: number;
+        };
+        const tokenUserId = Number(decoded?.id);
+        if (!Number.isFinite(tokenUserId) || tokenUserId <= 0) return false;
+        if (tokenUserId !== userId) return false;
+        const iatMs = Number(decoded?.iat ?? 0) * 1000;
+        if (!Number.isFinite(iatMs) || iatMs <= 0) return false;
+        return Date.now() - iatMs <= OAUTH_REAUTH_WINDOW_MS;
+    } catch {
+        return false;
+    }
+}
 
 export async function SignupService(payload: NewUserDocument & { src: string; deviceId: string; deviceToken: string }) {
     const userDoc = await model.findUserByEmail(payload.email);
@@ -269,16 +333,143 @@ export async function UpdatePasswordService(id: number, password: string) {
     return true;
 }
 
-export async function DeleteUserService(id: number) {
-    // Soft delete - mark user as deleted
-    const result = await model.deleteProfile({
-        id,
-        accountStatus: 'deleted'
-    });
-    
-    if (result.length === 0) {
-        throw new Error("User not found");
+export async function DeleteUserService(id: number, payload: DeleteAccountPayload = {}) {
+    const userId = Number(id);
+    if (!Number.isFinite(userId) || userId <= 0) {
+        throw new Error("Invalid user id");
     }
 
-    return true;
+    const pool = await db();
+    const client = await pool.connect();
+    try {
+        await client.query("BEGIN");
+
+        const userResult = await client.query<{
+            id: number;
+            email: string;
+            password: string;
+            provider: string;
+        }>(
+            `SELECT id, email, password, provider
+             FROM users
+             WHERE id = $1
+             FOR UPDATE`,
+            [userId]
+        );
+
+        const user = userResult.rows[0];
+        if (!user) {
+            throw new Error("User not found");
+        }
+
+        const provider = normalizeProvider(user.provider);
+        if (provider === "local") {
+            const password = String(payload.password ?? "");
+            if (!password) {
+                throw new Error("Password is required to delete your account.");
+            }
+            const isPasswordValid = await bcrypt.compare(password, user.password);
+            if (!isPasswordValid) {
+                throw new Error("Invalid password.");
+            }
+        } else {
+            const providerMatches = payload.oauthProvider === provider;
+            const reauthed = payload.oauthReauthenticated === true;
+            const insideWindow = validateOAuthReauthWindow(payload.oauthReauthenticatedAt);
+            const hasValidReauthToken = verifyOAuthReauthTokenForUser(
+                payload.oauthReauthToken,
+                userId
+            );
+
+            if (!providerMatches || !reauthed || !insideWindow || !hasValidReauthToken) {
+                throw new Error(
+                    `Re-authentication with ${provider} is required to delete this account.`
+                );
+            }
+        }
+
+        const anonymizedUserRef = `deleted_user_${userId}`;
+        const redactedShippingAddress = "REDACTED_DUE_TO_ACCOUNT_DELETION";
+
+        // Preserve transaction records while removing customer-identifying references.
+        await executeIfTableExists(
+            client,
+            "orders",
+            `UPDATE orders
+             SET customer_id = $1,
+                 shipping_address = $2,
+                 updated_at = NOW()
+             WHERE customer_id = $3`,
+            [anonymizedUserRef, redactedShippingAddress, String(userId)]
+        );
+
+        await executeIfTableExists(
+            client,
+            "returns",
+            `UPDATE returns
+             SET customer_id = $1,
+                 shipping_address = $2,
+                 updated_at = NOW()
+             WHERE customer_id = $3`,
+            [anonymizedUserRef, redactedShippingAddress, String(userId)]
+        );
+
+        await executeIfTableExists(
+            client,
+            "reviews",
+            `UPDATE reviews
+             SET customer_id = $1,
+                 updated_at = NOW()
+             WHERE customer_id = $2`,
+            [anonymizedUserRef, String(userId)]
+        );
+
+        await executeIfTableExists(
+            client,
+            "order_events",
+            `UPDATE order_events
+             SET actor_id = $1
+             WHERE actor_id = $2`,
+            [anonymizedUserRef, String(userId)]
+        );
+
+        await executeIfTableExists(
+            client,
+            "return_events",
+            `UPDATE return_events
+             SET actor_id = $1
+             WHERE actor_id = $2`,
+            [anonymizedUserRef, String(userId)]
+        );
+
+        // Best-effort cleanup before hard delete.
+        await executeIfTableExists(client, "cart_items", "DELETE FROM cart_items WHERE user_id = $1", [userId]);
+        await executeIfTableExists(client, "chat_message_reads", "DELETE FROM chat_message_reads WHERE user_id = $1", [userId]);
+        await executeIfTableExists(client, "chat_room_participants", "DELETE FROM chat_room_participants WHERE user_id = $1", [userId]);
+
+        await client.query(
+            `UPDATE users
+             SET devicetoken = NULL,
+                 updatedat = NOW()
+             WHERE id = $1`,
+            [userId]
+        );
+
+        const deleteResult = await client.query(
+            "DELETE FROM users WHERE id = $1 RETURNING id",
+            [userId]
+        );
+
+        if (deleteResult.rowCount !== 1) {
+            throw new Error("Failed to delete user account.");
+        }
+
+        await client.query("COMMIT");
+        return true;
+    } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+    } finally {
+        client.release();
+    }
 }
