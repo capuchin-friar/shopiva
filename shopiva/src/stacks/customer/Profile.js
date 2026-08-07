@@ -17,6 +17,7 @@ import SettingsChangeEmailScreen from '../../pages/SettingsChangeEmail';
 import SettingsChangePasswordScreen from '../../pages/SettingsChangePassword';
 import SettingsWhatsappScreen from '../../pages/SettingsWhatsapp';
 import PersonalInformationScreen from '../../pages/PersonalInformation';
+import DeleteAccountScreen from '../../pages/DeleteAccountScreen';
 /** Lazily loaded so `react-native-maps` native module is not required until this screen mounts. */
 // const SettingsLocationLazy = lazy(() => import('../pages/SettingsLocation'));
 
@@ -43,6 +44,7 @@ const SETTINGS_ROUTE_TITLES = {
   'profile-settings-location': 'Location',
   'profile-settings-payout': 'Payout Details',
   'profile-shop-info': 'Shop info',
+  'profile-settings-delete-account': 'Delete Account',
 };
 
 function ProfileMainHeader({ navigation }) {
@@ -217,6 +219,12 @@ export function ProfileStackScreen() {
     headerBackTitle: "Settings",
     contentStyle: { backgroundColor: '#F7F7F8' },
   }
+  const profileDeleteAccountOpt = {
+    headerShown: true,
+    headerShadowVisible: false,
+    header: SettingsDetailHeader,
+    contentStyle: { backgroundColor: '#F7F7F8' },
+  }
 
   return (
     <ProfileStack.Navigator>
@@ -228,6 +236,7 @@ export function ProfileStackScreen() {
       <ProfileStack.Screen name="profile-settings-password" component={SettingsChangePasswordScreen} options={profilePasswordOpt} />
       <ProfileStack.Screen name="profile-settings-whatsapp" component={SettingsWhatsappScreen} options={profileWhatsappOpt} />
       <ProfileStack.Screen name="profile-settings-location" component={SettingsLocationSuspense} options={profileLocationOpt} />
+      <ProfileStack.Screen name="profile-settings-delete-account" component={DeleteAccountScreen} options={profileDeleteAccountOpt} />
     </ProfileStack.Navigator>
   );
 }

@@ -108,11 +108,11 @@ export default function ProfileScreen() {
               </View>
             )}
           </View>
-          {showProBadge ? (
+          {/* {showProBadge ? (
             <View style={styles.proBadge}>
               <Text style={styles.proBadgeText}>Pro</Text>
             </View>
-          ) : null}
+          ) : null} */}
         </View>
 
         <Text style={styles.name}>{displayName}</Text>

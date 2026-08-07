@@ -13,11 +13,14 @@ export const orderList_slice = createSlice({
     set_orderList: (state, action) => {
       state.orderList = action.payload
     },
+    clear_orderList: (state) => {
+      state.orderList = []
+    },
   },
 })
 
 // Action creators are generated for each case reducer function
-export const { set_orderList } = orderList_slice.actions
+export const { set_orderList, clear_orderList } = orderList_slice.actions
 
 export default orderList_slice.reducer
 

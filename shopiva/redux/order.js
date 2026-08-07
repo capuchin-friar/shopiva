@@ -11,11 +11,14 @@ export const orderInfo_slice = createSlice({
     set_orderInfo: (state, action) => {
       state.orderInfo = action.payload
     },
+    clear_orderInfo: (state) => {
+      state.orderInfo = null
+    },
   },
 })
 
 // Action creators are generated for each case reducer function
-export const { set_orderInfo } = orderInfo_slice.actions
+export const { set_orderInfo, clear_orderInfo } = orderInfo_slice.actions
 
 export default orderInfo_slice.reducer
 

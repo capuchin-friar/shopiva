@@ -14,7 +14,13 @@ import {
 } from '../src/auth/session';
 import { setUnauthorized401Suppressed } from '../src/auth/unauthorized';
 import { disconnectChatSocket } from '../src/socket/chatSocket';
-import { Alert } from 'react-native';
+import { clear_nested_nav } from './nested_nav';
+import { clear_orderInfo } from './order';
+import { clear_orderList } from './orders';
+import { clear_disputeInfo } from './dispute';
+import { clear_disputeList } from './disputes';
+import { clear_returnInfo } from './return';
+import { clear_returnList } from './returns';
 
 /** @typedef {'loading' | 'signedOut' | 'signedIn'} AuthStatus */
 /** @typedef {'customer' | 'vendor'} AppRole */
@@ -329,6 +335,18 @@ export const signOutThunk = createAsyncThunk('auth/signOut', async (_, { dispatc
   } catch {
     // ignore
   } finally {
+    try {
+      disconnectChatSocket();
+    } catch {
+      // ignore
+    }
+    dispatch(clear_nested_nav());
+    dispatch(clear_orderInfo());
+    dispatch(clear_orderList());
+    dispatch(clear_disputeInfo());
+    dispatch(clear_disputeList());
+    dispatch(clear_returnInfo());
+    dispatch(clear_returnList());
     dispatch(setSignedOut());
     setUnauthorized401Suppressed(false);
   }

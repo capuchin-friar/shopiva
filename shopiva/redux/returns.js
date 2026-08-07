@@ -13,9 +13,12 @@ export const returnList_slice = createSlice({
     set_returnList: (state, action) => {
       state.returnList = action.payload
     },
+    clear_returnList: (state) => {
+      state.returnList = []
+    },
   },
 })
 
-export const { set_returnList } = returnList_slice.actions
+export const { set_returnList, clear_returnList } = returnList_slice.actions
 
 export default returnList_slice.reducer

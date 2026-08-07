@@ -19,7 +19,6 @@ import CartCheckoutScreen from '../../pages/customer/CartCheckoutScreen';
 import PaymentSuccessScreen from '../../pages/customer/PaymentSuccessScreen';
 import PaymentFailedScreen from '../../pages/customer/PaymentFailedScreen';
 import { HomeStackCartIconButton } from '../../components/HomeStackCartButton';
-import { useNavigation } from '@react-navigation/native';
 
 /** Bundled logo for native stack header (do not use `{ uri: '../assets/...' }` for local files). */
 const SHOPIVA_LOGO = require('../../assets/Shopiva.png');
@@ -100,11 +99,14 @@ const payFailedOpt = {
 export function HomeStackScreen() {
   // const { user } = useSelector(s => s?.user ?? {});
   // const dispatch = useDispatch();
-  const navigation = useNavigation();
   return (
     <HomeStack.Navigator>
       <HomeStack.Screen name="Home" component={HomeScreen} options={homeOpt(styles)} />
-      <HomeStack.Screen name="Vendors" component={VendorsScreen} options={vendorsOpt(navigation)} />
+      <HomeStack.Screen
+        name="Vendors"
+        component={VendorsScreen}
+        options={({ navigation }) => vendorsOpt(navigation)}
+      />
       <HomeStack.Screen name="Vendor" component={VendorScreen} options={vendorOpt} />
       <HomeStack.Screen name="Product" component={ProductScreen} options={{   headerShown: false, }} />
       <HomeStack.Screen name="Cart" component={CartScreen} options={cartOpt}/>

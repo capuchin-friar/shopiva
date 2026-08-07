@@ -173,6 +173,42 @@ export async function updateUserProfileFields(userId, fields) {
   };
 }
 
+/**
+ * Permanently deletes the authenticated account.
+ * @param {{
+ *   password?: string;
+ *   oauthProvider?: 'google' | 'facebook' | 'apple';
+ *   oauthReauthenticated?: boolean;
+ *   oauthReauthenticatedAt?: string;
+ *   oauthReauthToken?: string;
+ * }} [payload]
+ */
+export async function deleteAccount(payload = {}) {
+  const res = await apiFetchAuth('/api/account', {
+    method: 'DELETE',
+    body: JSON.stringify(payload ?? {}),
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (res.ok) {
+    return {
+      ok: true,
+      status: res.status,
+      message:
+        (typeof data === 'object' && data && 'message' in data
+          ? String(/** @type {{ message?: string }} */ (data).message ?? '')
+          : '') || 'Account deleted successfully.',
+    };
+  }
+
+  const message = pickError(data, res);
+  if (res.status === 401) return { ok: false, status: 401, message };
+  if (res.status === 403) return { ok: false, status: 403, message };
+  if (res.status === 422) return { ok: false, status: 422, message };
+  if (res.status >= 500) return { ok: false, status: 500, message };
+  return { ok: false, status: res.status, message };
+}
+
 /** Debug: open in browser — `await pingApi()` */
 export async function pingApi() {
   const base = getApiBaseUrl();

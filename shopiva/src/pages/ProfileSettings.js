@@ -256,6 +256,16 @@ export default function ProfileSettings() {
             title={isAuthenticated ? 'Sign out' : 'Sign in'}
             onPress={onAuthAction}
           />
+          {isAuthenticated ? (
+            <>
+              <View style={styles.menuDivider} />
+              <SettingsRow
+                icon="trash-outline"
+                title="Delete Account"
+                onPress={() => navigation.navigate('profile-settings-delete-account')}
+              />
+            </>
+          ) : null}
         </View>
       </ScrollView>
 
