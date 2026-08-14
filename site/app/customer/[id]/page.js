@@ -45,8 +45,7 @@ const APP_STORE_LINKS = {
 };
 
 /** App screenshot URL */
-const APP_SCREENSHOT_URL =
-  "https://res.cloudinary.com/daqbhghwq/image/upload/v1746781312/Screenshot_2025-05-09-09-59-58-066_com.ucommerce.campussphere_emobo3.jpg";
+const APP_SCREENSHOT_URL = '';
 
 /**
  * How it works steps

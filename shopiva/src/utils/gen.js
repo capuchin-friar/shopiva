@@ -268,7 +268,7 @@ class Tools {
         `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
         {
           headers: {
-            'User-Agent': 'campussphere/1.0 (akpulufabian@gmail.com)', // <-- Important
+            'User-Agent': 'shopiva/1.0 (admin@thetabeam.com)', // <-- Important
           },
         },
       );

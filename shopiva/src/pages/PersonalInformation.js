@@ -103,7 +103,7 @@ function initialNameFor(u) {
   if (profile) return profile;
   const display = String(u.displayName ?? '').trim();
   if (!display) return '';
-  /** Skip the email-prefix fallback so users start from a blank field rather than "akoulufabian". */
+  /** Skip the email-prefix fallback so users start from a blank field rather than "". */
   const email = String(u.email ?? '').trim();
   if (email && display === email.split('@')[0]) return '';
   return display;
