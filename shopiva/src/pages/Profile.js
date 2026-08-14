@@ -3,6 +3,7 @@ import {
   Alert,
   Animated,
   Image,
+  Linking,
   Platform,
   Pressable,
   ScrollView,
@@ -39,7 +40,7 @@ export default function ProfileScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      refresh().catch(() => {});
+      refresh().catch(() => { });
     }, [refresh]),
   );
 
@@ -88,49 +89,49 @@ export default function ProfileScreen() {
 
   return (
     <View style={styles.root}>
-    <ScrollView
-      style={styles.scroll}
-      contentContainerStyle={[
-        styles.scrollContent,
-        { paddingBottom: Math.max(insets.bottom, 20) + 8 },
-      ]}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Profile block */}
-      <View style={styles.profileBlock}>
-        <View style={styles.avatarOuter}>
-          <View style={styles.avatarRing}>
-            {avatarUri ? (
-              <Image source={{ uri: avatarUri }} style={styles.avatarImg} resizeMode="cover" />
-            ) : (
-              <View style={[styles.avatarImg, styles.avatarPh]}>
-                <Text style={styles.avatarPhText}>{avatarLetter}</Text>
-              </View>
-            )}
-          </View>
-          {/* {showProBadge ? (
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom, 20) + 8 },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Profile block */}
+        <View style={styles.profileBlock}>
+          <View style={styles.avatarOuter}>
+            <View style={styles.avatarRing}>
+              {avatarUri ? (
+                <Image source={{ uri: avatarUri }} style={styles.avatarImg} resizeMode="cover" />
+              ) : (
+                <View style={[styles.avatarImg, styles.avatarPh]}>
+                  <Text style={styles.avatarPhText}>{avatarLetter}</Text>
+                </View>
+              )}
+            </View>
+            {/* {showProBadge ? (
             <View style={styles.proBadge}>
               <Text style={styles.proBadgeText}>Pro</Text>
             </View>
           ) : null} */}
+          </View>
+
+          <Text style={styles.name}>{displayName}</Text>
+          <Text style={styles.email} numberOfLines={1}>
+            {emailDisplay}
+          </Text>
         </View>
 
-        <Text style={styles.name}>{displayName}</Text>
-        <Text style={styles.email} numberOfLines={1}>
-          {emailDisplay}
-        </Text>
-      </View>
-
-      {/* Quick actions */}
-      {/* <View style={styles.quickRow}>
+        {/* Quick actions */}
+        {/* <View style={styles.quickRow}>
         <QuickAction icon="bag-outline" label="My closet" onPress={() => {}} />
         <QuickAction icon="bar-chart-outline" label="Style stats" onPress={() => {}} />
         <QuickAction icon="clipboard-outline" label="Monthly report" onPress={() => {}} />
       </View> */}
 
-      {/* Menu */}
-      <View style={styles.menuCard}>
-        {/* <MenuRow
+        {/* Menu */}
+        <View style={styles.menuCard}>
+          {/* <MenuRow
           icon="bookmark-outline"
           title="Bookmark"
           right={
@@ -146,7 +147,7 @@ export default function ProfileScreen() {
 
 
 
-        {/* <MenuRow
+          {/* <MenuRow
           icon="time-outline"
           title="History"
           right={
@@ -159,9 +160,9 @@ export default function ProfileScreen() {
           }
           onPress={() => {}}
         /> */}
-        
-        <View style={styles.menuDivider} />
-        {/* <View style={styles.menuRow}>
+
+          <View style={styles.menuDivider} />
+          {/* <View style={styles.menuRow}>
           <View style={styles.menuLeft}>
             <Icon name="notifications-outline" size={22} color={BLACK} />
             <Text style={styles.menuTitle}>Message Notification</Text>
@@ -174,73 +175,84 @@ export default function ProfileScreen() {
             ios_backgroundColor="#E5E5EA"
           />
         </View> */}
-        <View style={styles.menuDivider} />
-        <MenuRow
-          icon="person-outline"
-          title="Personal Information"
-          right={<Icon name="chevron-forward" size={20} color={BLACK} />}
-          onPress={() => navigation.navigate('profile-personal-information')}
-        />
-        {showShopInfo ? (
-          <>
-            <View style={styles.menuDivider} />
-            <MenuRow
-              icon="storefront-outline"
-              title="Shop info"
-              right={<Icon name="chevron-forward" size={20} color={BLACK} />}
-              onPress={() => navigation.navigate('profile-shop-info')}
-            />
-          </>
-        ) : null}
-        <View style={styles.menuDivider} />
-        {/* <MenuRow
+          <View style={styles.menuDivider} />
+          <MenuRow
+            icon="person-outline"
+            title="Personal Information"
+            right={<Icon name="chevron-forward" size={20} color={BLACK} />}
+            onPress={() => navigation.navigate('profile-personal-information')}
+          />
+          {showShopInfo ? (
+            <>
+              <View style={styles.menuDivider} />
+              <MenuRow
+                icon="storefront-outline"
+                title="Shop info"
+                right={<Icon name="chevron-forward" size={20} color={BLACK} />}
+                onPress={() => navigation.navigate('profile-shop-info')}
+              />
+            </>
+          ) : null}
+          <View style={styles.menuDivider} />
+          {/* <MenuRow
           icon="wallet-outline"
           title="Transactions"
           right={<Icon name="chevron-forward" size={20} color={BLACK} />}
           onPress={() => navigation.navigate('profile-transactions')}
         /> */}
-        <View style={styles.menuDivider} />
-        <MenuRow
-          iconComponent={<AiGlyph />}
-          title="AI Styling"
-          right={<Icon name="chevron-forward" size={20} color={BLACK} />}
-          onPress={showAiStylingComingSoonToast}
-        />
-        <View style={styles.menuDivider} />
-        <MenuRow
-          icon={isAuthenticated ? 'log-out-outline' : 'log-in-outline'}
-          title={isAuthenticated ? 'Sign out' : 'Sign in'}
-          right={<Icon name="chevron-forward" size={20} color={BLACK} />}
-          onPress={() => {
-            if (!isAuthenticated) {
-              void signOut();
-              return;
-            }
-            Alert.alert('Sign out', 'You will need to sign in again to use the app.', [
-              { text: 'Cancel', style: 'cancel' },
-              {
-                text: 'Sign out',
-                style: 'destructive',
-                onPress: () => {
-                  void signOut();
+          <View style={styles.menuDivider} />
+          <MenuRow
+            iconComponent={<AiGlyph />}
+            title="AI Styling"
+            right={<Icon name="chevron-forward" size={20} color={BLACK} />}
+            onPress={showAiStylingComingSoonToast}
+          />
+          <View style={styles.menuDivider} />
+          <MenuRow
+            icon="document-text-outline"
+            title="Privacy policy"
+            right={<Icon name="chevron-forward" size={20} color={BLACK} />}
+            onPress={() => {
+              Linking.openURL('https://shopiva-three.vercel.app/entrepreneur/ng/privacy-policy').catch(() => {
+                Alert.alert('Could not open link', 'Unable to open privacy policy.');
+              });
+            }}
+          />
+          <View style={styles.menuDivider} />
+          <MenuRow
+            icon={isAuthenticated ? 'log-out-outline' : 'log-in-outline'}
+            title={isAuthenticated ? 'Sign out' : 'Sign in'}
+            right={<Icon name="chevron-forward" size={20} color={BLACK} />}
+            onPress={() => {
+              if (!isAuthenticated) {
+                void signOut();
+                return;
+              }
+              Alert.alert('Sign out', 'You will need to sign in again to use the app.', [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Sign out',
+                  style: 'destructive',
+                  onPress: () => {
+                    void signOut();
+                  },
                 },
-              },
-            ]);
-          }}
-        />
-      </View>
-    </ScrollView>
+              ]);
+            }}
+          />
+        </View>
+      </ScrollView>
 
-    {toastVisible ? (
-      <View
-        style={[styles.toastWrap, { paddingBottom: Math.max(insets.bottom, 12) + 8 }]}
-        pointerEvents="none"
-      >
-        <Animated.View style={[styles.toastPill, { opacity: toastOpacity }]}>
-          <Text style={styles.toastText}>AI Styling is coming soon.</Text>
-        </Animated.View>
-      </View>
-    ) : null}
+      {toastVisible ? (
+        <View
+          style={[styles.toastWrap, { paddingBottom: Math.max(insets.bottom, 12) + 8 }]}
+          pointerEvents="none"
+        >
+          <Animated.View style={[styles.toastPill, { opacity: toastOpacity }]}>
+            <Text style={styles.toastText}>AI Styling is coming soon.</Text>
+          </Animated.View>
+        </View>
+      ) : null}
     </View>
   );
 }
