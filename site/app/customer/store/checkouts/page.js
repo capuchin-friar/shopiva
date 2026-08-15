@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import "./styles/xxl.css";
 import "./styles/s.css";
-import { usePaystackPayment } from "react-paystack";
 import { buyerAuthHeaders } from "@/reusables/shopBackendAuth";
 
 const AUTH_URL = "/api/user/authorization";
@@ -11,6 +10,28 @@ const AUTH_URL = "/api/user/authorization";
 const PAYSTACK_PUBLIC_KEY =
   (typeof process !== "undefined" && process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY) ||
   "pk_live_13343a7bd4deeebc644070871efcdf8fdcf280f7";
+
+  // Paystack inline script loader state (loaded only in browser)
+  const [paystackReady, setPaystackReady] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if ((window).PaystackPop) {
+      setPaystackReady(true);
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = "https://js.paystack.co/v1/inline.js";
+    s.async = true;
+    s.onload = () => setPaystackReady(true);
+    s.onerror = () => setPaystackReady(false);
+    document.body.appendChild(s);
+    return () => {
+      try {
+        document.body.removeChild(s);
+      } catch {}
+    };
+  }, []);
 
 function isValidEmail(s) {
   const t = String(s || "").trim();
@@ -170,7 +191,7 @@ export default function CheckoutPage() {
     []
   );
 
-  const initializePayment = usePaystackPayment(paystackBase);
+  // removed `usePaystackPayment` to avoid server-side `window` access during build
 
   const bump = async (cartLineId, delta) => {
     const row = items.find((r) => String(r.id) === String(cartLineId));
@@ -281,16 +302,17 @@ export default function CheckoutPage() {
     const firstname = nameParts[0] ?? email.split("@")[0];
     const lastname = nameParts.slice(1).join(" ") || firstname;
 
-    initializePayment({
-      onSuccess,
-      onClose,
-      config: {
+    if (!paystackReady) {
+      setFormSummaryError("Payment service not available. Try again in your browser.");
+      return;
+    }
+
+    try {
+      const handler = window.PaystackPop.setup({
+        key: PAYSTACK_PUBLIC_KEY,
         email,
         amount: amountKobo,
-        reference: `shopiva-co-${Date.now()}`,
-        phone: phone.replace(/\s+/g, " ").trim(),
-        firstname,
-        lastname,
+        ref: `shopiva-co-${Date.now()}`,
         metadata: {
           custom_fields: [
             {
@@ -300,8 +322,17 @@ export default function CheckoutPage() {
             },
           ],
         },
-      },
-    });
+        callback: function (response) {
+          onSuccess(response);
+        },
+        onClose: function () {
+          onClose();
+        },
+      });
+      handler.openIframe();
+    } catch (e) {
+      setFormSummaryError("Failed to initialize payment. Try again.");
+    }
   };
 
   if (cartLoading || profileLoading) {
