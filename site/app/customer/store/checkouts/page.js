@@ -11,27 +11,6 @@ const PAYSTACK_PUBLIC_KEY =
   (typeof process !== "undefined" && process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY) ||
   "pk_live_13343a7bd4deeebc644070871efcdf8fdcf280f7";
 
-  // Paystack inline script loader state (loaded only in browser)
-  const [paystackReady, setPaystackReady] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if ((window).PaystackPop) {
-      setPaystackReady(true);
-      return;
-    }
-    const s = document.createElement("script");
-    s.src = "https://js.paystack.co/v1/inline.js";
-    s.async = true;
-    s.onload = () => setPaystackReady(true);
-    s.onerror = () => setPaystackReady(false);
-    document.body.appendChild(s);
-    return () => {
-      try {
-        document.body.removeChild(s);
-      } catch {}
-    };
-  }, []);
 
 function isValidEmail(s) {
   const t = String(s || "").trim();
