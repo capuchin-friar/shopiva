@@ -95,29 +95,29 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
 
     // 
     const { metadata, reference } = paystackData;
-    
+
   
     // Process only successful charges
-    // if (eventType !== "charge.success") {
-    //   if(eventType === "transfer.success"){
-    //     escrow.complete({
-    //       status: "success", 
-    //       transfer_reference: reference, 
-    //     });
-    //   }else if(eventType === "transfer.failed"){
-    //     escrow.complete({
-    //       status: "failed", 
-    //       transfer_reference: reference, 
-    //     });
-    //   }else if(eventType === "transfer.reversed"){
-    //     escrow.complete({
-    //       status: "reversed", 
-    //       transfer_reference: reference, 
-    //     });
-    //   }else{
-    //     res.status(200).send("Ignored");
-    //   }
-    // }
+    if (eventType !== "charge.success") {
+      if(eventType === "transfer.success"){
+        escrow.complete({
+          status: "success", 
+          transfer_reference: reference, 
+        });
+      }else if(eventType === "transfer.failed"){
+        escrow.complete({
+          status: "failed", 
+          transfer_reference: reference, 
+        });
+      }else if(eventType === "transfer.reversed"){
+        escrow.complete({
+          status: "reversed", 
+          transfer_reference: reference, 
+        });
+      }else{
+        res.status(200).send("Ignored");
+      }
+    }
 
     // const { metadata, reference } = paystackData;
     const { customer_id, shipping_address, tax, orders } = metadata || {};
