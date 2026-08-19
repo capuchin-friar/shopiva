@@ -95,6 +95,7 @@ export async function PaystackWebhookController(req: Request, res: Response): Pr
 
     // 
     const { metadata, reference } = paystackData;
+    
   
     // Process only successful charges
     // if (eventType !== "charge.success") {
