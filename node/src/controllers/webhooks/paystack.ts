@@ -19,6 +19,8 @@ const secret = process.env.PAYSTACK_SECRET_KEY;
 export async function PaystackWebhookController(req: Request, res: Response): Promise<void> {
 
   try {
+
+    console.log("testing webhook from new render account...")
     if(!secret){
       res.status(500).send("Missing Paystack secret");
       return;

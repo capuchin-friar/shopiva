@@ -21,6 +21,11 @@ import { useProfile } from '../../context/ProfileContext';
 import { fetchBuyerCart } from '../../api/buyer';
 import { canUsePaystackCheckout } from '../../paystack/paystackNativeGate';
 import { formatNaira } from '../../utils/formatNaira';
+import {
+  getCurrentCoordinates,
+  requestLocationPermission,
+  reverseGeocodeToPlace,
+} from '../../utils/deviceLocation';
 
 const PRIMARY = '#00926e';
 const PAGE_BG = '#F2F2F3';
@@ -146,8 +151,9 @@ export default function CartCheckoutScreen({ navigation }) {
   const [street, setStreet] = useState('');
   const [city, setCity] = useState('');
   const [zip, setZip] = useState('');
-  const [country] = useState('Nigeria');
+  const [country, setCountry] = useState('Nigeria');
   const [delivery, setDelivery] = useState(('standard'));
+  const [isLocating, setIsLocating] = useState(false);
 
   const [touchedSubmit, setTouchedSubmit] = useState(false);
   const [formBanner, setFormBanner] = useState('');
@@ -245,15 +251,15 @@ export default function CartCheckoutScreen({ navigation }) {
     if (!street.trim()) e.street = 'Street address is required.';
     else if (!isValidStreet(street)) e.street = 'Enter a complete street address.';
     if (!city.trim()) e.city = 'Enter your city.';
-    if (!zip.trim()) e.zip = 'Enter a ZIP or postal code.';
+    // if (!zip.trim()) e.zip = 'Enter a ZIP or postal code.';
     return e;
-  }, [fullName, email, phone, street, city, zip]);
+  }, [fullName, email, phone, street, city]);
 
   const showErrors = touchedSubmit;
   const hasBlockingErrors = Object.keys(errors).length > 0;
   const hasEmptyRequiredFields = useMemo(
-    () => !fullName.trim() || !email.trim() || !phone.trim() || !street.trim() || !city.trim() || !zip.trim(),
-    [fullName, email, phone, street, city, zip],
+    () => !fullName.trim() || !email.trim() || !phone.trim() || !street.trim(),
+    [fullName, email, phone, street, city],
   );
 
   const showBottomToast = useCallback((message) => {
@@ -264,6 +270,43 @@ export default function CartCheckoutScreen({ navigation }) {
       toastTimerRef.current = null;
     }, 2600);
   }, []);
+
+  const onUseCurrentLocation = useCallback(async () => {
+    if (isLocating) return;
+    setIsLocating(true);
+    setFormBanner('');
+    try {
+      const hasPermission = await requestLocationPermission();
+      if (!hasPermission) {
+        setFormBanner('Location permission was denied. You can still enter your address manually.');
+        return;
+      }
+
+      const { latitude, longitude } = await getCurrentCoordinates();
+      const place = await reverseGeocodeToPlace(latitude, longitude);
+      const nextStreet = String(place?.street ?? '').trim();
+      const nextCity = String(place?.city ?? place?.town ?? '').trim();
+      const nextZip = String(place?.zip ?? '').trim();
+      const nextCountry = String(place?.country ?? '').trim();
+
+      if (nextStreet) setStreet(nextStreet);
+      if (nextCity) setCity(nextCity);
+      if (nextZip) setZip(nextZip);
+      if (nextCountry) setCountry(nextCountry);
+
+      if (!nextStreet && !nextCity && !nextZip && !nextCountry) {
+        setFormBanner('We found your location, but could not extract an address. Please fill it in manually.');
+        return;
+      }
+
+      showBottomToast('Address autofilled from your current location.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Could not access your location.';
+      setFormBanner(msg || 'Could not access your location.');
+    } finally {
+      setIsLocating(false);
+    }
+  }, [isLocating, showBottomToast]);
 
   useEffect(
     () => () => {
@@ -560,7 +603,19 @@ export default function CartCheckoutScreen({ navigation }) {
               </View>
 
               <View style={styles.card}>
-                <Text style={styles.cardTitle}>Shipping address</Text>
+                <View style={styles.cardTitleRow}>
+                  <Text style={styles.cardTitle}>Shipping address</Text>
+                  <Pressable
+                    onPress={onUseCurrentLocation}
+                    disabled={isLocating}
+                    style={[styles.locationBtn, isLocating ? styles.locationBtnDisabled : null]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Use current location"
+                  >
+                    <Icon name="locate-outline" size={14} color={PRIMARY} />
+                    <Text style={styles.locationBtnText}>{isLocating ? 'Locating…' : 'Use current location'}</Text>
+                  </Pressable>
+                </View>
 
                 <Text style={styles.label}>Street address</Text>
                 <TextInput
@@ -584,7 +639,7 @@ export default function CartCheckoutScreen({ navigation }) {
                 />
                 {showErrors && errors.city ? <Text style={styles.errorText}>{errors.city}</Text> : null}
 
-                <Text style={styles.label}>ZIP / Postal code</Text>
+                <Text style={styles.label}>ZIP / Postal code (optional)</Text>
                 <TextInput
                   value={zip}
                   onChangeText={setZip}
@@ -800,6 +855,32 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111',
     marginBottom: 12,
+  },
+  cardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  locationBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 146, 110, 0.35)',
+    backgroundColor: 'rgba(0, 146, 110, 0.08)',
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginBottom: 8,
+  },
+  locationBtnDisabled: {
+    opacity: 0.7,
+  },
+  locationBtnText: {
+    marginLeft: 6,
+    color: PRIMARY,
+    fontSize: 12,
+    fontWeight: '700',
   },
   orderLine: {
     flexDirection: 'row',
