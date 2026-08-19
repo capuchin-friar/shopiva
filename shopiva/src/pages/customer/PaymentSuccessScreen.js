@@ -299,8 +299,8 @@ export default function PaymentSuccessScreen({ navigation, route }) {
             <Text style={styles.utilityBtnText}>Share receipt</Text>
           </Pressable>
         </View>
-        <Pressable style={styles.ghostBtn} onPress={() => navigation.navigate('Home')} accessibilityRole="button">
-          <Text style={styles.ghostBtnText}>Back Home</Text>
+        <Pressable style={styles.ghostBtn} onPress={() => navigation.goBack()} accessibilityRole="button">
+          <Text style={styles.ghostBtnText}>Back To Cart</Text>
         </Pressable>
       </ScrollView>
     </SafeAreaView>
