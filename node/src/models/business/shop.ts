@@ -711,6 +711,11 @@ export class shop{
                    OR regexp_replace(lower(trim(s.category)), '[^a-z0-9]+', '_', 'g') LIKE
                       ('%' || regexp_replace(lower(trim(v)), '[^a-z0-9]+', '_', 'g') || '%')
               )
+                AND EXISTS (
+                  SELECT 1
+                  FROM products p
+                  WHERE p.shop_id = s.id
+                )
               AND s.isactive = true
               AND s.status IN ('active', 'pending_approval')
             ORDER BY s.name ASC
