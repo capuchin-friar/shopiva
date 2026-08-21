@@ -51,21 +51,38 @@ export function ShopOverflowMenu({
     return null;
   }
 
-  const letter = String(fallbackLetter || 'S').trim().charAt(0).toUpperCase() || 'S';
+  const letter =
+    String(fallbackLetter || 'S')
+      .trim()
+      .charAt(0)
+      .toUpperCase() || 'S';
   const uri = String(headerImageUri || '').trim();
   const sub = String(subtitle || '').trim();
 
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalRoot}>
-        <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={onClose} />
-        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16) + 8 }]}>
+        <TouchableOpacity
+          style={styles.backdrop}
+          activeOpacity={1}
+          onPress={onClose}
+        />
+        <View
+          style={[
+            styles.sheet,
+            { paddingBottom: Math.max(insets.bottom, 16) + 8 },
+          ]}
+        >
           <View style={styles.handle} />
           <View style={styles.headerRow}>
             <View style={styles.headerMain}>
               <View style={styles.avatarOuter}>
                 {uri ? (
-                  <Image source={{ uri }} style={styles.avatarImg} resizeMode="cover" />
+                  <Image
+                    source={{ uri }}
+                    style={styles.avatarImg}
+                    resizeMode="cover"
+                  />
                 ) : (
                   <Text style={styles.avatarLetter}>{letter}</Text>
                 )}
@@ -95,15 +112,33 @@ export function ShopOverflowMenu({
           </View>
 
           <View style={styles.menuBlock}>
-            <TouchableOpacity style={styles.row} onPress={onVisitShop} activeOpacity={0.75}>
-              <Icon name="storefront-outline" size={22} color="#202124" style={styles.rowIcon} />
+            <TouchableOpacity
+              style={styles.row}
+              onPress={onVisitShop}
+              activeOpacity={0.75}
+            >
+              <Icon
+                name="storefront-outline"
+                size={22}
+                color="#202124"
+                style={styles.rowIcon}
+              />
               <Text style={styles.rowLabel}>Visit shop</Text>
             </TouchableOpacity>
             {typeof onViewShopPolicy === 'function' ? (
               <>
                 <View style={styles.rowSep} />
-                <TouchableOpacity style={styles.row} onPress={onViewShopPolicy} activeOpacity={0.75}>
-                  <Icon name="document-text-outline" size={22} color="#202124" style={styles.rowIcon} />
+                <TouchableOpacity
+                  style={styles.row}
+                  onPress={onViewShopPolicy}
+                  activeOpacity={0.75}
+                >
+                  <Icon
+                    name="document-text-outline"
+                    size={22}
+                    color="#202124"
+                    style={styles.rowIcon}
+                  />
                   <Text style={styles.rowLabel}>View shop policy</Text>
                 </TouchableOpacity>
               </>
@@ -111,22 +146,40 @@ export function ShopOverflowMenu({
             {typeof onDeliveryPolicy === 'function' ? (
               <>
                 <View style={styles.rowSep} />
-                <TouchableOpacity style={styles.row} onPress={onDeliveryPolicy} activeOpacity={0.75}>
-                  <Icon name="car-outline" size={22} color="#202124" style={styles.rowIcon} />
+                <TouchableOpacity
+                  style={styles.row}
+                  onPress={onDeliveryPolicy}
+                  activeOpacity={0.75}
+                >
+                  <Icon
+                    name="car-outline"
+                    size={22}
+                    color="#202124"
+                    style={styles.rowIcon}
+                  />
                   <Text style={styles.rowLabel}>Delivery policy</Text>
                 </TouchableOpacity>
               </>
             ) : null}
             <View style={styles.rowSep} />
-            <TouchableOpacity style={styles.row} onPress={onNotInterested} activeOpacity={0.75}>
-              <Icon name="thumbs-down-outline" size={22} color="#202124" style={styles.rowIcon} />
+            {/* <TouchableOpacity
+              style={styles.row}
+              onPress={onNotInterested}
+              activeOpacity={0.75}
+            >
+              <Icon
+                name="thumbs-down-outline"
+                size={22}
+                color="#202124"
+                style={styles.rowIcon}
+              />
               <Text style={styles.rowLabel}>Not interested</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
             <View style={styles.rowSep} />
-            <TouchableOpacity style={styles.row} onPress={onReport} activeOpacity={0.75}>
+            {/* <TouchableOpacity style={styles.row} onPress={onReport} activeOpacity={0.75}>
               <Icon name="alert-circle-outline" size={22} color="#C62828" style={styles.rowIcon} />
               <Text style={[styles.rowLabel, styles.rowLabelDanger]}>{reportLabel}</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
         </View>
       </View>
@@ -141,7 +194,7 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   sheet: {
     backgroundColor: '#FFFFFF',

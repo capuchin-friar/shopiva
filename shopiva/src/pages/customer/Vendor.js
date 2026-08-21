@@ -15,15 +15,16 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import mvpCategoryData from '../../json/mvp_category.json';
+import { useSelector } from 'react-redux';
 import { buildMvpCategoryFilters, formatMvpCategoryLabel } from '../../utils/mvpCategory';
+import { selectCategoryTree } from '../../../redux/categoriesSlice';
 import { getStorefrontProducts, getStorefrontShop } from '../../api/storefront';
 import { formatNaira } from '../../utils/formatNaira';
 import { getProductImageUri } from '../../utils/productImageUtils';
 
 const { width: WINDOW_W, height: WINDOW_H } = Dimensions.get('window');
-const BROWN = '#3D2E22';
-const BROWN_SOFT = 'rgba(92, 67, 50, 0.78)';
+const BROWN = '#00926e';
+const BROWN_SOFT = '#00926e';
 const PAD = 16;
 const GRID_GAP = 12;
 
@@ -197,7 +198,7 @@ function ProductTile({ product, width, shop, navigation, vendor, category }) {
  */
 export default function VendorShopScreen({ route, navigation }) {
   const vendor = route.params?.vendor;
-  const category = route.params?.category ?? 'fashion';
+  const category = vendor?.category ?? 'fashion';
   const shopName = vendor?.name?.trim() || 'Shop';
   const insets = useSafeAreaInsets();
 
@@ -211,9 +212,11 @@ export default function VendorShopScreen({ route, navigation }) {
   const [productsError, setProductsError] = useState('');
   const slug = String(vendor?.slug ?? '').trim();
 
+  const categoryTree = useSelector(selectCategoryTree);
+
   const { subCategories, typesBySubCategory, subTypePairs } = useMemo(
-    () => buildMvpCategoryFilters(mvpCategoryData, category),
-    [category],
+    () => buildMvpCategoryFilters(categoryTree, category),
+    [categoryTree, category],
   );
 
   const subCategoryOptions = useMemo(
@@ -466,7 +469,19 @@ export default function VendorShopScreen({ route, navigation }) {
         <View style={styles.filterModalRoot}>
           <TouchableOpacity style={styles.filterBackdrop} activeOpacity={1} onPress={() => setFilterOpen(false)} />
           <View style={[styles.filterSheet, { maxHeight: WINDOW_H * 0.88 }]}>
-            <Text style={styles.filterSheetTitle}>Filter products</Text>
+            <View style={styles.filterSheetHeader}>
+              <Text style={styles.filterSheetTitle}>Filter products</Text>
+              <TouchableOpacity
+                style={styles.filterCloseButton}
+                onPress={() => setFilterOpen(false)}
+                hitSlop={10}
+                activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel="Close filters"
+              >
+                <Icon name="close" size={24} color="#111111" />
+              </TouchableOpacity>
+            </View>
             <Text style={styles.filterSheetHint}>
               Pick a sub-category first, then choose a type for that group. Tap Apply to update the grid.
             </Text>
@@ -552,7 +567,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   heroSolid: {
-    backgroundColor: '#2a211c',
+    backgroundColor: '#006c51',
   },
   heroTint: {
     ...StyleSheet.absoluteFillObject,
@@ -771,11 +786,22 @@ const styles = StyleSheet.create({
     zIndex: 2,
     elevation: 12,
   },
+  filterSheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  filterCloseButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   filterSheetTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: '#111',
-    marginBottom: 6,
   },
   filterSheetHint: {
     fontSize: 13,

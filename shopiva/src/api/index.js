@@ -1,6 +1,7 @@
 export { getApiBaseUrl, getApiBaseUrlOverride, setApiBaseUrlOverride, API_DEFAULT_PORT } from './config';
 export { apiFetch, apiFetchAuth } from './client';
 export { getVendorsOnMapByCategory } from './vendors';
+export { getCategories } from './categories';
 export * from './storefront';
 export * from './buyer';
 export * from './auth';

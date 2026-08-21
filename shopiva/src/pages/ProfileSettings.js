@@ -17,17 +17,22 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { Dropdown } from 'react-native-element-dropdown';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 import { useAuth } from '../hooks/useAuth';
 import { useProfile } from '../context/ProfileContext';
 import { createVendorShop, hasVendorShop } from '../api/shop';
 import { updateUserRole } from '../api/user';
-import mvpCategoryData from '../data/mvp_category.json';
 import {
   getCurrentCoordinates,
   requestLocationPermission,
   reverseGeocodeToPlace,
 } from '../utils/deviceLocation';
 import FormKeyboardAvoiding from '../components/FormKeyboardAvoiding';
+import {
+  selectCategoriesError,
+  selectCategoriesLoading,
+  selectCategoryOptions,
+} from '../../redux/categoriesSlice';
 
 const BLACK = '#000000';
 const PAGE_BG = '#F7F7F8';
@@ -41,14 +46,6 @@ const VENDOR_TYPE_OPTIONS = [
   { label: 'Manufacturer', value: 'manufacturer' },
 ];
 
-/** Category options derived from the MVP category file (same source as Home screen). */
-const CATEGORY_OPTIONS = Object.keys(mvpCategoryData)
-  .map((key) => ({
-    value: key,
-    label: key.charAt(0).toUpperCase() + key.slice(1).toLowerCase(),
-  }))
-  .sort((a, b) => a.label.localeCompare(b.label));
-
 export default function ProfileSettings() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -59,6 +56,9 @@ export default function ProfileSettings() {
   const [setupVisible, setSetupVisible] = useState(false);
   const [shopName, setShopName] = useState('');
   const [vendorType, setVendorType] = useState(/** @type {'reseller' | 'dropshipper' | 'manufacturer'} */ ('reseller'));
+  const categoryOptions = useSelector(selectCategoryOptions);
+  const categoriesLoading = useSelector(selectCategoriesLoading);
+  const categoriesError = useSelector(selectCategoriesError);
   const [category, setCategory] = useState(/** @type {string | null} */ (null));
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
@@ -338,17 +338,18 @@ export default function ProfileSettings() {
                 selectedTextStyle={styles.dropdownSelectedText}
                 itemTextStyle={styles.dropdownItemText}
                 inputSearchStyle={styles.dropdownSearch}
-                data={CATEGORY_OPTIONS}
+                data={categoryOptions}
                 search
                 maxHeight={260}
                 labelField="label"
                 valueField="value"
-                placeholder="Select a category"
+                placeholder={categoriesLoading ? 'Loading categories...' : 'Select a category'}
                 searchPlaceholder="Search categories..."
                 value={category}
                 onChange={(item) => setCategory(item.value)}
-                disable={submittingSetup}
+                disable={submittingSetup || categoriesLoading || categoryOptions.length === 0}
               />
+              {categoriesError ? <Text style={styles.locationHint}>{categoriesError}</Text> : null}
 
               <View style={styles.locationHeaderRow}>
                 <Text style={styles.label}>Shop location</Text>
@@ -523,7 +524,7 @@ const styles = StyleSheet.create({
   },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.42)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   sheet: {
     maxHeight: '92%',

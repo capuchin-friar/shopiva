@@ -544,7 +544,7 @@ const styles = StyleSheet.create({
   },
   outlineBtnText: { fontSize: 14, fontWeight: '600', color: BLACK },
   modalRoot: { flex: 1, justifyContent: 'flex-end' },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)' },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
   sheet: {
     backgroundColor: CARD,
     borderTopLeftRadius: 16,

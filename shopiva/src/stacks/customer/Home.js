@@ -55,7 +55,18 @@ const vendorsOpt = (navigation) => ({
         style={styles.vendorsHeaderFilter}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
-        <Icon name="options-outline" size={22} color="#000000" />
+        <Icon name="location-outline" size={22} color="#000000" />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        accessibilityRole="button"
+        onPress={() =>
+          navigation.navigate('')
+        }
+        style={styles.vendorsHeaderFilter}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <Icon name="notifications-outline" size={22} color="#000000" />
       </TouchableOpacity>
     </View>
   ),

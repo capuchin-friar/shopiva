@@ -57,7 +57,7 @@ export default function ProductScreen({ route, navigation }) {
   const { isAuthenticated, signOut } = useAuth();
   const loggedIn = isAuthenticated;
   const vendor = route.params?.vendor;
-  const category = route.params?.category ?? 'fashion';
+  const category = vendor ?? 'fashion';
   const routeProduct = route.params?.product;
   const shopId = route.params?.shop_id;
   const routeProductId = route.params?.productId;
@@ -1046,7 +1046,9 @@ export default function ProductScreen({ route, navigation }) {
             ? product.description.trim()
             : 'No description provided for this product.'}
         </Text>
-        <TouchableOpacity style={styles.visitPill} activeOpacity={0.88}>
+        <TouchableOpacity style={styles.visitPill} activeOpacity={0.88} onPress={e => navigation.navigate("Vendor", {
+          vendor: vendor
+        })}>
           <Icon name="link-outline" size={18} color="#000000" />
           <Text style={styles.visitPillText}>{`Visit ${shopName}`}</Text>
         </TouchableOpacity>

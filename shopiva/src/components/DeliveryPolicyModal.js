@@ -268,7 +268,7 @@ export default function DeliveryPolicyModal({ visible, onClose, shopId, onSaved 
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     paddingHorizontal: 16,
   },

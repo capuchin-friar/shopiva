@@ -13,6 +13,7 @@ import axios from 'axios'
 import { NavigationContainer } from '@react-navigation/native';
 import { parseOAuthCallbackUrl, oauthErrorMessage } from '../api/oauth';
 import AuthBootstrap from '../auth/AuthBootstrap';
+import CategoryBootstrap from '../categories/CategoryBootstrap';
 import { useAuth } from '../hooks/useAuth';
 import { Provider, useDispatch } from 'react-redux';
 import store from "../../redux/store"
@@ -177,6 +178,7 @@ function NavigationHandler() {
         <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent={false} />
         <Provider store={store}>
           <AuthBootstrap />
+          <CategoryBootstrap />
           <NavigationTree />
         </Provider>
       </SafeAreaView>

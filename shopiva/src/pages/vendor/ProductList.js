@@ -698,7 +698,7 @@ const styles = StyleSheet.create({
   },
   actionSheetBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   actionSheet: {
     backgroundColor: CARD,

@@ -1872,7 +1872,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     paddingHorizontal: 24,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   cancelledModalCard: {
     backgroundColor: COLOR.NEUTRAL,
@@ -2266,7 +2266,7 @@ const styles = StyleSheet.create({
   sheetRoot: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   sheetDismiss: {
     flex: 1,

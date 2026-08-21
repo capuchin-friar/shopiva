@@ -134,6 +134,17 @@ app.get('/config/app-version', (req, res) => {
     // });
 });
 
+app.get('/categories', async(req, res) => {
+    const pool = await db();
+
+    const { rows } = await pool.query(
+        // `SELECT * FROM categories WHERE existing_product_count > 0 ORDER BY category ASC`
+        `SELECT * FROM categories`
+    );
+    res.json(rows);
+    console.log('categories: ', rows);
+});
+
 // Swagger Documentation
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
     explorer: true,
