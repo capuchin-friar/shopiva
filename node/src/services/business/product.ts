@@ -5,6 +5,7 @@
  */
 
 import { product as productModel, inventory as inventoryModel, order as orderModel } from "../../models/business/product.js";
+import { db } from "../../config/database.js";
 import { shop as shopModel } from "../../models/business/shop.js";
 import type {
   CreateProductPayload,
@@ -27,7 +28,11 @@ export async function CreateProductService(payload: CreateProductPayload) {
   const shopRows = await shopModel.getShopById(payload.shop_id);
   if (!shopRows?.length) throw new Error("Shop not found. Create a shop first or use a valid shop ID.");
 
-  return productModel.create(payload);
+  return productModel.create({
+    ...payload,
+    category: payload.category ?? null,
+    category_id: payload.category_id ?? null,
+  });
 }
 
 /**
@@ -76,9 +81,53 @@ export async function DeleteProductService(productId: number) {
   const existing = await productModel.getById(productId);
   if (!existing) throw new Error("Product not found");
 
-  const rowCount = await productModel.delete(productId);
-  if (rowCount === 0) throw new Error("Failed to delete product");
-  return { deleted: true };
+  const pool = await db();
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const categoryRow = await client.query<{ category: string | null; category_id?: number | null }>(
+      `SELECT category, category_id FROM products WHERE id = $1 FOR UPDATE`,
+      [productId],
+    );
+
+    const targetCategory = String(categoryRow.rows[0]?.category ?? existing.category ?? "").trim();
+    const targetCategoryId = Number(categoryRow.rows[0]?.category_id ?? NaN);
+
+    const deleteResult = await client.query(
+      `DELETE FROM products WHERE id = $1`,
+      [productId],
+    );
+
+    if ((deleteResult.rowCount ?? 0) === 0) {
+      throw new Error("Failed to delete product");
+    }
+
+    if (Number.isFinite(targetCategoryId) && targetCategoryId > 0) {
+      await client.query(
+        `UPDATE categories
+         SET existing_product_count = GREATEST(COALESCE(existing_product_count, 0) - 1, 0)
+         WHERE id = $1`,
+        [targetCategoryId],
+      );
+    } else if (targetCategory) {
+      await client.query(
+        `UPDATE categories
+         SET existing_product_count = GREATEST(COALESCE(existing_product_count, 0) - 1, 0)
+         WHERE LOWER(category) = LOWER($1)`,
+        [targetCategory],
+      );
+    }
+
+    await client.query("COMMIT");
+    return { deleted: true };
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 /**
