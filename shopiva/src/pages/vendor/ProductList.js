@@ -17,7 +17,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchOwnerShops } from '../../api/shop';
-import { getProducts } from '../../api/product';
+import { deleteProduct, getProducts } from '../../api/product';
 import { useProfile } from '../../context/ProfileContext';
 import { getProductImageUri } from '../../utils/productImageUtils';
 
@@ -250,7 +250,21 @@ export default function VendorProductListScreen() {
   const onDeleteProduct = useCallback(() => {
     if (!actionSheetProduct) return;
     const row = actionSheetProduct;
+    const uid = user?.id;
+    const sid = mvpShopId;
     closeProductActions();
+
+    if (!uid || !sid) {
+      Alert.alert('Unable to delete product', 'Sign in and open your shop before deleting products.');
+      return;
+    }
+
+    const productId = Number(row.id);
+    if (!Number.isFinite(productId) || productId <= 0) {
+      Alert.alert('Unable to delete product', 'This product is missing a valid ID.');
+      return;
+    }
+
     Alert.alert(
       'Delete product',
       `Remove “${row.title}”? This cannot be undone.`,
@@ -259,13 +273,22 @@ export default function VendorProductListScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            Alert.alert('Not implemented', 'Wire delete to your product API when ready.');
+          onPress: async () => {
+            try {
+              await deleteProduct(sid, productId, uid);
+              Alert.alert('Deleted', 'Product deleted successfully.');
+              await loadProducts({ silent: true });
+            } catch (error) {
+              Alert.alert(
+                'Delete failed',
+                error instanceof Error ? error.message : 'Could not delete this product.',
+              );
+            }
           },
         },
       ],
     );
-  }, [actionSheetProduct, closeProductActions]);
+  }, [actionSheetProduct, closeProductActions, loadProducts, mvpShopId, user?.id]);
 
   return (
     <View style={styles.root}>
@@ -337,7 +360,7 @@ export default function VendorProductListScreen() {
                     <View style={styles.cardTop}>
                       <Pressable
                         style={({ pressed }) => [styles.cardMainPress, pressed && styles.cardPressed]}
-                        onPress={openCard}
+                        // onPress={openCard}
                         android_ripple={{ color: '#F3F4F6' }}
                       >
                                 <View style={styles.thumb}>

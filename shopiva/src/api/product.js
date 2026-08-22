@@ -67,6 +67,16 @@ export async function updateProduct(shopId, productId, entrepreneurId, body) {
   return readJson(res);
 }
 
+export async function deleteProduct(shopId, productId, entrepreneurId) {
+  const sid = String(shopId).trim();
+  const pid = String(productId).trim();
+  const eid = String(entrepreneurId).trim();
+  const res = await apiFetchAuth(`/shop/${sid}/product/delete/${pid}/${eid}`, {
+    method: 'POST',
+  });
+  return readJson(res);
+}
+
 /**
  * POST /shop/:shopId/product/:productId/inventory/create/:entrepreneurId
  * @param {number | string} shopId
