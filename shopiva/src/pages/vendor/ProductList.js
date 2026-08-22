@@ -136,6 +136,7 @@ export default function VendorProductListScreen() {
   const [actionSheetProduct, setActionSheetProduct] = useState(
     /** @type {ReturnType<typeof mapApiProductToRow> | null} */ (null),
   );
+  const [isDeletingProduct, setIsDeletingProduct] = useState(false);
 
   /** MVP: always bind to the first shop in the owner list (no multi-shop UI). */
   useEffect(() => {
@@ -274,6 +275,7 @@ export default function VendorProductListScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
+            setIsDeletingProduct(true);
             try {
               await deleteProduct(sid, productId, uid);
               Alert.alert('Deleted', 'Product deleted successfully.');
@@ -283,6 +285,8 @@ export default function VendorProductListScreen() {
                 'Delete failed',
                 error instanceof Error ? error.message : 'Could not delete this product.',
               );
+            } finally {
+              setIsDeletingProduct(false);
             }
           },
         },
@@ -458,6 +462,15 @@ export default function VendorProductListScreen() {
           </View>
         </View>
       </Modal>
+
+      <Modal visible={isDeletingProduct} transparent animationType="fade" onRequestClose={() => {}}>
+        <View style={styles.processingOverlay}>
+          <View style={styles.processingCard}>
+            <ActivityIndicator size="large" color={BRAND} />
+            <Text style={styles.processingText}>Deleting product...</Text>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -477,6 +490,32 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: BG,
+  },
+  processingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(17, 24, 39, 0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  processingCard: {
+    width: 180,
+    height: 120,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.96)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    elevation: 12,
+  },
+  processingText: {
+    marginTop: 12,
+    color: TEXT,
+    fontSize: 14,
+    fontWeight: '600',
   },
   toolbar: {
     flexDirection: 'row',

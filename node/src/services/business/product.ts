@@ -87,13 +87,12 @@ export async function DeleteProductService(productId: number) {
   try {
     await client.query("BEGIN");
 
-    const categoryRow = await client.query<{ category: string | null; category_id?: number | null }>(
-      `SELECT category, category_id FROM products WHERE id = $1 FOR UPDATE`,
+    const categoryRow = await client.query<{ category: string | null }>(
+      `SELECT category FROM products WHERE id = $1 FOR UPDATE`,
       [productId],
     );
 
     const targetCategory = String(categoryRow.rows[0]?.category ?? existing.category ?? "").trim();
-    const targetCategoryId = Number(categoryRow.rows[0]?.category_id ?? NaN);
 
     const deleteResult = await client.query(
       `DELETE FROM products WHERE id = $1`,
@@ -104,14 +103,7 @@ export async function DeleteProductService(productId: number) {
       throw new Error("Failed to delete product");
     }
 
-    if (Number.isFinite(targetCategoryId) && targetCategoryId > 0) {
-      await client.query(
-        `UPDATE categories
-         SET existing_product_count = GREATEST(COALESCE(existing_product_count, 0) - 1, 0)
-         WHERE id = $1`,
-        [targetCategoryId],
-      );
-    } else if (targetCategory) {
+   if (targetCategory) {
       await client.query(
         `UPDATE categories
          SET existing_product_count = GREATEST(COALESCE(existing_product_count, 0) - 1, 0)
