@@ -361,6 +361,12 @@ export default function VendorCreateProductScreen() {
   }, [subCategory, categoryKey]);
 
   useEffect(() => {
+    if (isGenderDrivenCategory(categoryKey) && productType.trim()) {
+      setSubCategory(productType);
+    }
+  }, [categoryKey, productType]);
+
+  useEffect(() => {
     if (isGenderDrivenCategory(categoryKey)) {
       setProductType('');
     }
@@ -475,6 +481,7 @@ export default function VendorCreateProductScreen() {
   const clearVariantFields = useCallback(() => {
     setVariantColor(null);
     setVariantSize('');
+    
     setVariantMaterial('');
     setVariantStock('');
     setVariantPrice('');
@@ -600,6 +607,9 @@ export default function VendorCreateProductScreen() {
           break;
         case 'type':
           setProductType(s);
+          if (isGenderDrivenCategory(categoryKey)) {
+            setSubCategory(s);
+          }
           break;
         case 'gender':
           setGender(s);
@@ -1136,7 +1146,7 @@ export default function VendorCreateProductScreen() {
             style={styles.input}
             placeholder="Enter variant quantity"
             placeholderTextColor="#9CA3AF"
-            // value={quantity}
+            value={variantStock}
             onChangeText={handleVariantStockChange}
           />
 
