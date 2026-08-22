@@ -54,7 +54,10 @@ import {
   resolveClothingSubType,
   resolveSizeOptions,
 } from '../../utils/variantOptions';
-import { buildProductCreatePayloads } from '../../utils/vendorProductPayload';
+import {
+  buildProductCreatePayloads,
+  getVariantPriceRange,
+} from '../../utils/vendorProductPayload';
 
 const GENDERS = ['Male', 'Female'];
 
@@ -802,6 +805,7 @@ export default function VendorCreateProductScreen() {
         savedVariants,
         allowPickup,
         allowDelivery,
+        price: getVariantPriceRange(savedVariants),
         // price,
         // quantity,
         continueSelling,

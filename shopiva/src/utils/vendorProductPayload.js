@@ -21,6 +21,41 @@
  * @param {string} [quantity] - base qty when no variants
  * @param {boolean} [continueSelling] - maps to `allow_backorder`
  */
+export function getVariantPriceRange(savedVariants = []) {
+  const numericPrices = (Array.isArray(savedVariants) ? savedVariants : [])
+    .map((variant) => {
+      const match = Array.isArray(variant?.details)
+        ? variant.details.find(
+            (detail) =>
+              detail &&
+              typeof detail === 'object' &&
+              String(detail.label ?? '').toLowerCase() === 'price',
+          )
+        : null;
+      const raw = match?.value ?? '';
+      const parsed = Number(String(raw).replace(/[^\d.]/g, ''));
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    })
+    .filter((value) => Number.isFinite(value) && value > 0);
+
+  if (numericPrices.length === 0) {
+    return '';
+  }
+
+  const min = Math.min(...numericPrices);
+  const max = Math.max(...numericPrices);
+  const formatNaira = value =>
+    new Intl.NumberFormat('en-NG', {
+      maximumFractionDigits: 0,
+    }).format(Number(value || 0));
+
+  if (numericPrices.length === 1) {
+    return String(formatNaira(min));
+  }
+
+  return `${formatNaira(min)} - ${formatNaira(max)}`;
+}
+
 export function buildProductCreatePayloads({
   loadedSpecifications = {},
   title,
@@ -42,6 +77,10 @@ export function buildProductCreatePayloads({
   const variantStockTotal = hasVariants
     ? savedVariants.reduce((total, item) => total + Number(item?.stock || 0), 0)
     : 0;
+  const derivedPrice =
+    price && String(price).trim() !== ''
+      ? String(price).trim()
+      : getVariantPriceRange(savedVariants);
 
   const slug =
     String(title ?? '')
@@ -104,7 +143,11 @@ export function buildProductCreatePayloads({
   const qtyNum = hasVariants
     ? Number(variantStockTotal)
     : Number(String(quantity ?? '0').replace(/,/g, '')) || 0;
-  const priceNum = Number(String(price ?? '').replace(/,/g, '')) || 0;
+  const priceNum = Number(
+    String(derivedPrice ?? '')
+      .replace(/[^\d.-]/g, '')
+      .split('-')[0],
+  ) || 0;
 
   const inventoryPayload = {
     sku: null,
