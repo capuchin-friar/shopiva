@@ -16,7 +16,7 @@ import {
   View,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
 import {
@@ -30,7 +30,13 @@ import {
   fetchShopDetails,
   uploadProductImage,
 } from '../../api/shop';
-import { createInventory, createProduct } from '../../api/product';
+import {
+  createInventory,
+  createProduct,
+  getProduct,
+  updateInventory,
+  updateProduct,
+} from '../../api/product';
 import { useProfile } from '../../context/ProfileContext';
 import {
   selectCategoryTree,
@@ -70,6 +76,43 @@ function chunkArray(arr, size) {
   return chunks;
 }
 
+function normalizeStoredSpecifications(raw) {
+  if (!raw) return {};
+  if (typeof raw === 'object' && !Array.isArray(raw)) {
+    return raw;
+  }
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? parsed
+        : {};
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+function normalizeVariantRecord(rawVariant, index) {
+  const details = Array.isArray(rawVariant?.details)
+    ? rawVariant.details
+        .filter(Boolean)
+        .map(detail => ({
+          label: String(detail?.label ?? '').trim(),
+          value: String(detail?.value ?? '').trim(),
+        }))
+        .filter(detail => detail.label && detail.value)
+    : [];
+  const stockValue = Number(rawVariant?.stock ?? rawVariant?.quantity ?? 0);
+
+  return {
+    id: String(rawVariant?.id ?? `saved-variant-${index}`),
+    details,
+    stock: Number.isFinite(stockValue) ? stockValue : 0,
+  };
+}
+
 const VARIANT_FORM_WARNING =
   'Please fill in the variant form. Color, size, stock (greater than 0), and variant price are all required.';
 
@@ -78,6 +121,7 @@ const VARIANT_FORM_WARNING =
  */
 export default function VendorCreateProductScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
   const insets = useSafeAreaInsets();
   const { user } = useProfile();
   const reduxCategoryKeys = useSelector(selectCategoryTree);
@@ -88,6 +132,11 @@ export default function VendorCreateProductScreen() {
   const [shopDetails, setShopDetails] = useState(
     /** @type {Record<string, unknown> | null} */ (null),
   );
+  const rawEditProductId = route.params?.productId;
+  const editProductId = useMemo(() => {
+    const parsed = Number(rawEditProductId ?? '');
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }, [rawEditProductId]);
   const [productId] = useState(
     () => `prod_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
   );
@@ -166,6 +215,7 @@ export default function VendorCreateProductScreen() {
   const [mediaUploadError, setMediaUploadError] = useState('');
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [showFinishSheet, setShowFinishSheet] = useState(false);
+  const [loadingExistingProduct, setLoadingExistingProduct] = useState(false);
 
   const categoryRoots = useMemo(
     () =>
@@ -201,6 +251,70 @@ export default function VendorCreateProductScreen() {
 
     setVariantFields(parsedVariants instanceof Object ? parsedVariants : {});
   }, [categoryKey, reduxCategoryState.categories]);
+
+  useEffect(() => {
+    if (!resolvedShopId || !user?.id || editProductId == null) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoadingExistingProduct(true);
+        const data = await getProduct(resolvedShopId, editProductId, user.id);
+        if (cancelled) return;
+        const product = data?.product ?? data ?? {};
+        const productSpecs = normalizeStoredSpecifications(product.specifications);
+        const variantEntries = Array.isArray(productSpecs.variants)
+          ? productSpecs.variants.map(normalizeVariantRecord)
+          : [];
+
+        setTitle(String(product.name ?? ''));
+        setDescription(String(product.description ?? ''));
+        setBrandName(String(product.brand ?? ''));
+        setCategory(
+          String(product.category ?? defaultCategory)
+            .trim()
+            .toLowerCase() || defaultCategory,
+        );
+        setGender(String(productSpecs.gender ?? ''));
+        setSubCategory(String(product.subcategory ?? ''));
+        setProductType(String(productSpecs.type ?? ''));
+        setAllowPickup(Boolean(productSpecs.delivery_methods?.pickup));
+        setAllowDelivery(Boolean(productSpecs.delivery_methods?.delivery));
+        setSavedVariants(variantEntries);
+
+        const images = Array.isArray(product.images)
+          ? product.images
+              .map(item => String(item ?? '').trim())
+              .filter(Boolean)
+              .map((url, index) => ({
+                id: `${editProductId}-img-${index}`,
+                url,
+                type: 'image',
+              }))
+          : [];
+        setUploadedMedia(images);
+        setThumbnailUrl(String(product.thumbnail_url ?? images[0]?.url ?? ''));
+
+        if (product.weight != null) {
+          setWeightKg(String(product.weight));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          Alert.alert(
+            'Could not load product',
+            error instanceof Error ? error.message : 'The product could not be loaded.',
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingExistingProduct(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [defaultCategory, editProductId, resolvedShopId, user?.id]);
 
   const dynamicVariantEntries = useMemo(
     () =>
@@ -566,7 +680,6 @@ export default function VendorCreateProductScreen() {
     variantSize,
     variantMaterial,
     variantPrice,
-    variantFields,
     dynamicVariantEntries,
     dynamicVariantValues,
     variantCtx.sizeFieldLabel,
@@ -639,7 +752,7 @@ export default function VendorCreateProductScreen() {
           break;
       }
     },
-    [picker, colorByValue, variantFields],
+    [picker, colorByValue, variantFields, categoryKey],
   );
 
   const optionPickerProps = useMemo(() => {
@@ -824,30 +937,70 @@ export default function VendorCreateProductScreen() {
         thumbnailUrl || (uploadedMedia[0] ? uploadedMedia[0].url : null);
       productPayload.image_folder_id = productId;
 
-      const data = await createProduct(resolvedShopId, uid, productPayload);
-      const rawProduct = data?.product;
-      const product =
-        rawProduct && typeof rawProduct === 'object'
-          ? /** @type {Record<string, unknown>} */ (rawProduct)
-          : {};
-      const productIdRaw = product.id ?? product.product_id;
-      const createdProductId =
-        typeof productIdRaw === 'number'
-          ? productIdRaw
-          : parseInt(String(productIdRaw ?? ''), 10);
-      if (
-        createdProductId == null ||
-        Number.isNaN(Number(createdProductId)) ||
-        Number(createdProductId) <= 0
-      ) {
-        throw new Error('Invalid response from server (missing product id).');
+      if (editProductId != null) {
+        const result = await updateProduct(
+          resolvedShopId,
+          editProductId,
+          uid,
+          productPayload,
+        );
+        const rawProduct = result?.product ?? result ?? {};
+        const updatedProductId =
+          rawProduct.id ?? rawProduct.product_id ?? editProductId;
+        if (updatedProductId == null || Number(updatedProductId) <= 0) {
+          throw new Error('Invalid response from server (missing product id).');
+        }
+
+        const inventoryRows = Array.isArray(result?.inventory)
+          ? result.inventory
+          : [];
+
+        if (inventoryRows.length > 0) {
+          await Promise.all(
+            inventoryRows.map(row =>
+              updateInventory(
+                resolvedShopId,
+                Number(updatedProductId),
+                row.id ?? row.inventory_id,
+                uid,
+                inventoryPayload,
+              ),
+            ),
+          );
+        } else {
+          await createInventory(
+            resolvedShopId,
+            Number(updatedProductId),
+            uid,
+            inventoryPayload,
+          );
+        }
+      } else {
+        const data = await createProduct(resolvedShopId, uid, productPayload);
+        const rawProduct = data?.product;
+        const product =
+          rawProduct && typeof rawProduct === 'object'
+            ? /** @type {Record<string, unknown>} */ (rawProduct)
+            : {};
+        const productIdRaw = product.id ?? product.product_id;
+        const createdProductId =
+          typeof productIdRaw === 'number'
+            ? productIdRaw
+            : parseInt(String(productIdRaw ?? ''), 10);
+        if (
+          createdProductId == null ||
+          Number.isNaN(Number(createdProductId)) ||
+          Number(createdProductId) <= 0
+        ) {
+          throw new Error('Invalid response from server (missing product id).');
+        }
+        await createInventory(
+          resolvedShopId,
+          createdProductId,
+          uid,
+          inventoryPayload,
+        );
       }
-      await createInventory(
-        resolvedShopId,
-        createdProductId,
-        uid,
-        inventoryPayload,
-      );
       setShowFinishSheet(false);
       Alert.alert('Saved', 'Product is live as active.', [
         { text: 'OK', onPress: () => navigation.goBack() },
@@ -879,6 +1032,7 @@ export default function VendorCreateProductScreen() {
     uploadedMedia,
     thumbnailUrl,
     productId,
+    editProductId,
     navigation,
   ]);
 
@@ -902,10 +1056,17 @@ export default function VendorCreateProductScreen() {
         <View style={styles.headerSpacer} />
       </View> */}
 
+      {loadingExistingProduct ? (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#00926e" />
+          <Text style={styles.loadingOverlayText}>Loading product details…</Text>
+        </View>
+      ) : null}
+
       <ScrollView
         style={styles.scrollFlex}
         contentContainerStyle={[styles.scroll, { paddingBottom: 16 }]}
-        pointerEvents={mediaUploading ? 'none' : 'auto'}
+        pointerEvents={mediaUploading || loadingExistingProduct ? 'none' : 'auto'}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >

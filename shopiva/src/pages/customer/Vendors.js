@@ -30,6 +30,7 @@ import {
   selectCategoriesError,
   selectCategoriesLoading,
   selectCategoryKeys,
+  selectCategoryRows,
 } from '../../../redux/categoriesSlice';
 
 const WINDOW_W = Dimensions.get('window').width;
@@ -515,9 +516,18 @@ function VendorLocationSheet({
  */
 export default function VendorScreen({ route, navigation }) {
   const routeCategory = String(route.params?.category ?? '').trim().toLowerCase();
+  const categoryRows = useSelector(selectCategoryRows);
   const categories = useSelector(selectCategoryKeys);
   const categoriesLoading = useSelector(selectCategoriesLoading);
   const categoriesError = useSelector(selectCategoriesError) ?? '';
+  const visibleCategories = useMemo(
+    () =>
+      categoryRows
+        .filter(row => Number(row?.existingProductCount ?? 0) > 0)
+        .map(row => String(row?.category ?? '').trim().toLowerCase())
+        .filter(Boolean),
+    [categoryRows],
+  );
   const [selectedCategory, setSelectedCategory] = useState(routeCategory);
   const category = selectedCategory;
   const [vendors, setVendors] = useState([]);
@@ -544,7 +554,7 @@ export default function VendorScreen({ route, navigation }) {
   const [vendorPolicyEmptyMessage, setVendorPolicyEmptyMessage] = useState('');
 
   useEffect(() => {
-    if (!categories.length) {
+    if (!visibleCategories.length) {
       setSelectedCategory('');
       return;
     }
@@ -552,14 +562,14 @@ export default function VendorScreen({ route, navigation }) {
     setSelectedCategory((current) => {
       const currentKey = String(current ?? '').trim().toLowerCase();
       if (currentKey) {
-        const existing = categories.find((option) => option.toLowerCase() === currentKey);
+        const existing = visibleCategories.find((option) => option === currentKey);
         if (existing) return existing;
       }
 
-      const routeMatch = categories.find((option) => option.toLowerCase() === routeCategory);
-      return routeMatch ?? categories[0];
+      const routeMatch = visibleCategories.find((option) => option === routeCategory);
+      return routeMatch ?? visibleCategories[0];
     });
-  }, [categories, routeCategory]);
+  }, [routeCategory, visibleCategories]);
 
   useEffect(() => {
     if (!category) {
@@ -837,10 +847,9 @@ export default function VendorScreen({ route, navigation }) {
 
   const categorySlider = (
     <View style={styles.categorySliderSection}>
-      {/* <Text style={styles.categorySliderTitle}>Categories</Text> */}
       <FlatList
         horizontal
-        data={categories}
+        data={visibleCategories}
         keyExtractor={item => item}
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.categorySliderContent}
