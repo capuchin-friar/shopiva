@@ -21,6 +21,7 @@ import { selectCategoryTree } from '../../../redux/categoriesSlice';
 import { getStorefrontProducts, getStorefrontShop } from '../../api/storefront';
 import { formatNaira } from '../../utils/formatNaira';
 import { getProductImageUri } from '../../utils/productImageUtils';
+import { getVariantRowPrice } from '../../utils/storefrontProductDetail';
 
 const { width: WINDOW_W, height: WINDOW_H } = Dimensions.get('window');
 const BROWN = '#00926e';
@@ -70,15 +71,41 @@ function applyProductFilters(products, f) {
 
 /**
  * @param {Record<string, unknown>} p
+ * @returns {number[]}
+ */
+function collectVariantPriceNumbers(p) {
+  const numbers = [];
+  const variants = Array.isArray(p?.variants) ? p.variants : [];
+  for (const variant of variants) {
+    const price = getVariantRowPrice(variant && typeof variant === 'object' ? variant : null);
+    if (Number.isFinite(price) && price >= 0) {
+      numbers.push(price);
+    }
+  }
+  if (numbers.length) return numbers;
+  const fallback = [
+    Number(p?.minPrice),
+    Number(p?.maxPrice),
+    Number(p?.priceUsd),
+    Number(p?.price),
+    Number(p?.unitPrice),
+    Number(p?.unit_price),
+  ].filter((value) => Number.isFinite(value) && value >= 0);
+  return fallback.length ? fallback : [];
+}
+
+/**
+ * @param {Record<string, unknown>} p
  * @param {number} index
  */
 function mapStorefrontProductToTile(p, index) {
   const id = String(p.id ?? index);
   const title = String(p.name ?? p.title ?? 'Product').trim() || 'Product';
   const uri = getProductImageUri(p) || '';
-  const hasVariants = Boolean(p.hasVariants);
-  const minPrice = Number(p.minPrice) || 0;
-  const maxPrice = Number(p.maxPrice) || minPrice;
+  const variantPrices = collectVariantPriceNumbers(p);
+  const minPrice = variantPrices.length ? Math.min(...variantPrices) : 0;
+  const maxPrice = variantPrices.length ? Math.max(...variantPrices) : minPrice;
+  const hasVariants = Boolean(p.hasVariants) || variantPrices.length > 1;
   const gender = String(p.gender ?? 'Male');
   const subCategory = String(p.subCategory ?? p.subcategory ?? 'general').toLowerCase();
   const type = String(p.type ?? subCategory).toLowerCase();
@@ -100,13 +127,18 @@ function mapStorefrontProductToTile(p, index) {
 }
 
 /**
- * @param {{ priceUsd?: number; currency?: string }} p
+ * @param {{ priceUsd?: number; currency?: string; hasVariants?: boolean; minPrice?: number; maxPrice?: number; variants?: unknown[] }} p
  */
 function formatProductTilePrice(p) {
-  if (p.hasVariants && Number(p.minPrice) !== Number(p.maxPrice)) {
-    return `${formatNaira(Number(p.minPrice) || 0)} – ${formatNaira(Number(p.maxPrice) || 0)}`;
+  const variantPrices = collectVariantPriceNumbers(p);
+  const hasVariants = Boolean(p.hasVariants) || variantPrices.length > 1;
+  if (hasVariants && variantPrices.length > 1) {
+    const lo = Math.min(...variantPrices);
+    const hi = Math.max(...variantPrices);
+    return lo === hi ? formatNaira(lo) : `${formatNaira(lo)} – ${formatNaira(hi)}`;
   }
-  return formatNaira(Number(p.minPrice ?? p.priceUsd) || 0);
+  const fallbackPrice = variantPrices[0] ?? ((Number(p.minPrice) ?? Number(p.priceUsd)) || 0);
+  return formatNaira(fallbackPrice);
 }
 
 /**

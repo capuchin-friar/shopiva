@@ -36,7 +36,6 @@ import {
   selectCategoryTree,
   selectCategoriesState,
 } from '../../../redux/categoriesSlice';
-import colorJson from '../../json/color.json';
 import mvpCategoryData from '../../json/mvp_category.json';
 import {
   buildMvpCategoryFilters,
@@ -45,15 +44,7 @@ import {
   isGenderDrivenCategory,
   mvpCategoryRootKeys,
 } from '../../utils/mvpCategory';
-import {
-  buildColorOptionsFromJson,
-  buildVariantSnapshot,
-  formatPriceInput,
-  getClothingSubtypeConfig,
-  materialStringsForSizeKey,
-  resolveClothingSubType,
-  resolveSizeOptions,
-} from '../../utils/variantOptions';
+import { formatPriceInput } from '../../utils/variantOptions';
 import { buildProductCreatePayloads } from '../../utils/vendorProductPayload';
 
 const GENDERS = ['Male', 'Female'];
@@ -68,7 +59,7 @@ function chunkArray(arr, size) {
 }
 
 const VARIANT_FORM_WARNING =
-  'Please fill in the variant form. Color, size, stock (greater than 0), and variant price are all required.';
+  'Please fill in the variant form. All required variant options, stock, and variant price are required.';
 
 /**
  * Create product flow (nested under Products tab stack).
@@ -105,38 +96,11 @@ export default function VendorCreateProductScreen() {
   const [subCategory, setSubCategory] = useState('');
   const [productType, setProductType] = useState('');
   const [picker, setPicker] = useState(
-    /** @type {null | 'category' | 'sub' | 'type' | 'gender' | 'variantColor' | 'variantSize' | 'variantMaterial'} */ (
-      null
-    ),
-  );
-  const colorOptionsList = useMemo(
-    () => buildColorOptionsFromJson(colorJson),
-    [],
-  );
-  /** @type {Record<string, { value: string; label: string; color: string }>} */
-  const colorByValue = useMemo(
-    () => Object.fromEntries(colorOptionsList.map(c => [c.value, c])),
-    [colorOptionsList],
-  );
-  const colorPickerValues = useMemo(
-    () => colorOptionsList.map(c => c.value),
-    [colorOptionsList],
-  );
-  /** @type {Record<string, string>} */
-  const colorSwatchByValue = useMemo(
-    () => Object.fromEntries(colorOptionsList.map(c => [c.value, c.color])),
-    [colorOptionsList],
+    /** @type {null | 'category' | 'sub' | 'type' | 'gender'} */ (null),
   );
 
   const [variantFields, setVariantFields] = useState({});
-
-  const [variantColor, setVariantColor] = useState(
-    /** @type {null | { value: string; label: string; color: string }} */ (
-      null
-    ),
-  );
-  const [variantSize, setVariantSize] = useState('');
-  const [variantMaterial, setVariantMaterial] = useState('');
+  const [dynamicVariantSelections, setDynamicVariantSelections] = useState({});
   const [variantStock, setVariantStock] = useState('');
   const [variantPrice, setVariantPrice] = useState('');
   const [variantError, setVariantError] = useState('');
@@ -190,12 +154,54 @@ export default function VendorCreateProductScreen() {
     const activeCategory = reduxCategoryState.categories.find(
       item => item.category === categoryKey,
     );
-    const parsedVariants = activeCategory?.variants
-      ? JSON.parse(activeCategory?.variants)
-      : '';
 
-    setVariantFields(parsedVariants instanceof Object ? parsedVariants : {});
+    const rawVariants = activeCategory?.variants;
+    let parsedVariants = {};
+    if (typeof rawVariants === 'string') {
+      try {
+        parsedVariants = JSON.parse(rawVariants);
+      } catch {
+        parsedVariants = {};
+      }
+    } else if (rawVariants && typeof rawVariants === 'object') {
+      parsedVariants = rawVariants;
+    }
+
+    setVariantFields(parsedVariants && typeof parsedVariants === 'object' ? parsedVariants : {});
+    setDynamicVariantSelections({});
   }, [categoryKey, reduxCategoryState.categories]);
+
+  const normalizedVariantFields = useMemo(() => {
+    if (!variantFields || typeof variantFields !== 'object') return {};
+
+    return Object.entries(variantFields).reduce((acc, [fieldKey, fieldValue]) => {
+      const key = String(fieldKey ?? '').trim();
+      if (!key) return acc;
+
+      let options = [];
+      if (Array.isArray(fieldValue)) {
+        options = fieldValue;
+      } else if (fieldValue && typeof fieldValue === 'object') {
+        if (Array.isArray(fieldValue.options)) {
+          options = fieldValue.options;
+        } else if (Array.isArray(fieldValue.values)) {
+          options = fieldValue.values;
+        } else {
+          options = Object.keys(fieldValue);
+        }
+      }
+
+      acc[key] = options
+        .map(option => String(option ?? '').trim())
+        .filter(Boolean);
+      return acc;
+    }, {});
+  }, [variantFields]);
+
+  const dynamicVariantEntries = useMemo(
+    () => Object.entries(normalizedVariantFields),
+    [normalizedVariantFields],
+  );
 
   const typeOptions = useMemo(() => {
     if (isGenderDrivenCategory(categoryKey)) {
@@ -279,51 +285,7 @@ export default function VendorCreateProductScreen() {
     return unsubscribe;
   }, [navigation, mediaUploading]);
 
-  const variantCtx = useMemo(() => {
-    const cat = categoryKey;
-    const sub = String(subCategory || '');
-    const typ = String(productType || '');
-    const sizeConfig = resolveSizeOptions({
-      category: cat,
-      subCategory: sub,
-      type: typ,
-    });
-    const clothingSubType = resolveClothingSubType({
-      category: cat,
-      subCategory: sub,
-      type: typ,
-    });
-    const clothingSubTypeConfig = getClothingSubtypeConfig(clothingSubType);
-    const resolvedSizeOptions =
-      sizeConfig.key === 'clothing' && clothingSubTypeConfig
-        ? clothingSubTypeConfig.options
-        : sizeConfig.options;
-    const sizeFieldLabel =
-      sizeConfig.key === 'clothing' && clothingSubTypeConfig
-        ? `${clothingSubTypeConfig.label} size`
-        : sizeConfig.label.replace(/s$/i, '');
-    const materialStrings = materialStringsForSizeKey(sizeConfig.key);
-    const materialFieldLabel =
-      sizeConfig.key === 'food' ? 'Packaging' : 'Material';
-    const materialPlaceholder =
-      sizeConfig.key === 'food' ? 'Select packaging' : 'Select a material';
-    const sizePlaceholder =
-      sizeConfig.key === 'clothing' && clothingSubTypeConfig
-        ? `Select a ${clothingSubTypeConfig.label.toLowerCase()} size`
-        : `Select ${sizeConfig.label.toLowerCase()}`;
-    return {
-      sizeConfigKey: sizeConfig.key,
-      resolvedSizeOptions,
-      sizeFieldLabel,
-      materialStrings,
-      materialFieldLabel,
-      materialPlaceholder,
-      sizePlaceholder,
-    };
-  }, [categoryKey, subCategory, productType]);
-
   const canAddVariant = useMemo(() => {
-    if (!variantColor || !variantSize.trim()) return false;
     const stockStr = variantStock.trim();
     const stockOk =
       stockStr !== '' && /^\d+$/.test(stockStr) && Number(stockStr) > 0;
@@ -333,7 +295,7 @@ export default function VendorCreateProductScreen() {
     const priceNum = Number(priceRaw);
     const priceOk = priceRaw !== '' && !Number.isNaN(priceNum) && priceNum > 0;
     return stockOk && priceOk;
-  }, [variantColor, variantSize, variantStock, variantPrice]);
+  }, [variantStock, variantPrice]);
 
   useEffect(() => {
     setSubCategory('');
@@ -374,13 +336,13 @@ export default function VendorCreateProductScreen() {
     : baseQuantityAmount > 0;
   const isGenderCategory = isGenderDrivenCategory(categoryKey);
   const hasFashionGender = !isGenderCategory || gender.trim().length > 0;
+  const hasSavedVariant = savedVariants.length > 0;
   const hasCoreFields =
     title.trim().length > 1 &&
     category.trim().length > 0 &&
-    isPriceValid &&
-    isQuantityValid &&
     hasFashionGender &&
-    uploadedMedia.length > 0;
+    uploadedMedia.length > 0 &&
+    hasSavedVariant;
   const hasCategoryFields = isGenderCategory
     ? productType.trim().length > 0
     : subCategory.trim().length > 0 && productType.trim().length > 0;
@@ -456,9 +418,7 @@ export default function VendorCreateProductScreen() {
   }, [hasCategoryFields, hasCoreFields]);
 
   const clearVariantFields = useCallback(() => {
-    setVariantColor(null);
-    setVariantSize('');
-    setVariantMaterial('');
+    setDynamicVariantSelections({});
     setVariantStock('');
     setVariantPrice('');
     setVariantError('');
@@ -478,8 +438,6 @@ export default function VendorCreateProductScreen() {
   }, []);
 
   const handleSaveVariant = useCallback(() => {
-    const missingColor = !variantColor;
-    const missingSize = !variantSize.trim();
     const stockStr = variantStock.trim();
     const stockInvalid =
       !stockStr || !/^\d+$/.test(stockStr) || Number(stockStr) <= 0;
@@ -489,19 +447,36 @@ export default function VendorCreateProductScreen() {
     const priceNum = Number(priceRaw);
     const priceInvalid = !priceRaw || Number.isNaN(priceNum) || priceNum <= 0;
 
-    if (missingColor || missingSize || stockInvalid || priceInvalid) {
+    if (stockInvalid || priceInvalid) {
       setVariantError(VARIANT_FORM_WARNING);
       return;
     }
-    const details = buildVariantSnapshot({
-      color: variantColor,
-      size: variantSize.trim(),
-      material: variantMaterial.trim(),
-      price: variantPrice.trim(),
-      stock: variantStock.trim(),
-      sizeDetailLabel: variantCtx.sizeFieldLabel,
-      materialDetailLabel: variantCtx.materialFieldLabel,
-    });
+
+    const details = Object.entries(normalizedVariantFields)
+      .filter(([fieldKey]) => {
+        if (fieldKey === 'brand') {
+          return Boolean(dynamicVariantSelections[fieldKey]?.trim());
+        }
+        return Boolean(dynamicVariantSelections[fieldKey]);
+      })
+      .map(([fieldKey, fieldOptions]) => {
+        const selectedValue = dynamicVariantSelections[fieldKey];
+        const label = fieldKey
+          .split(/[_\s-]+/)
+          .filter(Boolean)
+          .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(' ');
+        return {
+          label: fieldOptions.length > 0 ? label : 'Option',
+          value: String(selectedValue).trim(),
+        };
+      });
+
+    details.push(
+      { label: 'Price', value: `₦${variantPrice.trim()}` },
+      { label: 'Stock', value: String(variantStock.trim()) },
+    );
+
     setSavedVariants(prev => [
       ...prev,
       {
@@ -512,13 +487,10 @@ export default function VendorCreateProductScreen() {
     ]);
     clearVariantFields();
   }, [
+    normalizedVariantFields,
+    dynamicVariantSelections,
     variantStock,
-    variantColor,
-    variantSize,
-    variantMaterial,
     variantPrice,
-    variantCtx.sizeFieldLabel,
-    variantCtx.materialFieldLabel,
     clearVariantFields,
   ]);
 
@@ -529,6 +501,16 @@ export default function VendorCreateProductScreen() {
   const handlePickerSelect = useCallback(
     raw => {
       const s = String(raw);
+
+      if (picker && normalizedVariantFields[picker]) {
+        setDynamicVariantSelections(prev => ({
+          ...prev,
+          [picker]: s,
+        }));
+        setVariantError('');
+        return;
+      }
+
       switch (picker) {
         case 'category':
           setCategory(s);
@@ -542,29 +524,11 @@ export default function VendorCreateProductScreen() {
         case 'gender':
           setGender(s);
           break;
-        case 'variantColor': {
-          const opt = colorByValue[s];
-          setVariantColor(
-            opt
-              ? { value: opt.value, label: opt.label, color: opt.color }
-              : null,
-          );
-          setVariantError('');
-          break;
-        }
-        case 'variantSize':
-          setVariantSize(s);
-          setVariantError('');
-          break;
-        case 'variantMaterial':
-          setVariantMaterial(s);
-          setVariantError('');
-          break;
         default:
           break;
       }
     },
-    [picker, colorByValue],
+    [picker, normalizedVariantFields],
   );
 
   const optionPickerProps = useMemo(() => {
@@ -608,34 +572,14 @@ export default function VendorCreateProductScreen() {
         swatchByValue: undefined,
       };
     }
-    if (picker === 'variantColor') {
+    if (normalizedVariantFields[picker]) {
       return {
-        title: 'Color',
-        options: colorPickerValues,
-        formatLabel: v => colorByValue[v]?.label ?? v,
-        swatchByValue: colorSwatchByValue,
-      };
-    }
-    if (picker === 'variantSize') {
-      return {
-        title: variantCtx.sizeFieldLabel,
-        options: variantCtx.resolvedSizeOptions,
-        formatLabel: s => s,
-        swatchByValue: undefined,
-      };
-    }
-    if (picker === 'variantMaterial') {
-      return {
-        title: variantCtx.materialFieldLabel,
-        options: variantCtx.materialStrings,
-        formatLabel: s => s,
-        swatchByValue: undefined,
-      };
-    }
-    if (variantFields[picker]) {
-      return {
-        title: picker,
-        options: variantFields[picker],
+        title: picker
+          .split(/[_\s-]+/)
+          .filter(Boolean)
+          .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+          .join(' '),
+        options: normalizedVariantFields[picker],
         formatLabel: formatMvpCategoryLabel,
         swatchByValue: undefined,
       };
@@ -651,13 +595,7 @@ export default function VendorCreateProductScreen() {
     categoryRoots,
     subCategories,
     typeOptions,
-    colorPickerValues,
-    colorByValue,
-    colorSwatchByValue,
-    variantCtx.sizeFieldLabel,
-    variantCtx.resolvedSizeOptions,
-    variantCtx.materialFieldLabel,
-    variantCtx.materialStrings,
+    normalizedVariantFields,
   ]);
 
   const onContinueFinalSave = useCallback(async () => {
@@ -677,12 +615,11 @@ export default function VendorCreateProductScreen() {
       return;
     }
     const brandTrim = brandName.trim();
-    if (!brandTrim) {
-      Alert.alert('Complete the form', 'Brand name is required.');
-      return;
-    }
-    if (!allowPickup && !allowDelivery) {
-      Alert.alert('Complete the form', 'Select at least one delivery method.');
+    if (savedVariants.length === 0) {
+      Alert.alert(
+        'Complete the form',
+        'Create at least one product variant before saving.',
+      );
       return;
     }
     const qtyCheck = hasVariantsList ? variantStockTotal : baseQuantityAmount;
@@ -693,10 +630,6 @@ export default function VendorCreateProductScreen() {
           ? 'Total variant stock must be greater than 0.'
           : 'Enter a valid quantity.',
       );
-      return;
-    }
-    if (!isPriceValid) {
-      Alert.alert('Complete the form', 'Enter a valid price.');
       return;
     }
 
@@ -714,8 +647,8 @@ export default function VendorCreateProductScreen() {
         savedVariants,
         allowPickup,
         allowDelivery,
-        price,
-        quantity,
+        // price,
+        // quantity,
         continueSelling,
         loadedSpecifications: {},
       });
@@ -777,7 +710,6 @@ export default function VendorCreateProductScreen() {
     hasVariantsList,
     variantStockTotal,
     baseQuantityAmount,
-    isPriceValid,
     title,
     description,
     categoryKey,
@@ -785,8 +717,6 @@ export default function VendorCreateProductScreen() {
     productType,
     gender,
     savedVariants,
-    price,
-    quantity,
     continueSelling,
     uploadedMedia,
     thumbnailUrl,
@@ -832,7 +762,7 @@ export default function VendorCreateProductScreen() {
           />
 
           <Text style={[styles.label, styles.spaceTop]}>
-            Product description
+            Product description (Optional)
           </Text>
           <View style={styles.toolbarRow}>
             <Icon name="text" size={18} color="#111111" />
@@ -989,71 +919,62 @@ export default function VendorCreateProductScreen() {
             </Text>
           </View>
           <Text style={styles.variantFormHint}>
-            Color, size, stock, and variant price are required. Material is
+            Only quantity and variant price are required. Other variant fields are
             optional.
           </Text>
-          {typeof variantFields == 'object' && variantFields !== null
-            ? Object.entries(variantFields).map(([key, value]) => {
-                {
-                  /* Alert.alert(JSON.stringify(key)); */
+          {dynamicVariantEntries.length > 0
+            ? dynamicVariantEntries.map(([fieldKey, fieldOptions]) => {
+                const displayLabel = fieldKey
+                  .split(/[_\s-]+/)
+                  .filter(Boolean)
+                  .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+                  .join(' ');
+                const selectedValue = dynamicVariantSelections[fieldKey] ?? '';
+
+                if (fieldKey.toLowerCase() === 'brand') {
+                  return (
+                    <View key={fieldKey || `variant-${displayLabel}`}>
+                      <VariantFieldLabel title={displayLabel} optional />
+                      <TextInput
+                        style={styles.input}
+                        placeholder={`Enter ${displayLabel.toLowerCase()}`}
+                        placeholderTextColor="#9CA3AF"
+                        value={selectedValue}
+                        onChangeText={text =>
+                          setDynamicVariantSelections(prev => ({
+                            ...prev,
+                            [fieldKey]: text,
+                          }))
+                        }
+                      />
+                    </View>
+                  );
                 }
-                const displayLabel = key.charAt(0).toUpperCase() + key.slice(1);
 
                 return (
-                  <View key={key || `variant-${displayLabel}`}>
-                    <VariantFieldLabel title={displayLabel} />
+                  <View key={fieldKey || `variant-${displayLabel}`}>
+                    <VariantFieldLabel title={displayLabel} optional />
                     <SelectField
                       value={
-                        key
-                          ? `Select a ${displayLabel.toLowerCase()}`
-                          : 'Select an option'
+                        selectedValue
+                          ? formatMvpCategoryLabel(selectedValue)
+                          : `Select a ${displayLabel.toLowerCase()}`
                       }
-                      onPress={() => {
-                        // setVariantKey(key);
-                        setPicker(key);
-                      }}
+                      onPress={() => setPicker(fieldKey)}
                     />
                   </View>
                 );
               })
             : null}
-          {/* const fieldName = String(variant ?? '').trim();
-                const normalized = fieldName.toLowerCase();
-                const pickerKey =
-                  normalized.includes('color')
-                    ? 'variantColor'
-                    : normalized.includes('size')
-                      ? 'variantSize'
-                      : normalized.includes('material')
-                        ? 'variantMaterial'
-                        : 'variantColor';
-                const displayLabel = fieldName ? fieldName.charAt(0).toUpperCase() + fieldName.slice(1) : 'Variant'; */}
-
-          {/* <VariantFieldLabel title="Color" />
-          <SelectField
-            value={variantColor ? variantColor.label : 'Select a color'}
-            onPress={() => setPicker('variantColor')}
-            leadingSwatch={variantColor?.color}
-          />
-          <VariantFieldLabel title={variantCtx.sizeFieldLabel} />
-          <SelectField
-            value={variantSize || variantCtx.sizePlaceholder}
-            onPress={() => setPicker('variantSize')}
-          />
-          <VariantFieldLabel title={variantCtx.materialFieldLabel} optional />
-          <SelectField
-            value={variantMaterial || variantCtx.materialPlaceholder}
-            onPress={() => setPicker('variantMaterial')}
-          />
-          <VariantFieldLabel title="Stock" />
+          <VariantFieldLabel title="Quantity" />
           <TextInput
             style={styles.input}
-            placeholder="Enter variant stock"
+            placeholder="Enter variant quantity"
             placeholderTextColor="#9CA3AF"
             keyboardType="number-pad"
             value={variantStock}
             onChangeText={handleVariantStockChange}
-          /> */}
+          />
 
           <VariantFieldLabel title="Variant price" />
           <NairaInput
@@ -1148,7 +1069,7 @@ export default function VendorCreateProductScreen() {
           ) : null}
         </View>
 
-        <View style={styles.card}>
+        {/* <View style={styles.card}>
           <Text style={styles.sectionTitle}>Pricing</Text>
           <Text style={styles.label}>Price</Text>
           <NairaInput
@@ -1165,7 +1086,6 @@ export default function VendorCreateProductScreen() {
           <Text style={styles.sectionTitle}>Inventory</Text>
           <Text style={styles.label}>Quantity</Text>
           <View style={styles.inventoryRow}>
-            {/* <Text style={styles.locationText}>Ifite Awka</Text> */}
             <TextInput
               style={styles.qtyInput}
               keyboardType="number-pad"
@@ -1178,7 +1098,7 @@ export default function VendorCreateProductScreen() {
             checked={continueSelling}
             onToggle={() => setContinueSelling(v => !v)}
           />
-        </View>
+        </View> */}
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Shipping (Optional)</Text>
@@ -1253,9 +1173,9 @@ export default function VendorCreateProductScreen() {
           <View style={styles.validationModalCard}>
             <Text style={styles.validationTitle}>Complete the form</Text>
             <Text style={styles.validationText}>
-              Please fill in every required field on this page (title, category,
-              price, quantity, and any category-specific options) before saving.
-              Check the red messages next to each field.
+              Please fill in every required product field, choose a category type,
+              and create at least one valid variant before saving. Shipping is
+              optional and does not need to be completed.
             </Text>
             <TouchableOpacity
               style={styles.validationOkBtn}
@@ -1297,7 +1217,7 @@ export default function VendorCreateProductScreen() {
                 <Icon name="close" size={22} color="#111111" />
               </TouchableOpacity>
             </View>
-            <Text style={styles.sheetHint}>
+            {/* <Text style={styles.sheetHint}>
               Add brand and how you deliver. We'll validate the full product
               when you continue.
             </Text>
@@ -1308,7 +1228,7 @@ export default function VendorCreateProductScreen() {
               placeholderTextColor="#9CA3AF"
               value={brandName}
               onChangeText={setBrandName}
-            />
+            /> */}
             <Text style={[styles.label, styles.spaceTop]}>
               Delivery methods
             </Text>

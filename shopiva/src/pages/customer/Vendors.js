@@ -26,6 +26,7 @@ import { formatNaira } from '../../utils/formatNaira';
 import { getProductImageUri } from '../../utils/productImageUtils';
 import { extractCustomerPolicySections } from '../../utils/shopPoliciesForCustomer';
 import { useSelector } from 'react-redux';
+import { getVariantRowPrice } from '../../utils/storefrontProductDetail';
 import {
   selectCategoriesError,
   selectCategoriesLoading,
@@ -34,6 +35,37 @@ import {
 
 const WINDOW_W = Dimensions.get('window').width;
 const WINDOW_H = Dimensions.get('window').height;
+
+function collectVariantPriceNumbers(product) {
+  const values = [];
+  const variants = Array.isArray(product?.variants) ? product.variants : [];
+  for (const variant of variants) {
+    const price = getVariantRowPrice(variant && typeof variant === 'object' ? variant : null);
+    if (Number.isFinite(price) && price >= 0) {
+      values.push(price);
+    }
+  }
+  if (values.length) return values;
+  const fallback = [
+    Number(product?.minPrice),
+    Number(product?.maxPrice),
+    Number(product?.priceUsd),
+    Number(product?.price),
+    Number(product?.unitPrice),
+    Number(product?.unit_price),
+  ].filter((value) => Number.isFinite(value) && value >= 0);
+  return fallback.length ? fallback : [];
+}
+
+function formatVariantPriceLabel(product) {
+  const values = collectVariantPriceNumbers(product);
+  if (!values.length) return formatNaira(0);
+  const minPrice = Math.min(...values);
+  const maxPrice = Math.max(...values);
+  return minPrice === maxPrice
+    ? formatNaira(minPrice)
+    : `${formatNaira(minPrice)} – ${formatNaira(maxPrice)}`;
+}
 
 function formatCategoryLabel(category) {
   return String(category ?? '')
@@ -622,21 +654,19 @@ export default function VendorScreen({ route, navigation }) {
               const items = list.slice(0, 8).map((p, idx) => {
                 const id = String(p?.id ?? idx);
                 const uri = getProductImageUri(p) || '';
-                const minPrice = Number(p?.minPrice) || 0;
-                const maxPrice = Number(p?.maxPrice) || minPrice;
-                const hasVariants = Boolean(p?.hasVariants);
+                const variantPrices = collectVariantPriceNumbers(p);
+                const minPrice = variantPrices.length ? Math.min(...variantPrices) : 0;
+                const maxPrice = variantPrices.length ? Math.max(...variantPrices) : minPrice;
+                const hasVariants = Boolean(p?.hasVariants) || variantPrices.length > 1;
                 const title =
                   String(p?.name ?? p?.title ?? 'Product').trim() || 'Product';
-                const priceLabel =
-                  hasVariants && minPrice !== maxPrice
-                    ? `${formatNaira(minPrice)} – ${formatNaira(maxPrice)}`
-                    : formatNaira(minPrice);
+                const priceLabel = formatVariantPriceLabel(p);
                 return {
                   key: id,
                   uri,
                   priceLabel,
                   title,
-                  priceUsd: minPrice,
+                  priceUsd: minPrice || Number(p?.priceUsd) || 0,
                   currency: String(p?.currency ?? 'NGN'),
                   gender: p?.gender == null ? undefined : String(p.gender),
                   subCategory:
