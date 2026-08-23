@@ -11,7 +11,7 @@ function normalizeNumber(value: unknown): number | null {
     return null;
 }
 
-export async function GetBuyerPendingReviewsController(req: AuthRequest, res: Response) {
+export async function GetBuyerProductPendingReviewsController(req: AuthRequest, res: Response) {
     try {
         const userId = req.user?.id;
         if (!userId) {
@@ -54,7 +54,7 @@ export async function GetBuyerPendingReviewsController(req: AuthRequest, res: Re
     }
 }
 
-export async function PostBuyerReviewController(req: AuthRequest, res: Response) {
+export async function PostBuyerProductReviewController(req: AuthRequest, res: Response) {
     try {
         const userId = req.user?.id;
         if (!userId) {
@@ -146,9 +146,9 @@ export async function PostBuyerReviewController(req: AuthRequest, res: Response)
 
         await pool.query(
             `INSERT INTO product_reviews (
-                product_id, user_id, order_id, order_item_id, rating, review_tag, comment, image_urls, created_at, updated_at
+                product_id, user_id, order_id, order_item_id, rating, comment, image_urls, created_at, updated_at
             ) VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW()
+                $1, $2, $3, $4, $5, $6, $7, NOW(), NOW()
             )`,
             [
                 actualProductId ?? productId,
@@ -156,7 +156,6 @@ export async function PostBuyerReviewController(req: AuthRequest, res: Response)
                 orderId,
                 orderItemId,
                 rating,
-                reviewTag,
                 comment,
                 JSON.stringify([]),
             ]
@@ -167,9 +166,15 @@ export async function PostBuyerReviewController(req: AuthRequest, res: Response)
             message: "Review created successfully",
         });
     } catch (err) {
+        console.log(err);
         res.status(400).json({
             success: false,
             error: err instanceof Error ? err.message : String(err),
         });
     }
 }
+
+export {
+    GetBuyerProductPendingReviewsController as GetBuyerPendingReviewsController,
+    PostBuyerProductReviewController as PostBuyerReviewController,
+};

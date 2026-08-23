@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -9,8 +10,7 @@ import {
 } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fetchBuyerPendingReviews } from '../api/buyer';
-import { formatNaira } from '../utils/formatNaira';
+import { fetchBuyerProductPendingReviews } from '../api/buyer';
 
 const BRAND = '#0D9488';
 const BG = '#F4F5F7';
@@ -19,26 +19,35 @@ const MUTED = '#6B7280';
 const TEXT = '#111111';
 
 function OrderReviewCard({ item, onPress }) {
-  const productPrice = Number(item?.unitPrice ?? item?.totalPrice ?? 0);
-
   return (
     <Pressable
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
       onPress={onPress}
     >
       <View style={styles.cardTop}>
-        <View style={styles.iconCircle}>
-          <Text style={styles.iconText}>★</Text>
-        </View>
+        {item?.productImage ? (
+          <Image
+            source={{ uri: item.productImage }}
+            style={styles.productImage}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={styles.iconCircle}>
+            <Text style={styles.iconText}>★</Text>
+          </View>
+        )}
         <View style={styles.cardBody}>
           <Text style={styles.orderId}>ORD-{item.orderId}</Text>
-          <Text style={styles.shopName} numberOfLines={1}>
-            {item?.shopName || 'Shop'}
+          <Text style={styles.meta}>
+            {item?.productName || 'Product'} •{' '}
+            {item?.quantity ? `Qty ${item.quantity}` : '1 item'}
           </Text>
         </View>
-        <Text style={styles.amount}>{formatNaira(productPrice)}</Text>
+        <Text style={styles.actionText}>Rate this product</Text>
       </View>
-      <Text style={styles.meta}>{item?.productName || 'Product'} • {item?.quantity ? `Qty ${item.quantity}` : '1 item'}</Text>
+      <Text style={styles.shopName} numberOfLines={1}>
+        {item?.shopName || 'Shop'}
+      </Text>
     </Pressable>
   );
 }
@@ -55,10 +64,12 @@ export default function PendingReviewsScreen() {
     setError('');
 
     try {
-      const data = await fetchBuyerPendingReviews();
+      const data = await fetchBuyerProductPendingReviews();
       setItems(Array.isArray(data) ? data : []);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load pending reviews');
+      setError(
+        e instanceof Error ? e.message : 'Failed to load pending reviews',
+      );
       setItems([]);
     } finally {
       setLoading(false);
@@ -103,7 +114,7 @@ export default function PendingReviewsScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.root, styles.centered, { paddingTop: 15 }]}> 
+      <View style={[styles.root, styles.centered, { paddingTop: 15 }]}>
         <ActivityIndicator size="large" color={BRAND} />
         <Text style={styles.loadingText}>Loading pending reviews…</Text>
       </View>
@@ -112,23 +123,35 @@ export default function PendingReviewsScreen() {
 
   if (error) {
     return (
-      <View style={[styles.root, styles.centered, { paddingTop: 15, paddingHorizontal: 24 }]}> 
+      <View
+        style={[
+          styles.root,
+          styles.centered,
+          { paddingTop: 15, paddingHorizontal: 24 },
+        ]}
+      >
         <Text style={styles.errorText}>{error}</Text>
       </View>
     );
   }
 
   return (
-    <View style={[styles.root, { paddingTop: 15 }]}> 
+    <View style={[styles.root, { paddingTop: 15 }]}>
       <FlatList
         data={list}
-        keyExtractor={(item) => String(item?.id ?? item?.order_id)}
+        keyExtractor={item => String(item?.orderItemId ?? item?.id ?? item?.order_id ?? Math.random())}
         renderItem={renderItem}
-        contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 20) + 16 }]}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: Math.max(insets.bottom, 20) + 16 },
+        ]}
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>No pending reviews</Text>
-            <Text style={styles.emptyText}>Orders you have received will show up here once they are marked delivered.</Text>
+            <Text style={styles.emptyText}>
+              Orders you have received will show up here once they are marked
+              delivered.
+            </Text>
           </View>
         }
         showsVerticalScrollIndicator={false}
@@ -165,6 +188,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  productImage: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    marginRight: 12,
+    backgroundColor: '#E5E7EB',
+  },
   iconCircle: {
     width: 44,
     height: 44,
@@ -189,19 +219,20 @@ const styles = StyleSheet.create({
     color: TEXT,
   },
   shopName: {
-    marginTop: 3,
-    fontSize: 13,
-    color: MUTED,
-  },
-  amount: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: TEXT,
-  },
-  meta: {
     marginTop: 12,
     fontSize: 12,
     color: MUTED,
+  },
+  actionText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: BRAND,
+    // textTransform: 'capitalize',
+  },
+  meta: {
+    marginTop: 5,
+    fontSize: 13,
+    color: "#333333",
   },
   loadingText: {
     marginTop: 12,

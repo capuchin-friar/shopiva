@@ -25,12 +25,17 @@ export async function fetchBuyerOrders() {
 }
 
 /** @returns {Promise<Array<Record<string, unknown>>>} */
-export async function fetchBuyerPendingReviews() {
-  const res = await apiFetchAuth('/buyer/pending-reviews');
+export async function fetchBuyerProductPendingReviews() {
+  const res = await apiFetchAuth('/buyer/product-pending-reviews');
   const data = await readJson(res);
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.pendingReviews)) return data.pendingReviews;
   return [];
+}
+
+/** @deprecated use fetchBuyerProductPendingReviews() */
+export async function fetchBuyerPendingReviews() {
+  return fetchBuyerProductPendingReviews();
 }
 
 /** @returns {Promise<{ order: Record<string, unknown> }>} */
@@ -182,10 +187,15 @@ export async function deleteBuyerCartLine(cartItemId) {
 }
 
 
-export async function createReview( body ) {
-  const res = await apiFetchAuth(`/buyer/review`, {
+export async function createProductReview(body) {
+  const res = await apiFetchAuth('/buyer/product-review', {
     method: 'POST',
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   });
   return readJson(res);
+}
+
+/** @deprecated use createProductReview() */
+export async function createReview(body) {
+  return createProductReview(body);
 }

@@ -18,7 +18,7 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useSelector } from 'react-redux';
 import { getStoredUser } from '../auth/session';
 import dayjs from 'dayjs';
-import { createReview } from '../api';
+import { createProductReview } from '../api';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const PAGE_BG = '#F5F5F5';
@@ -73,7 +73,7 @@ const ReviewSubmissionScreen = ({ navigation }) => {
       }
 
       setIsSubmitting(true);
-      await createReview({
+      await createProductReview({
         shop_id: shop?.id,
         customer_id: order?.customer_id ?? user?.id,
         order_id: order?.id,

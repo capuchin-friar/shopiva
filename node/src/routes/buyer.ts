@@ -16,7 +16,12 @@ import {
   PostBuyerCartController,
 } from "../controllers/buyer/cart.js";
 import { PostBuyerCheckoutConfirmPaymentController } from "../controllers/buyer/checkout.js";
-import { GetBuyerPendingReviewsController, PostBuyerReviewController } from "../controllers/buyer/review.js";
+import {
+  GetBuyerProductPendingReviewsController,
+  PostBuyerProductReviewController,
+  GetBuyerPendingReviewsController,
+  PostBuyerReviewController,
+} from "../controllers/buyer/review.js";
 import {
   disputeEvidenceUploadMiddleware,
   UploadDisputeEvidenceController,
@@ -46,6 +51,10 @@ BuyerRouter.post(
   disputeEvidenceUploadMiddleware,
   UploadDisputeEvidenceController
 );
+BuyerRouter.get("/buyer/product-pending-reviews", verifyToken, GetBuyerProductPendingReviewsController);
+BuyerRouter.post("/buyer/product-review", verifyToken, PostBuyerProductReviewController);
+
+// Backward-compatible aliases for legacy buyers until the client is fully moved to the product-specific API.
 BuyerRouter.get("/buyer/pending-reviews", verifyToken, GetBuyerPendingReviewsController);
 BuyerRouter.post("/buyer/review", verifyToken, PostBuyerReviewController);
 
