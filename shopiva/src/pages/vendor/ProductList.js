@@ -355,10 +355,11 @@ export default function VendorProductListScreen() {
               <Text style={styles.listMetaOnly}>
                 {rows.length} {rows.length === 1 ? 'item' : 'items'} · {mvpShopName}
               </Text>
+              
               {rows.map((row) => {
                 const pill = statusPillStyle(row.status);
-                const openCard = () =>
-                  Alert.alert(row.title, 'Product detail editor can open here when wired.');
+                {/* const openCard = () =>
+                  Alert.alert(row.title, 'Product detail editor can open here when wired.'); */}
                 return (
                   <View key={row.id} style={styles.card}>
                     <View style={styles.cardTop}>
@@ -395,7 +396,7 @@ export default function VendorProductListScreen() {
 
                     <Pressable
                       style={({ pressed }) => [styles.cardLowerPress, pressed && styles.cardPressed]}
-                      onPress={openCard}
+                      // onPress={openCard}
                       android_ripple={{ color: '#F3F4F6' }}
                     >
                       <View style={styles.pillRow}>
