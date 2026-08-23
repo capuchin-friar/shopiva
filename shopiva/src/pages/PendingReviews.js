@@ -93,7 +93,7 @@ export default function PendingReviewsScreen() {
       <OrderReviewCard
         item={item}
         onPress={() =>
-          navigation.navigate('Review', {
+          navigation.navigate('ProductReview', {
             shop: {
               id: item?.shopId,
               name: item?.shopName || 'Shop',
@@ -103,7 +103,9 @@ export default function PendingReviewsScreen() {
               customer_id: item?.customerId,
             },
             orderItemId: item?.orderItemId,
+            order_item_id: item?.orderItemId,
             productId: item?.productId,
+            product_id: item?.productId,
             productName: item?.productName,
           })
         }

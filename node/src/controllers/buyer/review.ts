@@ -10,7 +10,76 @@ function normalizeNumber(value: unknown): number | null {
     }
     return null;
 }
+export async function PostBuyerShopReviewController(req: AuthRequest, res: Response) {
+    try {
+        const userId = req.user?.id;
+        if (!userId) {
+            res.status(401).json({ error: "Unauthorized" });
+            return;
+        }
 
+        const payload = req.body ?? {};
+        const shopId = normalizeNumber(payload.shop_id ?? payload.shopId);
+        const orderId = normalizeNumber(payload.order_id ?? payload.orderId);
+        const rating = normalizeNumber(payload.rating);
+        const title = typeof payload.review_tag === "string"
+            ? payload.review_tag
+            : typeof payload.title === "string" ? payload.title : null;
+        const comment = typeof payload.comment === "string" ? payload.comment : null;
+
+        if (!shopId || !orderId || !rating) {
+            res.status(400).json({ success: false, error: "shop_id, order_id and rating are required" });
+            return;
+        }
+        if (rating < 1 || rating > 5) {
+            res.status(400).json({ success: false, error: "rating must be between 1 and 5" });
+            return;
+        }
+
+        const pool = await db();
+        const { rows: orderRows } = await pool.query(
+            `SELECT id, customer_id, shop_id
+             FROM orders
+             WHERE id = $1 AND customer_id = $2
+               AND LOWER(COALESCE(fulfillment_status, '')) IN
+                   ('order_delivered', 'delivered', 'completed', 'order_confirmed', 'confirmed')
+             LIMIT 1`,
+            [orderId, String(userId)]
+        );
+        const order = orderRows[0];
+        if (!order) {
+            res.status(403).json({ success: false, error: "Order is not eligible for review" });
+            return;
+        }
+        if (Number(order.shop_id) !== Number(shopId)) {
+            res.status(400).json({ success: false, error: "Shop mismatch for order" });
+            return;
+        }
+
+        const { rows: existingRows } = await pool.query(
+            `SELECT id FROM shop_reviews WHERE shop_id = $1 AND reviewer_id = $2 AND order_id = $3 LIMIT 1`,
+            [shopId, userId, orderId]
+        );
+        if (existingRows.length > 0) {
+            res.status(409).json({ success: false, error: "A review already exists for this order" });
+            return;
+        }
+
+        await pool.query(
+            `INSERT INTO shop_reviews
+                (shop_id, reviewer_id, order_id, rating, title, comment, is_verified_purchase)
+             VALUES ($1, $2, $3, $4, $5, $6, TRUE)`,
+            [shopId, userId, orderId, rating, title, comment]
+        );
+
+        res.status(201).json({ success: true, message: "Shop review created successfully" });
+    } catch (err) {
+        res.status(400).json({
+            success: false,
+            error: err instanceof Error ? err.message : String(err),
+        });
+    }
+}
 export async function GetBuyerProductPendingReviewsController(req: AuthRequest, res: Response) {
     try {
         const userId = req.user?.id;
@@ -101,11 +170,13 @@ export async function PostBuyerProductReviewController(req: AuthRequest, res: Re
         }
 
         const { rows: orderRows } = await pool.query(
-            `SELECT oi.id AS order_item_id, oi.item_id, o.customer_id, o.id AS order_id, p.id AS product_id
+                        `SELECT oi.id AS order_item_id, oi.item_id, o.customer_id, o.id AS order_id, o.fulfillment_status, p.id AS product_id
              FROM order_items oi
              JOIN orders o ON o.id = oi.order_id
              LEFT JOIN products p ON p.id = CAST(oi.item_id AS INTEGER)
-             WHERE oi.id = $1
+                         WHERE oi.id = $1
+                             AND LOWER(COALESCE(o.fulfillment_status, '')) IN
+                                     ('order_delivered', 'delivered', 'completed', 'order_confirmed', 'confirmed')
              LIMIT 1`,
             [orderItemId]
         );
@@ -173,8 +244,3 @@ export async function PostBuyerProductReviewController(req: AuthRequest, res: Re
         });
     }
 }
-
-export {
-    GetBuyerProductPendingReviewsController as GetBuyerPendingReviewsController,
-    PostBuyerProductReviewController as PostBuyerReviewController,
-};

@@ -17,13 +17,11 @@ async function readJson(res) {
   }
   return data;
 }
-
 /** @returns {Promise<{ orders: unknown[] }>} */
 export async function fetchBuyerOrders() {
   const res = await apiFetchAuth('/buyer/orders');
   return readJson(res);
 }
-
 /** @returns {Promise<Array<Record<string, unknown>>>} */
 export async function fetchBuyerProductPendingReviews() {
   const res = await apiFetchAuth('/buyer/product-pending-reviews');
@@ -33,10 +31,6 @@ export async function fetchBuyerProductPendingReviews() {
   return [];
 }
 
-/** @deprecated use fetchBuyerProductPendingReviews() */
-export async function fetchBuyerPendingReviews() {
-  return fetchBuyerProductPendingReviews();
-}
 
 /** @returns {Promise<{ order: Record<string, unknown> }>} */
 export async function fetchBuyerOrder(orderId) {
@@ -195,7 +189,10 @@ export async function createProductReview(body) {
   return readJson(res);
 }
 
-/** @deprecated use createProductReview() */
-export async function createReview(body) {
-  return createProductReview(body);
+export async function createShopReview(body) {
+  const res = await apiFetchAuth('/buyer/review', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
+  return readJson(res);
 }

@@ -38,8 +38,21 @@ const ReviewSubmissionScreen = ({ navigation }) => {
   const [comment, setComment] = useState('');
   // const [image_urls, set_image_urls] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { shop, order, orderItemId, productId } = useRoute()?.params ?? {};
+  const routeParams = useRoute()?.params ?? {};
+  const {
+    shop,
+    order,
+    orderItemId,
+    order_item_id,
+    productId,
+    product_id,
+  } = routeParams;
   const user = getStoredUser();
+
+  const resolvedOrderItemId =
+    orderItemId ?? order_item_id ?? order?.order_item_id ?? order?.orderItemId ?? null;
+  const resolvedProductId =
+    productId ?? product_id ?? order?.product_id ?? order?.productId ?? null;
 
   const reviewOptions = [
     { id: 'poor', label: 'Poor', icon: 'sad-outline', color: '#e84118' },
@@ -67,26 +80,29 @@ const ReviewSubmissionScreen = ({ navigation }) => {
         return;
       }
 
-      if (!orderItemId && !order?.order_item_id) {
+      if (!resolvedOrderItemId) {
         Alert.alert('Review item missing', 'This review cannot be submitted without an order item reference.');
         return;
       }
 
       setIsSubmitting(true);
       await createProductReview({
-        shop_id: shop?.id,
-        customer_id: order?.customer_id ?? user?.id,
         order_id: order?.id,
-        order_item_id: orderItemId ?? order?.order_item_id,
-        product_id: productId ?? order?.product_id,
+        order_item_id: resolvedOrderItemId,
+        product_id: resolvedProductId,
         rating,
         review_tag: reviewType,
         comment,
-        // image_urls,
       });
       navigation.goBack();
     } catch (error) {
       console.log('error: ', error);
+      Alert.alert(
+        'Review failed',
+        error instanceof Error ? error.message : 'Something went wrong while submitting your review.',
+      );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

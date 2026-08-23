@@ -10,7 +10,8 @@ import DisputeDetailScreen from '../../pages/DisputeDetail';
 import ReturnListScreen from '../../pages/ReturnList';
 import ReturnDetailScreen from '../../pages/ReturnDetail';
 import ReturnActionScreen from '../../pages/ReturnAction';
-import ReviewSubmissionScreen from '../../pages/Review';
+import ProductReviewScreen from '../../pages/Review';
+import ShopReviewScreen from '../../pages/ShopReview';
 import PendingReviewsScreen from '../../pages/PendingReviews';
 import ChatRoomScreen from '../../pages/ChatRoom';
 const ActivitiesStack = createNativeStackNavigator();
@@ -62,12 +63,16 @@ const returnStatusUpdateOpt = {
   headerBackVisible: true,
   headerShadowVisible: false,
 };
-const reviewOpt = {
+const productReviewOpt = {
   headerShown: true,
-  title: 'Review Screen',
+  title: 'Product Review',
   headerBackVisible: false,
   headerShadowVisible: false,
 }
+const shopReviewOpt = {
+  ...productReviewOpt,
+  title: 'Shop Review',
+};
 const inboxOpt = {
   title: 'Inbox',
   headerBackTitle: 'Order',
@@ -100,7 +105,8 @@ export function ActivitiesStackScreen() {
         component={OpenDispute}
         options={{ ...disputeOpt, title: 'Open dispute' }}
       />
-      <ActivitiesStack.Screen name="Review" options={reviewOpt} component={ReviewSubmissionScreen} />
+      <ActivitiesStack.Screen name="ProductReview" options={productReviewOpt} component={ProductReviewScreen} />
+      <ActivitiesStack.Screen name="ShopReview" options={shopReviewOpt} component={ShopReviewScreen} />
       
       <ActivitiesStack.Screen name="Disputes" component={DisputesListScreen} options={disputeOpt} />
       <ActivitiesStack.Screen name="Dispute-detail" component={DisputeDetailScreen} options={{ headerShown: true, title: 'Dispute detail', headerBackVisible: true, headerShadowVisible: false}}  />

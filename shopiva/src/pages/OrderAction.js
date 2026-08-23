@@ -1481,9 +1481,27 @@ function ConfirmDelivery({ data }) {
     if (response.success) {
       dispatch(set_orderInfo(response.result));
       console.log("response - result",response.result);
-      navigation.navigate("Review", {
+      const orderItems = Array.isArray(response?.result?.order?.order_items)
+        ? response.result.order.order_items
+        : Array.isArray(response?.result?.order_items)
+          ? response.result.order_items
+          : [];
+
+      const firstOrderItem = orderItems[0] ?? {};
+      const orderItemId = firstOrderItem.id ?? firstOrderItem.order_item_id ?? null;
+      const productId = firstOrderItem.product_id ?? firstOrderItem.productId ?? null;
+
+      navigation.navigate("ShopReview", {
         shop: response.result.shop,
-        order: response.result.order
+        order: {
+          ...(response.result.order ?? {}),
+          order_item_id: orderItemId,
+          product_id: productId,
+        },
+        orderItemId,
+        order_item_id: orderItemId,
+        productId,
+        product_id: productId,
       })
       // navigation.goBack();
     }
