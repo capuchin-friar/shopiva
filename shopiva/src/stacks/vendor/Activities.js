@@ -39,7 +39,7 @@ const orderOpt = {
 const orderDetailOpt = {
   headerShown: true,
   title: 'Order detail',
-  headerBackVisible: true,
+  headerBackVisible: false,
   headerShadowVisible: false,
 }
 const orderStatusUpdateOpt = {
