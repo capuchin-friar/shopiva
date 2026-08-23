@@ -17,7 +17,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchOwnerShops } from '../../api/shop';
-import { getProducts } from '../../api/product';
+import { deleteProduct, getProducts } from '../../api/product';
 import { useProfile } from '../../context/ProfileContext';
 import { getProductImageUri } from '../../utils/productImageUtils';
 
@@ -136,6 +136,7 @@ export default function VendorProductListScreen() {
   const [actionSheetProduct, setActionSheetProduct] = useState(
     /** @type {ReturnType<typeof mapApiProductToRow> | null} */ (null),
   );
+  const [isDeletingProduct, setIsDeletingProduct] = useState(false);
 
   /** MVP: always bind to the first shop in the owner list (no multi-shop UI). */
   useEffect(() => {
@@ -250,7 +251,21 @@ export default function VendorProductListScreen() {
   const onDeleteProduct = useCallback(() => {
     if (!actionSheetProduct) return;
     const row = actionSheetProduct;
+    const uid = user?.id;
+    const sid = mvpShopId;
     closeProductActions();
+
+    if (!uid || !sid) {
+      Alert.alert('Unable to delete product', 'Sign in and open your shop before deleting products.');
+      return;
+    }
+
+    const productId = Number(row.id);
+    if (!Number.isFinite(productId) || productId <= 0) {
+      Alert.alert('Unable to delete product', 'This product is missing a valid ID.');
+      return;
+    }
+
     Alert.alert(
       'Delete product',
       `Remove “${row.title}”? This cannot be undone.`,
@@ -259,13 +274,25 @@ export default function VendorProductListScreen() {
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: () => {
-            Alert.alert('Not implemented', 'Wire delete to your product API when ready.');
+          onPress: async () => {
+            setIsDeletingProduct(true);
+            try {
+              await deleteProduct(sid, productId, uid);
+              Alert.alert('Deleted', 'Product deleted successfully.');
+              await loadProducts({ silent: true });
+            } catch (error) {
+              Alert.alert(
+                'Delete failed',
+                error instanceof Error ? error.message : 'Could not delete this product.',
+              );
+            } finally {
+              setIsDeletingProduct(false);
+            }
           },
         },
       ],
     );
-  }, [actionSheetProduct, closeProductActions]);
+  }, [actionSheetProduct, closeProductActions, loadProducts, mvpShopId, user?.id]);
 
   return (
     <View style={styles.root}>
@@ -328,16 +355,17 @@ export default function VendorProductListScreen() {
               <Text style={styles.listMetaOnly}>
                 {rows.length} {rows.length === 1 ? 'item' : 'items'} · {mvpShopName}
               </Text>
+              
               {rows.map((row) => {
                 const pill = statusPillStyle(row.status);
-                const openCard = () =>
-                  Alert.alert(row.title, 'Product detail editor can open here when wired.');
+                {/* const openCard = () =>
+                  Alert.alert(row.title, 'Product detail editor can open here when wired.'); */}
                 return (
                   <View key={row.id} style={styles.card}>
                     <View style={styles.cardTop}>
                       <Pressable
                         style={({ pressed }) => [styles.cardMainPress, pressed && styles.cardPressed]}
-                        onPress={openCard}
+                        // onPress={openCard}
                         android_ripple={{ color: '#F3F4F6' }}
                       >
                                 <View style={styles.thumb}>
@@ -368,7 +396,7 @@ export default function VendorProductListScreen() {
 
                     <Pressable
                       style={({ pressed }) => [styles.cardLowerPress, pressed && styles.cardPressed]}
-                      onPress={openCard}
+                      // onPress={openCard}
                       android_ripple={{ color: '#F3F4F6' }}
                     >
                       <View style={styles.pillRow}>
@@ -435,6 +463,15 @@ export default function VendorProductListScreen() {
           </View>
         </View>
       </Modal>
+
+      <Modal visible={isDeletingProduct} transparent animationType="fade" onRequestClose={() => {}}>
+        <View style={styles.processingOverlay}>
+          <View style={styles.processingCard}>
+            <ActivityIndicator size="large" color={BRAND} />
+            <Text style={styles.processingText}>Deleting product...</Text>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -454,6 +491,32 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: BG,
+  },
+  processingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(17, 24, 39, 0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  processingCard: {
+    width: 180,
+    height: 120,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255, 255, 255, 0.96)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    elevation: 12,
+  },
+  processingText: {
+    marginTop: 12,
+    color: TEXT,
+    fontSize: 14,
+    fontWeight: '600',
   },
   toolbar: {
     flexDirection: 'row',
@@ -698,7 +761,7 @@ const styles = StyleSheet.create({
   },
   actionSheetBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   actionSheet: {
     backgroundColor: CARD,

@@ -7,6 +7,7 @@ import disputeInfo from './dispute';
 import disputeList from './disputes';
 import returnInfo from './return';
 import returnList from './returns';
+import categories from './categoriesSlice';
 
 const store = configureStore({
   reducer: {
@@ -18,6 +19,7 @@ const store = configureStore({
     disputeList: disputeList,
     returnInfo: returnInfo,
     returnList: returnList,
+    categories,
   },
 });
 

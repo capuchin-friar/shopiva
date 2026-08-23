@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,10 +13,10 @@ import {
 import { Dropdown } from 'react-native-element-dropdown';
 import { CommonActions, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 import { useAuth } from '../../hooks/useAuth';
 import { createVendorShop, hasVendorShop } from '../../api/shop';
 import { fetchCurrentUserOrStatus, updateUserRole } from '../../api/user';
-import mvpCategoryData from '../../data/mvp_category.json';
 import {
   getCurrentCoordinates,
   requestLocationPermission,
@@ -25,6 +24,11 @@ import {
 } from '../../utils/deviceLocation';
 import FormKeyboardAvoiding from '../../components/FormKeyboardAvoiding';
 import { getStoredAccessToken, getStoredUser, saveSession } from '../../auth/session';
+import {
+  selectCategoriesError,
+  selectCategoriesLoading,
+  selectCategoryOptions,
+} from '../../../redux/categoriesSlice';
 
 const BLACK = '#000000';
 const MUTED = '#8E8E93';
@@ -36,13 +40,6 @@ const VENDOR_TYPE_OPTIONS = [
   { label: 'Manufacturer', value: 'manufacturer' },
 ];
 
-const CATEGORY_OPTIONS = Object.keys(mvpCategoryData)
-  .map(key => ({
-    value: key,
-    label: key.charAt(0).toUpperCase() + key.slice(1).toLowerCase(),
-  }))
-  .sort((a, b) => a.label.localeCompare(b.label));
-
 export default function ShopSetupScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -52,6 +49,9 @@ export default function ShopSetupScreen() {
   const [vendorType, setVendorType] = useState(
     /** @type {'reseller' | 'dropshipper' | 'manufacturer'} */ ('reseller'),
   );
+  const categoryOptions = useSelector(selectCategoryOptions);
+  const categoriesLoading = useSelector(selectCategoriesLoading);
+  const categoriesError = useSelector(selectCategoriesError);
   const [category, setCategory] = useState(/** @type {string | null} */ (null));
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
@@ -72,6 +72,10 @@ export default function ShopSetupScreen() {
     }
     return 'No device coordinates yet. You can still type location manually.';
   }, [coords]);
+
+  useEffect(() => {
+    console.log("category options: ", categoryOptions)
+  }, [categoryOptions]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -325,17 +329,18 @@ export default function ShopSetupScreen() {
           selectedTextStyle={styles.dropdownSelectedText}
           itemTextStyle={styles.dropdownItemText}
           inputSearchStyle={styles.dropdownSearch}
-          data={CATEGORY_OPTIONS}
+          data={categoryOptions}
           search
           maxHeight={260}
           labelField="label"
           valueField="value"
-          placeholder="Select a category"
+          placeholder={categoriesLoading ? 'Loading categories...' : 'Select a category'}
           searchPlaceholder="Search categories..."
           value={category}
           onChange={item => setCategory(item.value)}
-          disable={submittingSetup}
+          disable={submittingSetup || categoriesLoading || categoryOptions.length === 0}
         />
+        {categoriesError ? <Text style={styles.meta}>{categoriesError}</Text> : null}
 
         <View style={styles.locationHeaderRow}>
           <Text style={styles.label}>Shop location</Text>

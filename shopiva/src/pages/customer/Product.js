@@ -57,7 +57,7 @@ export default function ProductScreen({ route, navigation }) {
   const { isAuthenticated, signOut } = useAuth();
   const loggedIn = isAuthenticated;
   const vendor = route.params?.vendor;
-  const category = route.params?.category ?? 'fashion';
+  const category = vendor ?? 'fashion';
   const routeProduct = route.params?.product;
   const shopId = route.params?.shop_id;
   const routeProductId = route.params?.productId;
@@ -655,39 +655,6 @@ export default function ProductScreen({ route, navigation }) {
     if (!ensureReadyForCartOrCheckout()) return;
 
     setLoading(true);
-    if (selectedLineInCart && cartLineForSelection) {
-      if (cartLineForSelection.qty !== qty) {
-        setCartToggleBusy(true);
-        try {
-          await patchBuyerCartLine(cartLineForSelection.cartItemId, qty);
-          await syncCartMembership();
-          setLoading(false)
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          if (
-            msg.toLowerCase().includes('unauthorized') ||
-            msg.includes('401')
-          ) {
-            Alert.alert(
-              'Sign in required',
-              'Please sign in to update your cart.',
-            );
-          } else {
-            Alert.alert('Cart', msg);
-          }
-          setLoading(false)
-          return;
-        } finally {
-          setCartToggleBusy(false);
-          setLoading(false)
-        }
-      }
-      setLoading(false)
-    } else {
-      const ok = await performAddToCart(selectedInventoryId);
-      setLoading(false)
-      if (!ok) return;
-    }
 
     const imageUri =
       galleryUrls[0] ||
@@ -706,34 +673,26 @@ export default function ProductScreen({ route, navigation }) {
       productId: product.id,
       inventoryId: selectedInventoryId ?? undefined,
       variantLabel: variantSummaryText || undefined,
-      cartItemId:
-        selectedLineInCart &&
-        cartLineForSelection &&
-        Number.isFinite(cartLineForSelection.cartItemId)
-          ? cartLineForSelection.cartItemId
-          : undefined,
+      cartItemId: undefined,
     };
 
+    setLoading(false);
     navigation.navigate('Cart-checkout', {
       checkoutSource: 'product',
       checkoutLines: [buyLine],
     });
   }, [
-    product.id,
-    product.shop_id,
     ensureReadyForCartOrCheckout,
-    selectedLineInCart,
-    cartLineForSelection,
-    qty,
-    syncCartMembership,
-    performAddToCart,
-    selectedInventoryId,
-    navigation,
     galleryUrls,
     product?.uri,
     productIdParam,
     title,
     checkoutUnitPrice,
+    qty,
+    shopId,
+    product.id,
+    selectedInventoryId,
+    navigation,
     variantSummaryText,
   ]);
 
@@ -1021,7 +980,7 @@ export default function ProductScreen({ route, navigation }) {
             {selectedLineInCart ? 'Remove from cart' : 'Add to cart'}
           </Text>
         </TouchableOpacity>
-        {/* <TouchableOpacity
+        <TouchableOpacity
           style={styles.buyNow}
           activeOpacity={0.88}
           disabled={cartToggleBusy}
@@ -1038,7 +997,7 @@ export default function ProductScreen({ route, navigation }) {
             color="#FFFFFF"
             style={styles.buyNowIcon}
           />
-        </TouchableOpacity> */}
+        </TouchableOpacity>
         <Text style={styles.sectionHeading}>Description</Text>
         <Text style={styles.descriptionBody}>
           {typeof product?.description === 'string' &&
@@ -1046,7 +1005,9 @@ export default function ProductScreen({ route, navigation }) {
             ? product.description.trim()
             : 'No description provided for this product.'}
         </Text>
-        <TouchableOpacity style={styles.visitPill} activeOpacity={0.88}>
+        <TouchableOpacity style={styles.visitPill} activeOpacity={0.88} onPress={e => navigation.navigate("Vendor", {
+          vendor: vendor
+        })}>
           <Icon name="link-outline" size={18} color="#000000" />
           <Text style={styles.visitPillText}>{`Visit ${shopName}`}</Text>
         </TouchableOpacity>

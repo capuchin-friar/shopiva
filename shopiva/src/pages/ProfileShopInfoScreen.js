@@ -39,8 +39,9 @@ import DeliveryPolicyModal from '../components/DeliveryPolicyModal';
 import { mapOrderRowToListItem } from '../utils/buyerUi';
 import { formatNaira } from '../utils/formatNaira';
 import { getCurrentCoordinates, requestLocationPermission, reverseGeocodeToPlace } from '../utils/deviceLocation';
-import mvpCategoryData from '../json/mvp_category.json';
-import { mvpCategoryRootKeys, formatMvpCategoryLabel } from '../utils/mvpCategory';
+import { useSelector } from 'react-redux';
+import { formatMvpCategoryLabel } from '../utils/mvpCategory';
+import { selectCategoryKeys } from '../../redux/categoriesSlice';
 
 const BRAND = '#0D4F3C';
 const BRAND_LIGHT = '#1A6B52';
@@ -686,11 +687,7 @@ export default function ProfileShopInfoScreen() {
   const cacSt = docVerificationStatus(verDocs.cacDocument ?? verDocs.businessLicense);
   const bvnSt = bvnVerificationStatus(verDocs.bvn);
 
-  /** Top-level keys from `src/json/mvp_category.json` (e.g. `["fashion"]`). */
-  const categoryOptions = useMemo(
-    () => mvpCategoryRootKeys(/** @type {Record<string, unknown>} */ (mvpCategoryData)),
-    [],
-  );
+  const categoryOptions = useSelector(selectCategoryKeys);
 
   if (!isVendorAccountRole(user?.roleRaw)) {
     return (
@@ -1675,7 +1672,7 @@ const styles = StyleSheet.create({
   centered: { flex: 1, backgroundColor: PAGE_BG, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
   muted: { fontSize: 14, color: MUTED, textAlign: 'center', lineHeight: 20 },
   emptyTitle: { fontSize: 18, fontWeight: '700', color: BLACK, marginBottom: 8 },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.35)' },
+  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
   modalSheet: {
     position: 'absolute',
     left: 16,
@@ -1700,7 +1697,7 @@ const styles = StyleSheet.create({
   formModalRoot: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   formModalCard: {
     backgroundColor: CARD,

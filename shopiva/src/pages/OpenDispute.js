@@ -1267,7 +1267,7 @@ const styles = StyleSheet.create({
   },
   orderModalBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   orderModalSheet: {
     backgroundColor: CARD_BG,

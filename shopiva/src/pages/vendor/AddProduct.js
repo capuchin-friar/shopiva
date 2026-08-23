@@ -16,22 +16,39 @@ import {
   View,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 import {
   errorCodes,
   isErrorWithCode,
   pick as pickDocument,
   types as documentPickerTypes,
 } from '@react-native-documents/picker';
-import { fetchOwnerShops, uploadProductImage } from '../../api/shop';
-import { createInventory, createProduct } from '../../api/product';
+import {
+  fetchOwnerShops,
+  fetchShopDetails,
+  uploadProductImage,
+} from '../../api/shop';
+import {
+  createInventory,
+  createProduct,
+  getProduct,
+  updateInventory,
+  updateProduct,
+} from '../../api/product';
 import { useProfile } from '../../context/ProfileContext';
+import {
+  selectCategoryTree,
+  selectCategoriesState,
+} from '../../../redux/categoriesSlice';
 import colorJson from '../../json/color.json';
 import mvpCategoryData from '../../json/mvp_category.json';
 import {
   buildMvpCategoryFilters,
   formatMvpCategoryLabel,
+  getGenderDrivenTypeOptions,
+  isGenderDrivenCategory,
   mvpCategoryRootKeys,
 } from '../../utils/mvpCategory';
 import {
@@ -43,7 +60,10 @@ import {
   resolveClothingSubType,
   resolveSizeOptions,
 } from '../../utils/variantOptions';
-import { buildProductCreatePayloads } from '../../utils/vendorProductPayload';
+import {
+  buildProductCreatePayloads,
+  getVariantPriceRange,
+} from '../../utils/vendorProductPayload';
 
 const GENDERS = ['Male', 'Female'];
 
@@ -56,6 +76,43 @@ function chunkArray(arr, size) {
   return chunks;
 }
 
+function normalizeStoredSpecifications(raw) {
+  if (!raw) return {};
+  if (typeof raw === 'object' && !Array.isArray(raw)) {
+    return raw;
+  }
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? parsed
+        : {};
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+function normalizeVariantRecord(rawVariant, index) {
+  const details = Array.isArray(rawVariant?.details)
+    ? rawVariant.details
+        .filter(Boolean)
+        .map(detail => ({
+          label: String(detail?.label ?? '').trim(),
+          value: String(detail?.value ?? '').trim(),
+        }))
+        .filter(detail => detail.label && detail.value)
+    : [];
+  const stockValue = Number(rawVariant?.stock ?? rawVariant?.quantity ?? 0);
+
+  return {
+    id: String(rawVariant?.id ?? `saved-variant-${index}`),
+    details,
+    stock: Number.isFinite(stockValue) ? stockValue : 0,
+  };
+}
+
 const VARIANT_FORM_WARNING =
   'Please fill in the variant form. Color, size, stock (greater than 0), and variant price are all required.';
 
@@ -64,16 +121,34 @@ const VARIANT_FORM_WARNING =
  */
 export default function VendorCreateProductScreen() {
   const navigation = useNavigation();
+  const route = useRoute();
   const insets = useSafeAreaInsets();
   const { user } = useProfile();
-  const [resolvedShopId, setResolvedShopId] = useState(/** @type {number | null} */ (null));
+  const reduxCategoryKeys = useSelector(selectCategoryTree);
+  const reduxCategoryState = useSelector(selectCategoriesState);
+  const [resolvedShopId, setResolvedShopId] = useState(
+    /** @type {number | null} */ (null),
+  );
+  const [shopDetails, setShopDetails] = useState(
+    /** @type {Record<string, unknown> | null} */ (null),
+  );
+  const rawEditProductId = route.params?.productId;
+  const editProductId = useMemo(() => {
+    const parsed = Number(rawEditProductId ?? '');
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }, [rawEditProductId]);
   const [productId] = useState(
     () => `prod_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`,
   );
   const [saveSubmitting, setSaveSubmitting] = useState(false);
   const defaultCategory = useMemo(
-    () => mvpCategoryRootKeys(/** @type {Record<string, unknown>} */ (mvpCategoryData))[0] || 'fashion',
-    [],
+    () =>
+      reduxCategoryKeys[0] ||
+      mvpCategoryRootKeys(
+        /** @type {Record<string, unknown>} */ (mvpCategoryData),
+      )[0] ||
+      'fashion',
+    [reduxCategoryKeys],
   );
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -86,21 +161,32 @@ export default function VendorCreateProductScreen() {
       null
     ),
   );
-  const colorOptionsList = useMemo(() => buildColorOptionsFromJson(colorJson), []);
+  const colorOptionsList = useMemo(
+    () => buildColorOptionsFromJson(colorJson),
+    [],
+  );
   /** @type {Record<string, { value: string; label: string; color: string }>} */
   const colorByValue = useMemo(
-    () => Object.fromEntries(colorOptionsList.map((c) => [c.value, c])),
+    () => Object.fromEntries(colorOptionsList.map(c => [c.value, c])),
     [colorOptionsList],
   );
-  const colorPickerValues = useMemo(() => colorOptionsList.map((c) => c.value), [colorOptionsList]);
+  const colorPickerValues = useMemo(
+    () => colorOptionsList.map(c => c.value),
+    [colorOptionsList],
+  );
   /** @type {Record<string, string>} */
   const colorSwatchByValue = useMemo(
-    () => Object.fromEntries(colorOptionsList.map((c) => [c.value, c.color])),
+    () => Object.fromEntries(colorOptionsList.map(c => [c.value, c.color])),
     [colorOptionsList],
   );
 
+  const [variantFields, setVariantFields] = useState({});
+  const [dynamicVariantValues, setDynamicVariantValues] = useState({});
+
   const [variantColor, setVariantColor] = useState(
-    /** @type {null | { value: string; label: string; color: string }} */ (null),
+    /** @type {null | { value: string; label: string; color: string }} */ (
+      null
+    ),
   );
   const [variantSize, setVariantSize] = useState('');
   const [variantMaterial, setVariantMaterial] = useState('');
@@ -129,50 +215,190 @@ export default function VendorCreateProductScreen() {
   const [mediaUploadError, setMediaUploadError] = useState('');
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [showFinishSheet, setShowFinishSheet] = useState(false);
+  const [loadingExistingProduct, setLoadingExistingProduct] = useState(false);
 
   const categoryRoots = useMemo(
-    () => mvpCategoryRootKeys(/** @type {Record<string, unknown>} */ (mvpCategoryData)),
-    [],
+    () =>
+      mvpCategoryRootKeys(
+        /** @type {Record<string, unknown>} */ (reduxCategoryKeys),
+      ),
+    [reduxCategoryKeys],
   );
-  const categoryKey = String(category || defaultCategory).trim() || defaultCategory;
+  const savedShopCategory = useMemo(() => {
+    const raw = String(shopDetails?.category ?? '').trim();
+    return raw ? raw.toLowerCase() : defaultCategory;
+  }, [defaultCategory, shopDetails]);
+  const categoryKey =
+    String(category || savedShopCategory || defaultCategory).trim() ||
+    defaultCategory;
   const { subCategories, typesBySubCategory } = useMemo(
-    () => buildMvpCategoryFilters(/** @type {Record<string, unknown>} */ (mvpCategoryData), categoryKey),
-    [categoryKey],
+    () =>
+      buildMvpCategoryFilters(
+        /** @type {Record<string, unknown>} */ (reduxCategoryKeys),
+        categoryKey,
+      ),
+    [categoryKey, reduxCategoryKeys],
   );
+
+  useEffect(() => {
+    setDynamicVariantValues({});
+    const activeCategory = reduxCategoryState.categories.find(
+      item => item.category === categoryKey,
+    );
+    const parsedVariants = activeCategory?.variants
+      ? JSON.parse(activeCategory?.variants)
+      : '';
+
+    setVariantFields(parsedVariants instanceof Object ? parsedVariants : {});
+  }, [categoryKey, reduxCategoryState.categories]);
+
+  useEffect(() => {
+    if (!resolvedShopId || !user?.id || editProductId == null) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoadingExistingProduct(true);
+        const data = await getProduct(resolvedShopId, editProductId, user.id);
+        if (cancelled) return;
+        const product = data?.product ?? data ?? {};
+        const productSpecs = normalizeStoredSpecifications(product.specifications);
+        const variantEntries = Array.isArray(productSpecs.variants)
+          ? productSpecs.variants.map(normalizeVariantRecord)
+          : [];
+
+        setTitle(String(product.name ?? ''));
+        setDescription(String(product.description ?? ''));
+        setBrandName(String(product.brand ?? ''));
+        setCategory(
+          String(product.category ?? defaultCategory)
+            .trim()
+            .toLowerCase() || defaultCategory,
+        );
+        setGender(String(productSpecs.gender ?? ''));
+        setSubCategory(String(product.subcategory ?? ''));
+        setProductType(String(productSpecs.type ?? ''));
+        setAllowPickup(Boolean(productSpecs.delivery_methods?.pickup));
+        setAllowDelivery(Boolean(productSpecs.delivery_methods?.delivery));
+        setSavedVariants(variantEntries);
+
+        const images = Array.isArray(product.images)
+          ? product.images
+              .map(item => String(item ?? '').trim())
+              .filter(Boolean)
+              .map((url, index) => ({
+                id: `${editProductId}-img-${index}`,
+                url,
+                type: 'image',
+              }))
+          : [];
+        setUploadedMedia(images);
+        setThumbnailUrl(String(product.thumbnail_url ?? images[0]?.url ?? ''));
+
+        if (product.weight != null) {
+          setWeightKg(String(product.weight));
+        }
+      } catch (error) {
+        if (!cancelled) {
+          Alert.alert(
+            'Could not load product',
+            error instanceof Error ? error.message : 'The product could not be loaded.',
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingExistingProduct(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [defaultCategory, editProductId, resolvedShopId, user?.id]);
+
+  const dynamicVariantEntries = useMemo(
+    () =>
+      Object.entries(variantFields ?? {}).filter(
+        ([, options]) => Array.isArray(options) && options.length > 0,
+      ),
+    [variantFields],
+  );
+
   const typeOptions = useMemo(() => {
+    if (isGenderDrivenCategory(categoryKey)) {
+      return getGenderDrivenTypeOptions(categoryKey, gender);
+    }
     const sub = String(subCategory || '').trim();
     if (!sub) return [];
     return typesBySubCategory.get(sub) ?? [];
-  }, [subCategory, typesBySubCategory]);
+  }, [categoryKey, gender, subCategory, typesBySubCategory]);
 
   /** MVP: single shop — always the first shop returned for the signed-in owner. */
   useEffect(() => {
     let cancelled = false;
+    const uid = user?.id;
+
     (async () => {
-      const uid = user?.id;
       if (!uid) {
-        if (!cancelled) setResolvedShopId(null);
+        if (!cancelled) {
+          setResolvedShopId(null);
+          setShopDetails(null);
+          setCategory(defaultCategory);
+        }
         return;
       }
+
       try {
         const shops = await fetchOwnerShops(uid);
         if (cancelled) return;
-        const first = Array.isArray(shops) && shops.length > 0 ? shops[0] : null;
+
+        const first =
+          Array.isArray(shops) && shops.length > 0 ? shops[0] : null;
         const idRaw = first?.id ?? first?.shop_id;
-        const sid = typeof idRaw === 'number' ? idRaw : parseInt(String(idRaw ?? ''), 10);
-        if (!Number.isNaN(sid) && sid > 0) setResolvedShopId(sid);
-        else setResolvedShopId(null);
+        const sid =
+          typeof idRaw === 'number' ? idRaw : parseInt(String(idRaw ?? ''), 10);
+
+        if (!Number.isNaN(sid) && sid > 0) {
+          setResolvedShopId(sid);
+          try {
+            const shop = await fetchShopDetails(sid, uid);
+            if (!cancelled) {
+              setShopDetails(shop);
+              const savedCategory = String(shop?.category ?? '').trim();
+              setCategory(
+                savedCategory ? savedCategory.toLowerCase() : defaultCategory,
+              );
+            }
+          } catch {
+            if (!cancelled) {
+              setShopDetails(null);
+              setCategory(defaultCategory);
+            }
+          }
+          return;
+        }
+
+        if (!cancelled) {
+          setResolvedShopId(null);
+          setShopDetails(null);
+          setCategory(defaultCategory);
+        }
       } catch {
-        if (!cancelled) setResolvedShopId(null);
+        if (!cancelled) {
+          setResolvedShopId(null);
+          setShopDetails(null);
+          setCategory(defaultCategory);
+        }
       }
     })();
+
     return () => {
       cancelled = true;
     };
-  }, [user?.id]);
+  }, [user?.id, defaultCategory]);
 
   useEffect(() => {
-    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+    const unsubscribe = navigation.addListener('beforeRemove', e => {
       if (mediaUploading) {
         e.preventDefault();
       }
@@ -184,8 +410,16 @@ export default function VendorCreateProductScreen() {
     const cat = categoryKey;
     const sub = String(subCategory || '');
     const typ = String(productType || '');
-    const sizeConfig = resolveSizeOptions({ category: cat, subCategory: sub, type: typ });
-    const clothingSubType = resolveClothingSubType({ category: cat, subCategory: sub, type: typ });
+    const sizeConfig = resolveSizeOptions({
+      category: cat,
+      subCategory: sub,
+      type: typ,
+    });
+    const clothingSubType = resolveClothingSubType({
+      category: cat,
+      subCategory: sub,
+      type: typ,
+    });
     const clothingSubTypeConfig = getClothingSubtypeConfig(clothingSubType);
     const resolvedSizeOptions =
       sizeConfig.key === 'clothing' && clothingSubTypeConfig
@@ -196,7 +430,8 @@ export default function VendorCreateProductScreen() {
         ? `${clothingSubTypeConfig.label} size`
         : sizeConfig.label.replace(/s$/i, '');
     const materialStrings = materialStringsForSizeKey(sizeConfig.key);
-    const materialFieldLabel = sizeConfig.key === 'food' ? 'Packaging' : 'Material';
+    const materialFieldLabel =
+      sizeConfig.key === 'food' ? 'Packaging' : 'Material';
     const materialPlaceholder =
       sizeConfig.key === 'food' ? 'Select packaging' : 'Select a material';
     const sizePlaceholder =
@@ -215,56 +450,92 @@ export default function VendorCreateProductScreen() {
   }, [categoryKey, subCategory, productType]);
 
   const canAddVariant = useMemo(() => {
-    if (!variantColor || !variantSize.trim()) return false;
     const stockStr = variantStock.trim();
     const stockOk =
       stockStr !== '' && /^\d+$/.test(stockStr) && Number(stockStr) > 0;
-    const priceRaw = String(variantPrice).replace(/,/g, '').replace(/[^\d.]/g, '');
+    const priceRaw = String(variantPrice)
+      .replace(/,/g, '')
+      .replace(/[^\d.]/g, '');
     const priceNum = Number(priceRaw);
     const priceOk = priceRaw !== '' && !Number.isNaN(priceNum) && priceNum > 0;
     return stockOk && priceOk;
-  }, [variantColor, variantSize, variantStock, variantPrice]);
+  }, [variantStock, variantPrice]);
 
   useEffect(() => {
     setSubCategory('');
     setProductType('');
+    if (isGenderDrivenCategory(categoryKey)) {
+      setGender('');
+    }
   }, [categoryKey]);
 
   useEffect(() => {
+    if (isGenderDrivenCategory(categoryKey)) {
+      setProductType('');
+      return;
+    }
     setProductType('');
-  }, [subCategory]);
+  }, [subCategory, categoryKey]);
+
+  useEffect(() => {
+    if (isGenderDrivenCategory(categoryKey) && productType.trim()) {
+      setSubCategory(productType);
+    }
+  }, [categoryKey, productType]);
+
+  useEffect(() => {
+    if (isGenderDrivenCategory(categoryKey)) {
+      setProductType('');
+    }
+  }, [gender, categoryKey]);
 
   const variantStockTotal = useMemo(
     () => savedVariants.reduce((t, v) => t + Number(v?.stock || 0), 0),
     [savedVariants],
   );
   const hasVariantsList = savedVariants.length > 0;
-  const priceAmount = useMemo(
-    () => Number(String(price ?? '').replace(/,/g, '')) || 0,
-    [price],
+  const variantPriceTotal = useMemo(
+    () =>
+      savedVariants.every(variant => {
+        const priceLine = variant.details.find(
+          detail => String(detail?.label ?? '').toLowerCase() === 'price',
+        );
+        const numeric = Number(
+          String(priceLine?.value ?? '')
+            .replace(/[^\d.]/g, '')
+            .replace(/\.(?=.*\.)/g, ''),
+        );
+        return Number.isFinite(numeric) && numeric > 0;
+      }),
+    [savedVariants],
   );
-  const isPriceValid = priceAmount > 0;
-  const baseQuantityAmount = Number(String(quantity ?? '').replace(/,/g, '')) || 0;
-  const isQuantityValid = hasVariantsList ? variantStockTotal > 0 : baseQuantityAmount > 0;
-  const isFashionCategory = String(categoryKey).toLowerCase() === 'fashion';
-  const hasFashionGender = !isFashionCategory || gender.trim().length > 0;
+  const isPriceValid = hasVariantsList ? variantPriceTotal : false;
+  const isQuantityValid = hasVariantsList ? variantStockTotal > 0 : false;
+  const isGenderCategory = isGenderDrivenCategory(categoryKey);
+  const hasFashionGender = !isGenderCategory || gender.trim().length > 0;
   const hasCoreFields =
     title.trim().length > 1 &&
     category.trim().length > 0 &&
+    hasVariantsList &&
     isPriceValid &&
     isQuantityValid &&
     hasFashionGender &&
     uploadedMedia.length > 0;
-  const hasCategoryFields = subCategory.trim().length > 0 && productType.trim().length > 0;
+  const hasCategoryFields = isGenderCategory
+    ? productType.trim().length > 0
+    : subCategory.trim().length > 0 && productType.trim().length > 0;
 
-  const handleRemoveMedia = useCallback((mediaId) => {
-    setUploadedMedia((prev) => prev.filter((item) => item.id !== mediaId));
+  const handleRemoveMedia = useCallback(mediaId => {
+    setUploadedMedia(prev => prev.filter(item => item.id !== mediaId));
     setMediaUploadError('');
   }, []);
 
   const handlePickMedia = useCallback(async () => {
     if (!resolvedShopId) {
-      Alert.alert('No shop', 'Create a shop in settings before adding products.');
+      Alert.alert(
+        'No shop',
+        'Create a shop in settings before adding products.',
+      );
       return;
     }
 
@@ -281,18 +552,21 @@ export default function VendorCreateProductScreen() {
         uri: file.uri,
         type: file.type ?? 'application/octet-stream',
         name:
-          file.name ||
-          `upload.${String(file.uri).split('.').pop() || 'jpg'}`,
+          file.name || `upload.${String(file.uri).split('.').pop() || 'jpg'}`,
       };
 
-      const uploadResponse = await uploadProductImage(resolvedShopId, formFile, productId);
+      const uploadResponse = await uploadProductImage(
+        resolvedShopId,
+        formFile,
+        productId,
+      );
       const image = uploadResponse?.image;
       const url = image?.url || image?.secure_url;
       if (!url) {
         throw new Error('Upload response missing image URL.');
       }
 
-      setUploadedMedia((prev) => [
+      setUploadedMedia(prev => [
         ...prev,
         {
           id: `${Date.now()}-${prev.length}`,
@@ -300,16 +574,18 @@ export default function VendorCreateProductScreen() {
           type: String(image?.format || formFile.type),
         },
       ]);
-      setThumbnailUrl((prev) => prev || url);
+      setThumbnailUrl(prev => prev || url);
     } catch (err) {
       if (isErrorWithCode(err) && err.code === errorCodes.OPERATION_CANCELED) {
         return;
       }
-      setMediaUploadError(err instanceof Error ? err.message : 'Upload failed.');
+      setMediaUploadError(
+        err instanceof Error ? err.message : 'Upload failed.',
+      );
     } finally {
       setMediaUploading(false);
     }
-  }, [resolvedShopId]);
+  }, [productId, resolvedShopId]);
 
   const onSave = useCallback(() => {
     if (!hasCoreFields || !hasCategoryFields) {
@@ -322,13 +598,14 @@ export default function VendorCreateProductScreen() {
   const clearVariantFields = useCallback(() => {
     setVariantColor(null);
     setVariantSize('');
+    
     setVariantMaterial('');
     setVariantStock('');
     setVariantPrice('');
     setVariantError('');
   }, []);
 
-  const handleVariantStockChange = useCallback((text) => {
+  const handleVariantStockChange = useCallback(text => {
     const value = String(text).replace(/,/g, '');
     if (value === '' || /^\d+$/.test(value)) {
       setVariantStock(value);
@@ -336,27 +613,29 @@ export default function VendorCreateProductScreen() {
     }
   }, []);
 
-  const handleVariantPriceChange = useCallback((text) => {
+  const handleVariantPriceChange = useCallback(text => {
     setVariantPrice(formatPriceInput(text));
     setVariantError('');
   }, []);
 
   const handleSaveVariant = useCallback(() => {
-    const missingColor = !variantColor;
-    const missingSize = !variantSize.trim();
     const stockStr = variantStock.trim();
     const stockInvalid =
       !stockStr || !/^\d+$/.test(stockStr) || Number(stockStr) <= 0;
-    const priceRaw = String(variantPrice).replace(/,/g, '').replace(/[^\d.]/g, '');
+    const priceRaw = String(variantPrice)
+      .replace(/,/g, '')
+      .replace(/[^\d.]/g, '');
     const priceNum = Number(priceRaw);
-    const priceInvalid =
-      !priceRaw || Number.isNaN(priceNum) || priceNum <= 0;
+    const priceInvalid = !priceRaw || Number.isNaN(priceNum) || priceNum <= 0;
 
-    if (missingColor || missingSize || stockInvalid || priceInvalid) {
-      setVariantError(VARIANT_FORM_WARNING);
+    if (stockInvalid || priceInvalid) {
+      setVariantError(
+        'Please enter a valid variant quantity and price. Color, size, and material are optional.',
+      );
       return;
     }
-    const details = buildVariantSnapshot({
+
+    const baseDetails = buildVariantSnapshot({
       color: variantColor,
       size: variantSize.trim(),
       material: variantMaterial.trim(),
@@ -365,7 +644,27 @@ export default function VendorCreateProductScreen() {
       sizeDetailLabel: variantCtx.sizeFieldLabel,
       materialDetailLabel: variantCtx.materialFieldLabel,
     });
-    setSavedVariants((prev) => [
+
+    const dynamicDetails = dynamicVariantEntries.flatMap(([fieldKey, fieldOptions]) => {
+      if (!Array.isArray(fieldOptions) || fieldOptions.length === 0) return [];
+      const selectedValue =
+        fieldKey === 'color'
+          ? variantColor?.label
+          : fieldKey === 'size'
+            ? variantSize
+            : fieldKey === 'material'
+              ? variantMaterial
+              : dynamicVariantValues[fieldKey];
+      if (!selectedValue) return [];
+      return [{ label: formatMvpCategoryLabel(fieldKey), value: String(selectedValue) }];
+    });
+
+    const details = [...baseDetails, ...dynamicDetails].filter(
+      (detail, index, arr) =>
+        arr.findIndex(item => item.label === detail.label && item.value === detail.value) === index,
+    );
+
+    setSavedVariants(prev => [
       ...prev,
       {
         id: `${Date.now()}-${prev.length}`,
@@ -374,24 +673,47 @@ export default function VendorCreateProductScreen() {
       },
     ]);
     clearVariantFields();
+    setDynamicVariantValues({});
   }, [
     variantStock,
     variantColor,
     variantSize,
     variantMaterial,
     variantPrice,
+    dynamicVariantEntries,
+    dynamicVariantValues,
     variantCtx.sizeFieldLabel,
     variantCtx.materialFieldLabel,
     clearVariantFields,
   ]);
 
-  const handleDeleteVariant = useCallback((variantId) => {
-    setSavedVariants((prev) => prev.filter((item) => item.id !== variantId));
+  const handleDeleteVariant = useCallback(variantId => {
+    setSavedVariants(prev => prev.filter(item => item.id !== variantId));
   }, []);
 
   const handlePickerSelect = useCallback(
-    (raw) => {
+    raw => {
       const s = String(raw);
+      if (picker && variantFields && Object.prototype.hasOwnProperty.call(variantFields, picker)) {
+        setDynamicVariantValues(prev => ({ ...prev, [picker]: s }));
+        if (picker === 'color') {
+          const opt = colorByValue[s];
+          setVariantColor(
+            opt
+              ? { value: opt.value, label: opt.label, color: opt.color }
+              : null,
+          );
+        }
+        if (picker === 'size') {
+          setVariantSize(s);
+        }
+        if (picker === 'material') {
+          setVariantMaterial(s);
+        }
+        setVariantError('');
+        return;
+      }
+
       switch (picker) {
         case 'category':
           setCategory(s);
@@ -401,13 +723,20 @@ export default function VendorCreateProductScreen() {
           break;
         case 'type':
           setProductType(s);
+          if (isGenderDrivenCategory(categoryKey)) {
+            setSubCategory(s);
+          }
           break;
         case 'gender':
           setGender(s);
           break;
         case 'variantColor': {
           const opt = colorByValue[s];
-          setVariantColor(opt ? { value: opt.value, label: opt.label, color: opt.color } : null);
+          setVariantColor(
+            opt
+              ? { value: opt.value, label: opt.label, color: opt.color }
+              : null,
+          );
           setVariantError('');
           break;
         }
@@ -423,7 +752,7 @@ export default function VendorCreateProductScreen() {
           break;
       }
     },
-    [picker, colorByValue],
+    [picker, colorByValue, variantFields, categoryKey],
   );
 
   const optionPickerProps = useMemo(() => {
@@ -463,7 +792,7 @@ export default function VendorCreateProductScreen() {
       return {
         title: 'Gender',
         options: GENDERS,
-        formatLabel: (s) => s,
+        formatLabel: s => s,
         swatchByValue: undefined,
       };
     }
@@ -471,7 +800,7 @@ export default function VendorCreateProductScreen() {
       return {
         title: 'Color',
         options: colorPickerValues,
-        formatLabel: (v) => colorByValue[v]?.label ?? v,
+        formatLabel: v => colorByValue[v]?.label ?? v,
         swatchByValue: colorSwatchByValue,
       };
     }
@@ -479,7 +808,7 @@ export default function VendorCreateProductScreen() {
       return {
         title: variantCtx.sizeFieldLabel,
         options: variantCtx.resolvedSizeOptions,
-        formatLabel: (s) => s,
+        formatLabel: s => s,
         swatchByValue: undefined,
       };
     }
@@ -487,7 +816,15 @@ export default function VendorCreateProductScreen() {
       return {
         title: variantCtx.materialFieldLabel,
         options: variantCtx.materialStrings,
-        formatLabel: (s) => s,
+        formatLabel: s => s,
+        swatchByValue: undefined,
+      };
+    }
+    if (variantFields[picker]) {
+      return {
+        title: picker,
+        options: variantFields[picker],
+        formatLabel: formatMvpCategoryLabel,
         swatchByValue: undefined,
       };
     }
@@ -505,6 +842,7 @@ export default function VendorCreateProductScreen() {
     colorPickerValues,
     colorByValue,
     colorSwatchByValue,
+    variantFields,
     variantCtx.sizeFieldLabel,
     variantCtx.resolvedSizeOptions,
     variantCtx.materialFieldLabel,
@@ -514,36 +852,57 @@ export default function VendorCreateProductScreen() {
   const onContinueFinalSave = useCallback(async () => {
     const uid = user?.id;
     if (!uid) {
-      Alert.alert('Sign in required', 'Sign in as a vendor to create products.');
-      return;
-    }
-    if (!resolvedShopId) {
-      Alert.alert('No shop', 'Create a shop in settings before adding products.');
-      return;
-    }
-    const brandTrim = brandName.trim();
-    if (!brandTrim) {
-      Alert.alert('Complete the form', 'Brand name is required.');
-      return;
-    }
-    if (!allowPickup && !allowDelivery) {
-      Alert.alert('Complete the form', 'Select at least one delivery method.');
-      return;
-    }
-    const qtyCheck = hasVariantsList ? variantStockTotal : baseQuantityAmount;
-    if (!qtyCheck || qtyCheck <= 0) {
       Alert.alert(
-        'Complete the form',
-        hasVariantsList
-          ? 'Total variant stock must be greater than 0.'
-          : 'Enter a valid quantity.',
+        'Sign in required',
+        'Sign in as a vendor to create products.',
       );
       return;
     }
-    if (!isPriceValid) {
-      Alert.alert('Complete the form', 'Enter a valid price.');
+    if (!resolvedShopId) {
+      Alert.alert(
+        'No shop',
+        'Create a shop in settings before adding products.',
+      );
       return;
     }
+    const brandTrim = brandName.trim();
+    // if (!brandTrim) {
+    //   Alert.alert('Complete the form', 'Brand name is required.');
+    //   return;
+    // }
+    const qtyCheck = hasVariantsList ? variantStockTotal : 0;
+    if (!hasVariantsList || !qtyCheck || qtyCheck <= 0) {
+      Alert.alert(
+        'Complete the form',
+        'Add at least one valid variant with quantity greater than 0.',
+      );
+      return;
+    }
+
+    const priceCheck = hasVariantsList
+      ? savedVariants.every(variant => {
+          const priceLine = variant.details.find(
+            detail => String(detail?.label ?? '').toLowerCase() === 'price',
+          );
+          const numeric = Number(
+            String(priceLine?.value ?? '')
+              .replace(/[^\d.]/g, '')
+              .replace(/\.(?=.*\.)/g, ''),
+          );
+          return Number.isFinite(numeric) && numeric > 0;
+        })
+      : false;
+    if (!priceCheck) {
+      Alert.alert(
+        'Complete the form',
+        'Each saved variant must have a valid price greater than 0.',
+      );
+      return;
+    }
+    // if (!isPriceValid) {
+    //   Alert.alert('Complete the form', 'Enter a valid price.');
+    //   return;
+    // }
 
     setSaveSubmitting(true);
     try {
@@ -559,8 +918,9 @@ export default function VendorCreateProductScreen() {
         savedVariants,
         allowPickup,
         allowDelivery,
-        price,
-        quantity,
+        price: getVariantPriceRange(savedVariants),
+        // price,
+        // quantity,
         continueSelling,
         loadedSpecifications: {},
       });
@@ -571,30 +931,85 @@ export default function VendorCreateProductScreen() {
       };
 
       if (Array.isArray(uploadedMedia) && uploadedMedia.length > 0) {
-        productPayload.images = uploadedMedia.map((item) => item.url);
+        productPayload.images = uploadedMedia.map(item => item.url);
       }
-      productPayload.thumbnail_url = thumbnailUrl || (uploadedMedia[0] ? uploadedMedia[0].url : null);
+      productPayload.thumbnail_url =
+        thumbnailUrl || (uploadedMedia[0] ? uploadedMedia[0].url : null);
       productPayload.image_folder_id = productId;
 
-      const data = await createProduct(resolvedShopId, uid, productPayload);
-      const rawProduct = data?.product;
-      const product =
-        rawProduct && typeof rawProduct === 'object'
-          ? /** @type {Record<string, unknown>} */ (rawProduct)
-          : {};
-      const productIdRaw = product.id ?? product.product_id;
-      const productId =
-        typeof productIdRaw === 'number' ? productIdRaw : parseInt(String(productIdRaw ?? ''), 10);
-      if (productId == null || Number.isNaN(Number(productId)) || Number(productId) <= 0) {
-        throw new Error('Invalid response from server (missing product id).');
+      if (editProductId != null) {
+        const result = await updateProduct(
+          resolvedShopId,
+          editProductId,
+          uid,
+          productPayload,
+        );
+        const rawProduct = result?.product ?? result ?? {};
+        const updatedProductId =
+          rawProduct.id ?? rawProduct.product_id ?? editProductId;
+        if (updatedProductId == null || Number(updatedProductId) <= 0) {
+          throw new Error('Invalid response from server (missing product id).');
+        }
+
+        const inventoryRows = Array.isArray(result?.inventory)
+          ? result.inventory
+          : [];
+
+        if (inventoryRows.length > 0) {
+          await Promise.all(
+            inventoryRows.map(row =>
+              updateInventory(
+                resolvedShopId,
+                Number(updatedProductId),
+                row.id ?? row.inventory_id,
+                uid,
+                inventoryPayload,
+              ),
+            ),
+          );
+        } else {
+          await createInventory(
+            resolvedShopId,
+            Number(updatedProductId),
+            uid,
+            inventoryPayload,
+          );
+        }
+      } else {
+        const data = await createProduct(resolvedShopId, uid, productPayload);
+        const rawProduct = data?.product;
+        const product =
+          rawProduct && typeof rawProduct === 'object'
+            ? /** @type {Record<string, unknown>} */ (rawProduct)
+            : {};
+        const productIdRaw = product.id ?? product.product_id;
+        const createdProductId =
+          typeof productIdRaw === 'number'
+            ? productIdRaw
+            : parseInt(String(productIdRaw ?? ''), 10);
+        if (
+          createdProductId == null ||
+          Number.isNaN(Number(createdProductId)) ||
+          Number(createdProductId) <= 0
+        ) {
+          throw new Error('Invalid response from server (missing product id).');
+        }
+        await createInventory(
+          resolvedShopId,
+          createdProductId,
+          uid,
+          inventoryPayload,
+        );
       }
-      await createInventory(resolvedShopId, productId, uid, inventoryPayload);
       setShowFinishSheet(false);
       Alert.alert('Saved', 'Product is live as active.', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (e) {
-      Alert.alert('Save failed', e instanceof Error ? e.message : 'Something went wrong.');
+      Alert.alert(
+        'Save failed',
+        e instanceof Error ? e.message : 'Something went wrong.',
+      );
     } finally {
       setSaveSubmitting(false);
     }
@@ -606,18 +1021,18 @@ export default function VendorCreateProductScreen() {
     allowDelivery,
     hasVariantsList,
     variantStockTotal,
-    baseQuantityAmount,
-    isPriceValid,
+    savedVariants,
     title,
     description,
     categoryKey,
     subCategory,
     productType,
     gender,
-    savedVariants,
-    price,
-    quantity,
     continueSelling,
+    uploadedMedia,
+    thumbnailUrl,
+    productId,
+    editProductId,
     navigation,
   ]);
 
@@ -641,10 +1056,17 @@ export default function VendorCreateProductScreen() {
         <View style={styles.headerSpacer} />
       </View> */}
 
+      {loadingExistingProduct ? (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#00926e" />
+          <Text style={styles.loadingOverlayText}>Loading product details…</Text>
+        </View>
+      ) : null}
+
       <ScrollView
         style={styles.scrollFlex}
         contentContainerStyle={[styles.scroll, { paddingBottom: 16 }]}
-        pointerEvents={mediaUploading ? 'none' : 'auto'}
+        pointerEvents={mediaUploading || loadingExistingProduct ? 'none' : 'auto'}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -658,7 +1080,9 @@ export default function VendorCreateProductScreen() {
             onChangeText={setTitle}
           />
 
-          <Text style={[styles.label, styles.spaceTop]}>Product description</Text>
+          <Text style={[styles.label, styles.spaceTop]}>
+            Product description
+          </Text>
           <View style={styles.toolbarRow}>
             <Icon name="text" size={18} color="#111111" />
             <Icon name="text-outline" size={18} color="#111111" />
@@ -679,7 +1103,10 @@ export default function VendorCreateProductScreen() {
           <View style={styles.mediaBox}>
             <View style={styles.mediaBtnsRow}>
               <TouchableOpacity
-                style={[styles.mediaBtnActive, mediaUploading && styles.mediaBtnDisabled]}
+                style={[
+                  styles.mediaBtnActive,
+                  mediaUploading && styles.mediaBtnDisabled,
+                ]}
                 activeOpacity={0.88}
                 onPress={mediaUploading ? undefined : handlePickMedia}
                 disabled={mediaUploading}
@@ -689,7 +1116,10 @@ export default function VendorCreateProductScreen() {
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.mediaBtnGhost, mediaUploading && styles.mediaBtnDisabled]}
+                style={[
+                  styles.mediaBtnGhost,
+                  mediaUploading && styles.mediaBtnDisabled,
+                ]}
                 activeOpacity={0.88}
                 onPress={mediaUploading ? undefined : handlePickMedia}
                 disabled={mediaUploading}
@@ -698,16 +1128,26 @@ export default function VendorCreateProductScreen() {
               </TouchableOpacity>
             </View>
             <Text style={styles.mediaHint}>Accepts video and images</Text>
-            {mediaUploadError ? <Text style={styles.errorText}>{mediaUploadError}</Text> : null}
+            {mediaUploadError ? (
+              <Text style={styles.errorText}>{mediaUploadError}</Text>
+            ) : null}
           </View>
           {uploadedMedia.length > 0 ? (
             <View style={styles.uploadedMediaGrid}>
-              {uploadedMedia.map((item) => (
+              {uploadedMedia.map(item => (
                 <View style={styles.uploadedMediaCard} key={item.id}>
-                  <Image source={{ uri: item.url }} style={styles.uploadedMediaImage} resizeMode="cover" />
+                  <Image
+                    source={{ uri: item.url }}
+                    style={styles.uploadedMediaImage}
+                    resizeMode="cover"
+                  />
                   <TouchableOpacity
                     style={styles.uploadedMediaRemove}
-                    onPress={mediaUploading ? undefined : () => handleRemoveMedia(item.id)}
+                    onPress={
+                      mediaUploading
+                        ? undefined
+                        : () => handleRemoveMedia(item.id)
+                    }
                     disabled={mediaUploading}
                     hitSlop={8}
                     accessibilityRole="button"
@@ -725,32 +1165,65 @@ export default function VendorCreateProductScreen() {
           <Text style={styles.label}>Category</Text>
           <SelectField
             value={formatMvpCategoryLabel(categoryKey)}
-            onPress={() => setPicker('category')}
+            onPress={() => undefined}
+            disabled
           />
-          <Text style={[styles.label, styles.spaceTop]}>Gender</Text>
-          <SelectField
-            value={gender ? formatMvpCategoryLabel(gender) : 'Select gender'}
-            onPress={() => setPicker('gender')}
-          />
+          <Text style={styles.infoText}>
+            <Text style={styles.infoPrefix}>info:</Text>{' '}
+            <Text style={styles.infoTextItalic}>
+              Category can only be set in the shop settings.
+            </Text>
+          </Text>
+          {isGenderCategory ? (
+            <>
+              <Text style={[styles.label, styles.spaceTop]}>Gender</Text>
+              <SelectField
+                value={
+                  gender ? formatMvpCategoryLabel(gender) : 'Select gender'
+                }
+                onPress={() => setPicker('gender')}
+              />
+            </>
+          ) : null}
         </View>
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Attributes</Text>
           <View style={styles.row}>
-            <View style={styles.half}>
-              <Text style={styles.label}>Sub category</Text>
+            {!isGenderCategory ? (
+              <View style={styles.half}>
+                <Text style={styles.label}>Sub-Category</Text>
+                <SelectField
+                  value={
+                    subCategory
+                      ? formatMvpCategoryLabel(subCategory)
+                      : 'Select sub category'
+                  }
+                  onPress={() => setPicker('sub')}
+                  disabled={subCategories.length === 0}
+                />
+              </View>
+            ) : null}
+            <View
+              style={isGenderCategory ? styles.fullWidthField : styles.half}
+            >
+              <Text style={styles.label}>Product-Type</Text>
               <SelectField
-                value={subCategory ? formatMvpCategoryLabel(subCategory) : 'Select sub category'}
-                onPress={() => setPicker('sub')}
-                disabled={subCategories.length === 0}
-              />
-            </View>
-            <View style={styles.half}>
-              <Text style={styles.label}>Type</Text>
-              <SelectField
-                value={productType ? formatMvpCategoryLabel(productType) : 'Select type'}
-                onPress={() => subCategory.trim() && setPicker('type')}
-                disabled={!subCategory.trim() || typeOptions.length === 0}
+                value={
+                  productType
+                    ? formatMvpCategoryLabel(productType)
+                    : 'Select type'
+                }
+                onPress={() =>
+                  isGenderCategory
+                    ? gender.trim() && setPicker('type')
+                    : subCategory.trim() && setPicker('type')
+                }
+                disabled={
+                  isGenderCategory
+                    ? !gender.trim() || typeOptions.length === 0
+                    : !subCategory.trim() || typeOptions.length === 0
+                }
               />
             </View>
           </View>
@@ -760,12 +1233,54 @@ export default function VendorCreateProductScreen() {
           <Text style={styles.sectionTitle}>Options (Variant)</Text>
           <View style={styles.optionHeader}>
             <Icon name="add-circle-outline" size={20} color="#111111" />
-            <Text style={styles.optionHeaderText}>Add options like color or size.</Text>
+            <Text style={styles.optionHeaderText}>
+              Add options like color or size.
+            </Text>
           </View>
           <Text style={styles.variantFormHint}>
-            Color, size, stock, and variant price are required. Material is optional.
+            Quantity and variant price are required. Color, size, and material
+            are optional.
           </Text>
-          <VariantFieldLabel title="Color" />
+          {dynamicVariantEntries.length > 0
+            ? dynamicVariantEntries.map(([fieldKey, fieldOptions]) => {
+                const displayLabel = formatMvpCategoryLabel(fieldKey);
+                const selectedValue =
+                  fieldKey === 'color'
+                    ? variantColor?.label
+                    : fieldKey === 'size'
+                      ? variantSize
+                      : fieldKey === 'material'
+                        ? variantMaterial
+                        : dynamicVariantValues[fieldKey];
+
+                return (
+                  <View key={fieldKey || `variant-${displayLabel}`}>
+                    <VariantFieldLabel title={displayLabel} optional />
+                    <SelectField
+                      value={
+                        selectedValue
+                          ? String(selectedValue)
+                          : `Select a ${displayLabel.toLowerCase()}`
+                      }
+                      onPress={() => setPicker(fieldKey)}
+                    />
+                  </View>
+                );
+              })
+            : null}
+          {/* const fieldName = String(variant ?? '').trim();
+                const normalized = fieldName.toLowerCase();
+                const pickerKey =
+                  normalized.includes('color')
+                    ? 'variantColor'
+                    : normalized.includes('size')
+                      ? 'variantSize'
+                      : normalized.includes('material')
+                        ? 'variantMaterial'
+                        : 'variantColor';
+                const displayLabel = fieldName ? fieldName.charAt(0).toUpperCase() + fieldName.slice(1) : 'Variant'; */}
+
+          {/* <VariantFieldLabel title="Color" />
           <SelectField
             value={variantColor ? variantColor.label : 'Select a color'}
             onPress={() => setPicker('variantColor')}
@@ -789,7 +1304,17 @@ export default function VendorCreateProductScreen() {
             keyboardType="number-pad"
             value={variantStock}
             onChangeText={handleVariantStockChange}
+          /> */}
+
+          <VariantFieldLabel title="Quantity" />
+          <TextInput
+            style={styles.input}
+            placeholder="Enter variant quantity"
+            placeholderTextColor="#9CA3AF"
+            value={variantStock}
+            onChangeText={handleVariantStockChange}
           />
+
           <VariantFieldLabel title="Variant price" />
           <NairaInput
             value={variantPrice}
@@ -797,21 +1322,33 @@ export default function VendorCreateProductScreen() {
             placeholder="Enter variant price"
           />
 
-          {variantError ? <Text style={styles.variantErrorText}>{variantError}</Text> : null}
+          {variantError ? (
+            <Text style={styles.variantErrorText}>{variantError}</Text>
+          ) : null}
 
           <View style={styles.rowBtnWrap}>
             <TouchableOpacity
-              style={[styles.addVariantBtn, !canAddVariant && styles.addVariantBtnDisabled]}
+              style={[
+                styles.addVariantBtn,
+                !canAddVariant && styles.addVariantBtnDisabled,
+              ]}
               activeOpacity={0.88}
               onPress={handleSaveVariant}
             >
               <Text
-                style={[styles.addVariantBtnText, !canAddVariant && styles.addVariantBtnTextDisabled]}
+                style={[
+                  styles.addVariantBtnText,
+                  !canAddVariant && styles.addVariantBtnTextDisabled,
+                ]}
               >
                 Add variant
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.clearBtn} activeOpacity={0.88} onPress={clearVariantFields}>
+            <TouchableOpacity
+              style={styles.clearBtn}
+              activeOpacity={0.88}
+              onPress={clearVariantFields}
+            >
               <Text style={styles.clearBtnText}>Clear fields</Text>
             </TouchableOpacity>
           </View>
@@ -821,7 +1358,9 @@ export default function VendorCreateProductScreen() {
               {savedVariants.map((variant, index) => (
                 <View style={styles.savedVariantCard} key={variant.id}>
                   <View style={styles.savedVariantCardTop}>
-                    <Text style={styles.savedVariantTitle}>Variant {index + 1}</Text>
+                    <Text style={styles.savedVariantTitle}>
+                      Variant {index + 1}
+                    </Text>
                     <TouchableOpacity
                       style={styles.savedVariantDeleteBtn}
                       onPress={() => handleDeleteVariant(variant.id)}
@@ -839,18 +1378,23 @@ export default function VendorCreateProductScreen() {
                         style={styles.savedVariantGridRow}
                         key={`${variant.id}-row-${rowIndex}`}
                       >
-                        {row.map((detail) => (
+                        {row.map(detail => (
                           <View
                             style={[
                               styles.savedVariantCell,
-                              row.length === 1 ? styles.savedVariantCellQuarter : styles.savedVariantCellFlex,
+                              row.length === 1
+                                ? styles.savedVariantCellQuarter
+                                : styles.savedVariantCellFlex,
                             ]}
                             key={`${variant.id}-${detail.label}`}
                           >
                             <Text style={styles.savedVariantCellLabel}>
                               {String(detail.label).toUpperCase()}
                             </Text>
-                            <Text style={styles.savedVariantCellValue} numberOfLines={2}>
+                            <Text
+                              style={styles.savedVariantCellValue}
+                              numberOfLines={2}
+                            >
                               {detail.value}
                             </Text>
                           </View>
@@ -864,10 +1408,14 @@ export default function VendorCreateProductScreen() {
           ) : null}
         </View>
 
-        <View style={styles.card}>
+        {/* <View style={styles.card}>
           <Text style={styles.sectionTitle}>Pricing</Text>
           <Text style={styles.label}>Price</Text>
-          <NairaInput value={price} onChangeText={setPrice} placeholder="Product price" />
+          <NairaInput
+            value={price}
+            onChangeText={setPrice}
+            placeholder="Product price"
+          />
           {price.trim().length > 0 && !isPriceValid ? (
             <Text style={styles.errorText}>Enter a valid price.</Text>
           ) : null}
@@ -877,7 +1425,6 @@ export default function VendorCreateProductScreen() {
           <Text style={styles.sectionTitle}>Inventory</Text>
           <Text style={styles.label}>Quantity</Text>
           <View style={styles.inventoryRow}>
-            {/* <Text style={styles.locationText}>Ifite Awka</Text> */}
             <TextInput
               style={styles.qtyInput}
               keyboardType="number-pad"
@@ -888,42 +1435,65 @@ export default function VendorCreateProductScreen() {
           <CheckRow
             label="Continue selling when out of stock"
             checked={continueSelling}
-            onToggle={() => setContinueSelling((v) => !v)}
+            onToggle={() => setContinueSelling(v => !v)}
           />
-        </View>
+        </View> */}
 
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Shipping (Optional)</Text>
           <CheckRow
             label="Fragile (Is this product fragile.)"
             checked={fragile}
-            onToggle={() => setFragile((v) => !v)}
+            onToggle={() => setFragile(v => !v)}
           />
 
           <Text style={[styles.label, styles.spaceTop]}>Weight</Text>
-          <SuffixInput value={weightKg} onChangeText={setWeightKg} suffix="kg" />
+          <SuffixInput
+            value={weightKg}
+            onChangeText={setWeightKg}
+            suffix="kg"
+          />
 
-          <Text style={[styles.label, styles.spaceTop]}>Dimension (Optional)</Text>
+          <Text style={[styles.label, styles.spaceTop]}>
+            Dimension (Optional)
+          </Text>
           <View style={styles.row}>
             <View style={styles.third}>
               <Text style={styles.dimLabel}>Length</Text>
-              <SuffixInput value={lengthCm} onChangeText={setLengthCm} suffix="cm" />
+              <SuffixInput
+                value={lengthCm}
+                onChangeText={setLengthCm}
+                suffix="cm"
+              />
             </View>
             <View style={styles.third}>
               <Text style={styles.dimLabel}>Width</Text>
-              <SuffixInput value={widthCm} onChangeText={setWidthCm} suffix="cm" />
+              <SuffixInput
+                value={widthCm}
+                onChangeText={setWidthCm}
+                suffix="cm"
+              />
             </View>
             <View style={styles.third}>
               <Text style={styles.dimLabel}>Height</Text>
-              <SuffixInput value={heightCm} onChangeText={setHeightCm} suffix="cm" />
+              <SuffixInput
+                value={heightCm}
+                onChangeText={setHeightCm}
+                suffix="cm"
+              />
             </View>
           </View>
         </View>
       </ScrollView>
 
-      <View style={[styles.saveBar, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+      <View
+        style={[styles.saveBar, { paddingBottom: Math.max(insets.bottom, 12) }]}
+      >
         <TouchableOpacity
-          style={[styles.primaryBtnBar, (mediaUploading || saveSubmitting) && styles.primaryBtnDisabled]}
+          style={[
+            styles.primaryBtnBar,
+            (mediaUploading || saveSubmitting) && styles.primaryBtnDisabled,
+          ]}
           onPress={mediaUploading ? undefined : onSave}
           activeOpacity={0.88}
           disabled={mediaUploading || saveSubmitting}
@@ -942,8 +1512,9 @@ export default function VendorCreateProductScreen() {
           <View style={styles.validationModalCard}>
             <Text style={styles.validationTitle}>Complete the form</Text>
             <Text style={styles.validationText}>
-              Please fill in every required field on this page (title, category, price, quantity, and any
-              category-specific options) before saving. Check the red messages next to each field.
+              Please fill in every required field on this page, including at
+              least one valid variant with quantity and price, before saving.
+              Shipping is optional and does not need to be completed.
             </Text>
             <TouchableOpacity
               style={styles.validationOkBtn}
@@ -969,16 +1540,25 @@ export default function VendorCreateProductScreen() {
 
       <Modal transparent visible={showFinishSheet} animationType="slide">
         <View style={styles.sheetRoot}>
-          <Pressable style={styles.sheetBackdrop} onPress={() => setShowFinishSheet(false)} />
-          <View style={[styles.sheetCard, { paddingBottom: insets.bottom + 14 }]}>
+          <Pressable
+            style={styles.sheetBackdrop}
+            onPress={() => setShowFinishSheet(false)}
+          />
+          <View
+            style={[styles.sheetCard, { paddingBottom: insets.bottom + 14 }]}
+          >
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>Finish & save</Text>
-              <TouchableOpacity onPress={() => setShowFinishSheet(false)} hitSlop={8}>
+              <TouchableOpacity
+                onPress={() => setShowFinishSheet(false)}
+                hitSlop={8}
+              >
                 <Icon name="close" size={22} color="#111111" />
               </TouchableOpacity>
             </View>
-            <Text style={styles.sheetHint}>
-              Add brand and how you deliver. We'll validate the full product when you continue.
+            {/* <Text style={styles.sheetHint}>
+              Add brand and how you deliver. We'll validate the full product
+              when you continue.
             </Text>
             <Text style={styles.label}>Product organization</Text>
             <TextInput
@@ -987,20 +1567,25 @@ export default function VendorCreateProductScreen() {
               placeholderTextColor="#9CA3AF"
               value={brandName}
               onChangeText={setBrandName}
-            />
-            <Text style={[styles.label, styles.spaceTop]}>Delivery methods</Text>
+            /> */}
+            <Text style={[styles.label, styles.spaceTop]}>
+              Delivery methods
+            </Text>
             <CheckRow
               label="Allow customers to pick up orders from your location"
               checked={allowPickup}
-              onToggle={() => setAllowPickup((v) => !v)}
+              onToggle={() => setAllowPickup(v => !v)}
             />
             <CheckRow
               label="Deliver orders to the customer's address"
               checked={allowDelivery}
-              onToggle={() => setAllowDelivery((v) => !v)}
+              onToggle={() => setAllowDelivery(v => !v)}
             />
             <TouchableOpacity
-              style={[styles.primaryBtn, saveSubmitting && styles.primaryBtnDisabled]}
+              style={[
+                styles.primaryBtn,
+                saveSubmitting && styles.primaryBtnDisabled,
+              ]}
               onPress={() => {
                 if (!saveSubmitting) onContinueFinalSave();
               }}
@@ -1030,13 +1615,17 @@ function VariantFieldLabel({ title, optional }) {
       <View
         style={[
           styles.variantLabelBadge,
-          optional ? styles.variantLabelBadgeOptional : styles.variantLabelBadgeRequired,
+          optional
+            ? styles.variantLabelBadgeOptional
+            : styles.variantLabelBadgeRequired,
         ]}
       >
         <Text
           style={[
             styles.variantLabelBadgeText,
-            optional ? styles.variantLabelBadgeTextOptional : styles.variantLabelBadgeTextRequired,
+            optional
+              ? styles.variantLabelBadgeTextOptional
+              : styles.variantLabelBadgeTextRequired,
           ]}
         >
           {optional ? 'Optional' : 'Required'}
@@ -1064,7 +1653,8 @@ function SelectField({ value, onPress, disabled, leadingSwatch }) {
             style={[
               styles.selectSwatch,
               { backgroundColor: leadingSwatch },
-              leadingSwatch.toLowerCase() === '#ffffff' && styles.selectSwatchLight,
+              leadingSwatch.toLowerCase() === '#ffffff' &&
+                styles.selectSwatchLight,
             ]}
           />
         ) : null}
@@ -1075,7 +1665,12 @@ function SelectField({ value, onPress, disabled, leadingSwatch }) {
           {value}
         </Text>
       </View>
-      <Icon name="chevron-down" size={18} color={disabled ? '#111111' : '#00926e'} style={{ opacity: disabled ? 0.35 : 1 }} />
+      <Icon
+        name="chevron-down"
+        size={18}
+        color={disabled ? '#111111' : '#00926e'}
+        style={{ opacity: disabled ? 0.35 : 1 }}
+      />
     </TouchableOpacity>
   );
 }
@@ -1103,13 +1698,31 @@ function OptionPickerModal({
   insetBottom,
 }) {
   return (
-    <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal
+      transparent
+      visible={visible}
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <View style={styles.pickerModalRoot}>
-        <Pressable style={styles.pickerBackdrop} onPress={onClose} accessibilityLabel="Dismiss picker" />
-        <View style={[styles.pickerSheet, { paddingBottom: Math.max(insetBottom, 16) + 12 }]}>
+        <Pressable
+          style={styles.pickerBackdrop}
+          onPress={onClose}
+          accessibilityLabel="Dismiss picker"
+        />
+        <View
+          style={[
+            styles.pickerSheet,
+            { paddingBottom: Math.max(insetBottom, 16) + 12 },
+          ]}
+        >
           <View style={styles.pickerSheetHeader}>
             <Text style={styles.pickerSheetTitle}>{title}</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={10} accessibilityLabel="Close">
+            <TouchableOpacity
+              onPress={onClose}
+              hitSlop={10}
+              accessibilityLabel="Close"
+            >
               <Icon name="close" size={24} color="#111111" />
             </TouchableOpacity>
           </View>
@@ -1122,7 +1735,10 @@ function OptionPickerModal({
               const swatch = swatchByValue?.[item];
               return (
                 <Pressable
-                  style={({ pressed }) => [styles.pickerRow, pressed && styles.pickerRowPressed]}
+                  style={({ pressed }) => [
+                    styles.pickerRow,
+                    pressed && styles.pickerRowPressed,
+                  ]}
                   onPress={() => {
                     onSelect(item);
                     onClose();
@@ -1134,17 +1750,22 @@ function OptionPickerModal({
                         style={[
                           styles.pickerSwatch,
                           { backgroundColor: swatch },
-                          String(swatch).toLowerCase() === '#ffffff' && styles.pickerSwatchLight,
+                          String(swatch).toLowerCase() === '#ffffff' &&
+                            styles.pickerSwatchLight,
                         ]}
                       />
                     ) : null}
-                    <Text style={styles.pickerRowText}>{formatLabel(item)}</Text>
+                    <Text style={styles.pickerRowText}>
+                      {formatLabel(item)}
+                    </Text>
                   </View>
                 </Pressable>
               );
             }}
             ListEmptyComponent={
-              <Text style={styles.pickerEmpty}>No options for this selection.</Text>
+              <Text style={styles.pickerEmpty}>
+                No options for this selection.
+              </Text>
             }
           />
         </View>
@@ -1155,7 +1776,11 @@ function OptionPickerModal({
 
 function CheckRow({ label, checked, onToggle }) {
   return (
-    <TouchableOpacity style={styles.checkRow} onPress={onToggle} activeOpacity={0.88}>
+    <TouchableOpacity
+      style={styles.checkRow}
+      onPress={onToggle}
+      activeOpacity={0.88}
+    >
       <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
         {checked ? <Icon name="checkmark" size={14} color="#FFFFFF" /> : null}
       </View>
@@ -1260,6 +1885,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#374151',
     marginBottom: 8,
+  },
+  infoText: {
+    marginTop: 6,
+    fontSize: 12,
+    color: '#6B7280',
+    lineHeight: 18,
+  },
+  infoPrefix: {
+    color: '#5B6470',
+    fontWeight: '700',
+    fontStyle: 'italic',
+  },
+  infoTextItalic: {
+    color: '#6B7280',
+    fontStyle: 'italic',
   },
   input: {
     backgroundColor: '#FFFFFF',
@@ -1595,6 +2235,10 @@ const styles = StyleSheet.create({
   },
   half: {
     flex: 1,
+  },
+  fullWidthField: {
+    flex: 1,
+    width: '100%',
   },
   third: {
     flex: 1,

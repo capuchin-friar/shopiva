@@ -53,7 +53,7 @@ export function getCurrentCoordinates() {
 
 /**
  * @param {unknown} data
- * @returns {{ street: string; town: string; city: string; state: string; country: string }}
+ * @returns {{ street: string; town: string; city: string; state: string; country: string; zip: string }}
  */
 function parseBigDataCloudResponse(data) {
   const city = String(data?.city ?? '').trim();
@@ -116,12 +116,14 @@ function parseBigDataCloudResponse(data) {
   }
 
   const country = String(data?.countryName ?? '').trim() || 'Nigeria';
+  const zip = String(data?.postcode ?? '').trim();
   return {
     street,
     town,
     city: city || locality,
     state,
     country,
+    zip,
   };
 }
 
@@ -129,7 +131,7 @@ function parseBigDataCloudResponse(data) {
  * OpenStreetMap Nominatim — better street / suburb detail when BigDataCloud omits them.
  * @param {number} latitude
  * @param {number} longitude
- * @returns {Promise<{ street: string; town: string; city: string; state: string; country: string }>}
+ * @returns {Promise<{ street: string; town: string; city: string; state: string; country: string; zip: string }>}
  */
 async function reverseGeocodeNominatim(latitude, longitude) {
   const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${encodeURIComponent(
@@ -169,8 +171,9 @@ async function reverseGeocodeNominatim(latitude, longitude) {
 
   const state = String(addr.state ?? addr.region ?? '').trim();
   const country = String(addr.country ?? '').trim();
+  const zip = String(addr.postcode ?? '').trim();
 
-  return { street, town, city, state, country };
+  return { street, town, city, state, country, zip };
 }
 
 /**
@@ -189,7 +192,7 @@ function pickField(primary, fallback) {
  * street, town, city, state, and country.
  * @param {number} latitude
  * @param {number} longitude
- * @returns {Promise<{ street: string; town: string; city: string; state: string; country: string }>}
+ * @returns {Promise<{ street: string; town: string; city: string; state: string; country: string; zip: string }>}
  */
 export async function reverseGeocodeToPlace(latitude, longitude) {
   const bdcUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${encodeURIComponent(
@@ -207,12 +210,12 @@ export async function reverseGeocodeToPlace(latitude, longitude) {
   const bdc =
     bdcResult.status === 'fulfilled'
       ? parseBigDataCloudResponse(bdcResult.value)
-      : { street: '', town: '', city: '', state: '', country: '' };
+      : { street: '', town: '', city: '', state: '', country: '', zip: '' };
 
   const nom =
     nomResult.status === 'fulfilled'
       ? nomResult.value
-      : { street: '', town: '', city: '', state: '', country: '' };
+      : { street: '', town: '', city: '', state: '', country: '', zip: '' };
 
   const city = pickField(bdc.city, nom.city);
   const state = pickField(bdc.state, nom.state);
@@ -233,5 +236,6 @@ export async function reverseGeocodeToPlace(latitude, longitude) {
     city,
     state,
     country,
+    zip: pickField(bdc.zip, nom.zip),
   };
 }

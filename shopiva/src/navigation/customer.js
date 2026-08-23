@@ -4,13 +4,14 @@ import Ionicons from 'react-native-vector-icons/Ionicons';
 import { useSelector } from 'react-redux';
 import { HomeStackScreen } from '../stacks/customer/Home';
 import { ProfileStackScreen } from '../stacks/customer/Profile';
+import { CartStackScreen } from '../stacks/customer/Cart';
 import { ActivitiesStackScreen } from '../stacks/customer/Activities';
 import { ProfileProvider } from '../context/ProfileContext';
 
 const Tab = createBottomTabNavigator();
 
 export default function CustomerTab() {
-  const { nested_nav } = useSelector((s) => s?.nested_nav);
+  const { nested_nav } = useSelector(s => s?.nested_nav);
   const [tabBarStyle, setTabBarStyle] = React.useState('flex');
 
   React.useEffect(() => {
@@ -30,6 +31,8 @@ export default function CustomerTab() {
 
             if (route.name === 'Home') {
               iconName = focused ? 'home' : 'home-outline';
+            } else if (route.name === 'Cart') {
+              iconName = focused ? 'cart' : 'cart-outline';
             } else if (route.name === 'Activities') {
               iconName = focused ? 'pulse' : 'pulse-outline';
             } else if (route.name === 'Profile') {
@@ -47,6 +50,7 @@ export default function CustomerTab() {
       >
         <Tab.Screen name="Home" component={HomeStackScreen} />
         <Tab.Screen name="Activities" component={ActivitiesStackScreen} />
+        <Tab.Screen name="Cart" component={CartStackScreen} />
         <Tab.Screen name="Profile" component={ProfileStackScreen} />
       </Tab.Navigator>
     </ProfileProvider>

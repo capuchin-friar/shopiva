@@ -1,4 +1,4 @@
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -17,13 +17,31 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import ShopPolicyViewerModal from '../../components/ShopPolicyViewerModal';
 import { ShopOverflowMenu } from '../../components/ShopOverflowMenu';
-import { getVendorsOnMapByCategory, getStorefrontProducts, getStorefrontShop } from '../../api';
+import {
+  getVendorsOnMapByCategory,
+  getStorefrontProducts,
+  getStorefrontShop,
+} from '../../api';
 import { formatNaira } from '../../utils/formatNaira';
 import { getProductImageUri } from '../../utils/productImageUtils';
 import { extractCustomerPolicySections } from '../../utils/shopPoliciesForCustomer';
+import { useSelector } from 'react-redux';
+import {
+  selectCategoriesError,
+  selectCategoriesLoading,
+  selectCategoryKeys,
+  selectCategoryRows,
+} from '../../../redux/categoriesSlice';
 
 const WINDOW_W = Dimensions.get('window').width;
 const WINDOW_H = Dimensions.get('window').height;
+
+function formatCategoryLabel(category) {
+  return String(category ?? '')
+    .split(' ')
+    .map(word => word ? `${word.charAt(0).toUpperCase()}${word.slice(1)}` : word)
+    .join(' ');
+}
 
 /** @type {readonly string[]} Nigeria states + FCT (canonical labels). */
 const NG_STATES = Object.freeze([
@@ -67,7 +85,7 @@ const NG_STATES = Object.freeze([
 ]);
 
 const STATE_LOOKUP = new Map(
-  NG_STATES.map((s) => [s.trim().toLowerCase().replace(/\s+/g, ' '), s]),
+  NG_STATES.map(s => [s.trim().toLowerCase().replace(/\s+/g, ' '), s]),
 );
 
 /** Map common API spellings to canonical {@link NG_STATES} names. */
@@ -111,7 +129,7 @@ function buildLocationRows(vendors) {
       other += 1;
     }
   }
-  const stateRows = NG_STATES.map((name) => ({
+  const stateRows = NG_STATES.map(name => ({
     key: name,
     name,
     count: counts.get(name) ?? 0,
@@ -127,14 +145,17 @@ function buildLocationRows(vendors) {
 }
 const CARD_PAD = 18;
 const PRODUCT_GAP = 10;
-const PRODUCT_W = Math.min(132, Math.floor((WINDOW_W - 32 - CARD_PAD * 2 - 24) / 2.2));
+const PRODUCT_W = Math.min(
+  132,
+  Math.floor((WINDOW_W - 32 - CARD_PAD * 2 - 24) / 2.2),
+);
 
 const DARK = {
-  cardBg: '#3D2E22',
+  cardBg: '#00926e',
   primaryText: '#FFFFFF',
   secondaryText: 'rgba(255,255,255,0.72)',
   ratingStar: '#E8C547',
-  footerCta: '#5C4332',
+  footerCta: 'rgba(255, 255, 255, 0.2)',
   productTileBg: 'rgba(255,255,255,0.12)',
   // heartBg: 'rgba(0,0,0,0.38)', // MVP: wishlist heart on product tiles — disabled
   priceBadge: 'rgba(0,0,0,0.55)',
@@ -180,24 +201,36 @@ function formatCompactCount(n) {
 function vendorRatingSubtitle(v) {
   if (!v || typeof v !== 'object') return null;
   const ratingRaw =
-    /** @type {{ ratingAverage?: unknown; rating?: unknown }} */ (v).ratingAverage ??
-    /** @type {{ rating?: unknown }} */ (v).rating;
+    /** @type {{ ratingAverage?: unknown; rating?: unknown }} */ (v)
+      .ratingAverage ?? /** @type {{ rating?: unknown }} */ (v).rating;
   const countRaw =
-    /** @type {{ ratingCount?: unknown; reviewCount?: unknown }} */ (v).ratingCount ??
-    /** @type {{ reviewCount?: unknown }} */ (v).reviewCount;
+    /** @type {{ ratingCount?: unknown; reviewCount?: unknown }} */ (v)
+      .ratingCount ?? /** @type {{ reviewCount?: unknown }} */ (v).reviewCount;
   const rating = Number(ratingRaw);
   const count = Number(countRaw);
   if (!Number.isFinite(rating) || rating <= 0) {
     return null;
   }
-  const cLabel = Number.isFinite(count) && count > 0 ? ` (${formatCompactCount(count)})` : '';
+  const cLabel =
+    Number.isFinite(count) && count > 0
+      ? ` (${formatCompactCount(count)})`
+      : '';
   return `${rating.toFixed(1)} ★${cLabel}`;
 }
 
 /**
- * @param {{ loading?: boolean; items?: { key: string; uri: string; priceLabel: string }[] }} [preview]
+ * @param {{ loading?: boolean; items?: { key: string; uri: string; priceLabel: string; title: string; priceUsd: number; currency: string; gender?: string; subCategory?: string; type?: string }[] }} [preview]
+ * @param {string} category
  */
-function VendorCard({ item, index, onOpenShop, onPressMenu, preview }) {
+function VendorCard({
+  item,
+  index,
+  onOpenShop,
+  onPressMenu,
+  preview,
+  category,
+}) {
+  const navigation = useNavigation();
   const isDark = index % 2 === 0;
   const t = isDark ? DARK : LIGHT;
   const slug = String(item.slug ?? '').trim();
@@ -206,34 +239,51 @@ function VendorCard({ item, index, onOpenShop, onPressMenu, preview }) {
   const carouselItems = Array.isArray(pv.items) ? pv.items : [];
 
   return (
-    <View style={[styles.card, { backgroundColor: t.cardBg, borderRadius: 10 }]}>
+    <View
+      style={[styles.card, { backgroundColor: t.cardBg, borderRadius: 10 }]}
+    >
       <View style={styles.cardInner}>
         <View style={styles.headerRow}>
-          <View style={[styles.avatar, { backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : '#E8E8E8' }]}>
+          <TouchableOpacity
+            style={[
+              styles.avatar,
+              { backgroundColor: isDark ? 'rgba(255,255,255,0.2)' : '#E8E8E8' },
+            ]}
+            onPress={() => onOpenShop?.(item)}
+          >
             <Text style={[styles.avatarLetter, { color: t.primaryText }]}>
               {(item.name || 'S').trim().charAt(0).toUpperCase()}
             </Text>
-          </View>
-          <View style={styles.headerText}>
-            <Text style={[styles.vendorName, { color: t.primaryText }]} numberOfLines={1}>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerText} onPress={() => onOpenShop?.(item)}>
+            <Text
+              style={[styles.vendorName, { color: t.primaryText }]}
+              numberOfLines={1}
+            >
               {item.name || 'Shop'}
             </Text>
             {loc ? (
               <View style={styles.cardLocationRow}>
                 <View style={styles.locationIconWrap}>
-                  <Icon name="location-outline" size={14} color={t.secondaryText} />
+                  <Icon
+                    name="location-outline"
+                    size={14}
+                    color={t.secondaryText}
+                  />
                 </View>
                 <Text
                   style={[styles.locationText, { color: t.secondaryText }]}
                   numberOfLines={1}
                   ellipsizeMode="tail"
-                  {...(Platform.OS === 'android' ? { includeFontPadding: false } : {})}
+                  {...(Platform.OS === 'android'
+                    ? { includeFontPadding: false }
+                    : {})}
                 >
                   {loc}
                 </Text>
               </View>
             ) : null}
-          </View>
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.iconHit}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -251,43 +301,81 @@ function VendorCard({ item, index, onOpenShop, onPressMenu, preview }) {
           </View>
         ) : carouselItems.length === 0 ? (
           <Text style={[styles.carouselEmpty, { color: t.secondaryText }]}>
-            {slug ? 'No published products in this shop yet.' : 'Open shop to see products.'}
+            {slug
+              ? 'No published products in this shop yet.'
+              : 'Open shop to see products.'}
           </Text>
         ) : (
           <FlatList
             horizontal
             nestedScrollEnabled
             data={carouselItems}
-            keyExtractor={(p) => p.key}
+            keyExtractor={p => p.key}
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.carouselPad}
             renderItem={({ item: p }) => (
-              <View style={[styles.productCell, { width: PRODUCT_W, backgroundColor: t.productTileBg }]}>
+              <TouchableOpacity
+                style={[
+                  styles.productCell,
+                  { width: PRODUCT_W, backgroundColor: t.productTileBg },
+                ]}
+                onPress={() => {
+                  navigation.navigate('Product', {
+                    vendor: item,
+                    category: category ?? 'fashion',
+                    productId: String(p.key),
+                    shop_id: item.id,
+                    product: {
+                      id: p.key,
+                      key: p.key,
+                      title: p.title,
+                      uri: p.uri,
+                      priceUsd: p.priceUsd,
+                      currency: p.currency,
+                      gender: p.gender,
+                      subCategory: p.subCategory,
+                      type: p.type,
+                    },
+                  });
+                }}
+              >
                 {p.uri ? (
-                  <Image source={{ uri: p.uri }} style={styles.productImage} resizeMode="cover" />
+                  <Image
+                    source={{ uri: p.uri }}
+                    style={styles.productImage}
+                    resizeMode="cover"
+                  />
                 ) : (
                   <View style={[styles.productImage, styles.productImagePh]}>
-                    <Icon name="image-outline" size={28} color={isDark ? 'rgba(255,255,255,0.5)' : '#999'} />
+                    <Icon
+                      name="image-outline"
+                      size={28}
+                      color={isDark ? '#00897B' : '#999'}
+                    />
                   </View>
                 )}
-                <View style={[styles.priceBadge, { backgroundColor: t.priceBadge }]}>
+                <View
+                  style={[styles.priceBadge, { backgroundColor: t.priceBadge }]}
+                >
                   <Text style={styles.priceBadgeText}>{p.priceLabel}</Text>
                 </View>
-              </View>
+              </TouchableOpacity>
             )}
           />
         )}
 
-        <View style={styles.footerRow}>
-          <Text style={[styles.footerLabel, { color: t.primaryText }]}>Explore shop</Text>
-          <TouchableOpacity
+        <TouchableOpacity style={styles.footerRow} onPress={() => onOpenShop?.(item)}>
+          <Text style={[styles.footerLabel, { color: t.primaryText }]}>
+            Explore shop
+          </Text>
+          <View
             style={[styles.arrowCta, { backgroundColor: t.footerCta }]}
             activeOpacity={0.85}
             onPress={() => onOpenShop?.(item)}
           >
-            <Icon name="arrow-forward" size={22} color="#000000" />
-          </TouchableOpacity>
-        </View>
+            <Icon name="arrow-forward" size={22} color={isDark ? "#fff" : "#000000"} />
+          </View>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -302,7 +390,13 @@ function VendorCard({ item, index, onOpenShop, onPressMenu, preview }) {
  *   onClose: () => void;
  * }} props
  */
-function VendorLocationSheet({ visible, vendors, locationFilter, onSelectLocation, onClose }) {
+function VendorLocationSheet({
+  visible,
+  vendors,
+  locationFilter,
+  onSelectLocation,
+  onClose,
+}) {
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -316,7 +410,7 @@ function VendorLocationSheet({ visible, vendors, locationFilter, onSelectLocatio
   const filteredRows = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return rows;
-    return rows.filter((r) => {
+    return rows.filter(r => {
       const label =
         r.name == null ? 'all locations' : `${r.name}`.toLowerCase();
       return label.includes(q) || String(r.count).includes(q);
@@ -366,29 +460,43 @@ function VendorLocationSheet({ visible, vendors, locationFilter, onSelectLocatio
               autoCorrect={false}
               autoCapitalize="none"
             />
-            <Icon name="chevron-down" size={20} color="#000000" style={styles.locationSearchChevron} />
+            <Icon
+              name="chevron-down"
+              size={20}
+              color="#000000"
+              style={styles.locationSearchChevron}
+            />
           </View>
 
           <FlatList
             data={filteredRows}
-            keyExtractor={(item) => item.key}
+            keyExtractor={item => item.key}
             style={[styles.locationList, { maxHeight: listMaxH }]}
             showsVerticalScrollIndicator
             keyboardShouldPersistTaps="handled"
-            ItemSeparatorComponent={() => <View style={styles.locationRowSep} />}
+            ItemSeparatorComponent={() => (
+              <View style={styles.locationRowSep} />
+            )}
             renderItem={({ item }) => {
               const selected =
                 (item.name == null && locationFilter == null) ||
                 (item.name != null && item.name === locationFilter);
-              const label =
-                item.name == null ? 'All locations' : item.name;
+              const label = item.name == null ? 'All locations' : item.name;
               return (
                 <TouchableOpacity
-                  style={[styles.locationRow, selected && styles.locationRowSelected]}
+                  style={[
+                    styles.locationRow,
+                    selected && styles.locationRowSelected,
+                  ]}
                   onPress={() => onSelectLocation(item.name)}
                   activeOpacity={0.75}
                 >
-                  <Text style={[styles.locationRowText, selected && styles.locationRowTextSelected]}>
+                  <Text
+                    style={[
+                      styles.locationRowText,
+                      selected && styles.locationRowTextSelected,
+                    ]}
+                  >
                     {label} ({item.count})
                   </Text>
                 </TouchableOpacity>
@@ -401,28 +509,74 @@ function VendorLocationSheet({ visible, vendors, locationFilter, onSelectLocatio
   );
 }
 
+
+
 /**
  * @param {{ route: import('@react-navigation/native').RouteProp<Record<string, object | undefined>, 'vendors'>; navigation: import('@react-navigation/native').NativeStackNavigationProp<Record<string, object | undefined>, 'vendors'> }} props
  */
 export default function VendorScreen({ route, navigation }) {
-  const category = route.params?.category ?? 'fashion';
+  const routeCategory = String(route.params?.category ?? '').trim().toLowerCase();
+  const categoryRows = useSelector(selectCategoryRows);
+  const categories = useSelector(selectCategoryKeys);
+  const categoriesLoading = useSelector(selectCategoriesLoading);
+  const categoriesError = useSelector(selectCategoriesError) ?? '';
+  const visibleCategories = useMemo(
+    () =>
+      categoryRows
+        .filter(row => Number(row?.existingProductCount ?? 0) > 0)
+        .map(row => String(row?.category ?? '').trim().toLowerCase())
+        .filter(Boolean),
+    [categoryRows],
+  );
+  const [selectedCategory, setSelectedCategory] = useState(routeCategory);
+  const category = selectedCategory;
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filterVisible, setFilterVisible] = useState(false);
   /** Vendor row opened in the ⋮ menu, or `null` when closed. */
-  const [menuVendor, setMenuVendor] = useState(/** @type {Record<string, unknown> | null} */ (null));
+  const [menuVendor, setMenuVendor] = useState(
+    /** @type {Record<string, unknown> | null} */ (null),
+  );
   /** `null` = all states. */
-  const [locationFilter, setLocationFilter] = useState(/** @type {string | null} */ (null));
+  const [locationFilter, setLocationFilter] = useState(
+    /** @type {string | null} */ (null),
+  );
   /** @type {Record<string, { loading: boolean; items: { key: string; uri: string; priceLabel: string }[] }>} */
   const [slugPreviews, setSlugPreviews] = useState({});
-  const [vendorPolicyModalVisible, setVendorPolicyModalVisible] = useState(false);
+  const [vendorPolicyModalVisible, setVendorPolicyModalVisible] =
+    useState(false);
   const [vendorPolicyLoading, setVendorPolicyLoading] = useState(false);
   const [vendorPolicyTitle, setVendorPolicyTitle] = useState('');
-  const [vendorPolicyClauses, setVendorPolicyClauses] = useState(/** @type {{ title: string; content: string }[]} */ ([]));
+  const [vendorPolicyClauses, setVendorPolicyClauses] = useState(
+    /** @type {{ title: string; content: string }[]} */ ([]),
+  );
   const [vendorPolicyEmptyMessage, setVendorPolicyEmptyMessage] = useState('');
 
   useEffect(() => {
+    if (!visibleCategories.length) {
+      setSelectedCategory('');
+      return;
+    }
+
+    setSelectedCategory((current) => {
+      const currentKey = String(current ?? '').trim().toLowerCase();
+      if (currentKey) {
+        const existing = visibleCategories.find((option) => option === currentKey);
+        if (existing) return existing;
+      }
+
+      const routeMatch = visibleCategories.find((option) => option === routeCategory);
+      return routeMatch ?? visibleCategories[0];
+    });
+  }, [routeCategory, visibleCategories]);
+
+  useEffect(() => {
+    if (!category) {
+      setLoading(false);
+      setVendors([]);
+      return undefined;
+    }
     let cancelled = false;
     (async () => {
       setLoading(true);
@@ -449,7 +603,11 @@ export default function VendorScreen({ route, navigation }) {
   }, [category]);
 
   useEffect(() => {
-    const slugs = [...new Set(vendors.map((v) => String(v?.slug ?? '').trim()).filter(Boolean))];
+    const slugs = [
+      ...new Set(
+        vendors.map(v => String(v?.slug ?? '').trim()).filter(Boolean),
+      ),
+    ];
     if (!slugs.length) {
       setSlugPreviews({});
       return;
@@ -466,7 +624,7 @@ export default function VendorScreen({ route, navigation }) {
         if (cancelled) return;
         const chunk = slugs.slice(i, i + CONC);
         await Promise.all(
-          chunk.map(async (slug) => {
+          chunk.map(async slug => {
             try {
               const { products } = await getStorefrontProducts(slug);
               if (cancelled) return;
@@ -477,16 +635,37 @@ export default function VendorScreen({ route, navigation }) {
                 const minPrice = Number(p?.minPrice) || 0;
                 const maxPrice = Number(p?.maxPrice) || minPrice;
                 const hasVariants = Boolean(p?.hasVariants);
+                const title =
+                  String(p?.name ?? p?.title ?? 'Product').trim() || 'Product';
                 const priceLabel =
                   hasVariants && minPrice !== maxPrice
                     ? `${formatNaira(minPrice)} – ${formatNaira(maxPrice)}`
                     : formatNaira(minPrice);
-                return { key: id, uri, priceLabel };
+                return {
+                  key: id,
+                  uri,
+                  priceLabel,
+                  title,
+                  priceUsd: minPrice,
+                  currency: String(p?.currency ?? 'NGN'),
+                  gender: p?.gender == null ? undefined : String(p.gender),
+                  subCategory:
+                    p?.subCategory == null && p?.subcategory == null
+                      ? undefined
+                      : String(p?.subCategory ?? p?.subcategory),
+                  type: p?.type == null ? undefined : String(p.type),
+                };
               });
-              setSlugPreviews((prev) => ({ ...prev, [slug]: { loading: false, items } }));
+              setSlugPreviews(prev => ({
+                ...prev,
+                [slug]: { loading: false, items },
+              }));
             } catch {
               if (!cancelled) {
-                setSlugPreviews((prev) => ({ ...prev, [slug]: { loading: false, items: [] } }));
+                setSlugPreviews(prev => ({
+                  ...prev,
+                  [slug]: { loading: false, items: [] },
+                }));
               }
             }
           }),
@@ -542,16 +721,26 @@ export default function VendorScreen({ route, navigation }) {
       const res = await getStorefrontShop(slug);
       const sp = res.shopPolicies;
       const sections = extractCustomerPolicySections(
-        sp && typeof sp === 'object' ? /** @type {Record<string, unknown>} */ (sp) : null,
+        sp && typeof sp === 'object'
+          ? /** @type {Record<string, unknown>} */ (sp)
+          : null,
       );
-      const clauses = [...sections.delivery, ...sections.refund, ...sections.custom];
+      const clauses = [
+        ...sections.delivery,
+        ...sections.refund,
+        ...sections.custom,
+      ];
       setVendorPolicyClauses(clauses);
       setVendorPolicyEmptyMessage(
-        clauses.length ? '' : 'This shop has not published shop policies on Shopiva yet.',
+        clauses.length
+          ? ''
+          : 'This shop has not published shop policies on Shopiva yet.',
       );
     } catch (e) {
       setVendorPolicyClauses([]);
-      setVendorPolicyEmptyMessage(e instanceof Error ? e.message : 'Could not load shop policies.');
+      setVendorPolicyEmptyMessage(
+        e instanceof Error ? e.message : 'Could not load shop policies.',
+      );
     } finally {
       setVendorPolicyLoading(false);
     }
@@ -570,7 +759,9 @@ export default function VendorScreen({ route, navigation }) {
 
   const menuSheetSubtitle = useMemo(() => {
     if (!menuVendor) return '';
-    return vendorRatingSubtitle(menuVendor) || vendorLocationLine(menuVendor) || '';
+    return (
+      vendorRatingSubtitle(menuVendor) || vendorLocationLine(menuVendor) || ''
+    );
   }, [menuVendor]);
 
   const renderVendorCard = useCallback(
@@ -578,9 +769,14 @@ export default function VendorScreen({ route, navigation }) {
       <VendorCard
         item={item}
         index={index}
+        category={category}
         preview={slugPreviews[String(item.slug ?? '').trim()]}
-        onOpenShop={(shop) => navigation.navigate('Vendor', { vendor: shop, category })}
-        onPressMenu={(row) => setMenuVendor(/** @type {Record<string, unknown>} */ (row))}
+        onOpenShop={shop =>
+          navigation.navigate('Vendor', { vendor: shop, category })
+        }
+        onPressMenu={row =>
+          setMenuVendor(/** @type {Record<string, unknown>} */ (row))
+        }
       />
     ),
     [navigation, category, slugPreviews],
@@ -602,16 +798,19 @@ export default function VendorScreen({ route, navigation }) {
       }}
       onFollow={() => {
         closeVendorMenu();
-        Alert.alert('Shopiva', 'Following shops will be available in a future update.');
+        Alert.alert(
+          'Shopiva',
+          'Following shops will be available in a future update.',
+        );
       }}
-      onNotInterested={() => {
-        closeVendorMenu();
-        Alert.alert('Thanks', 'We will tune your recommendations over time.');
-      }}
-      onReport={() => {
-        closeVendorMenu();
-        Alert.alert('Report shop', 'Thanks for the report. Our team will review it.');
-      }}
+      // onNotInterested={() => {
+      //   closeVendorMenu();
+      //   Alert.alert('Thanks', 'We will tune your recommendations over time.');
+      // }}
+      // onReport={() => {
+      //   closeVendorMenu();
+      //   Alert.alert('Report shop', 'Thanks for the report. Our team will review it.');
+      // }}
       onViewShopPolicy={openVendorShopPolicy}
     />
   );
@@ -636,15 +835,43 @@ export default function VendorScreen({ route, navigation }) {
 
   const displayedVendors = useMemo(() => {
     if (locationFilter == null) return vendors;
-    return vendors.filter((v) => normalizeVendorState(v.state) === locationFilter);
+    return vendors.filter(
+      v => normalizeVendorState(v.state) === locationFilter,
+    );
   }, [vendors, locationFilter]);
 
-  const handleSelectLocation = useCallback(
-    (stateName) => {
-      setLocationFilter(stateName);
-      setFilterVisible(false);
-    },
-    [],
+  const handleSelectLocation = useCallback(stateName => {
+    setLocationFilter(stateName);
+    setFilterVisible(false);
+  }, []);
+
+  const categorySlider = (
+    <View style={styles.categorySliderSection}>
+      <FlatList
+        horizontal
+        data={visibleCategories}
+        keyExtractor={item => item}
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.categorySliderContent}
+        renderItem={({ item }) => {
+          const selected = item === selectedCategory;
+          return (
+            <TouchableOpacity
+              style={[styles.categoryChip, selected && styles.categoryChipSelected]}
+              onPress={() => setSelectedCategory(item)}
+              activeOpacity={0.82}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              accessibilityLabel={`Show ${formatCategoryLabel(item)} shops`}
+            >
+              <Text style={[styles.categoryChipText, selected && styles.categoryChipTextSelected]}>
+                {formatCategoryLabel(item)}
+              </Text>
+            </TouchableOpacity>
+          );
+        }}
+      />
+    </View>
   );
 
   const filterSheet = (
@@ -660,6 +887,8 @@ export default function VendorScreen({ route, navigation }) {
   if (loading) {
     return (
       <View style={styles.flexFill}>
+        {categorySlider}
+        {categoriesError ? <Text style={styles.error}>{categoriesError}</Text> : null}
         <View style={styles.centered}>
           <ActivityIndicator size="large" color="#00926e" />
           <Text style={styles.muted}>Loading vendors…</Text>
@@ -674,6 +903,8 @@ export default function VendorScreen({ route, navigation }) {
   if (error) {
     return (
       <View style={styles.flexFill}>
+        {categorySlider}
+        {categoriesError ? <Text style={styles.error}>{categoriesError}</Text> : null}
         <View style={styles.centered}>
           <Text style={styles.error}>{error}</Text>
         </View>
@@ -686,10 +917,13 @@ export default function VendorScreen({ route, navigation }) {
 
   return (
     <View style={styles.flexFill}>
+      {categorySlider}
+      {categoriesLoading ? <ActivityIndicator color="#00926e" /> : null}
+      {categoriesError ? <Text style={styles.error}>{categoriesError}</Text> : null}
       <View style={styles.screen}>
         <FlatList
           data={displayedVendors}
-          keyExtractor={(item) => String(item.id)}
+          keyExtractor={item => String(item.id)}
           renderItem={renderVendorCard}
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
@@ -717,6 +951,42 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#EFEFEF',
     paddingTop: 20,
+  },
+  categorySliderSection: {
+    backgroundColor: '#EFEFEF',
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
+  categorySliderTitle: {
+    color: '#202124',
+    fontSize: 16,
+    fontWeight: '700',
+    marginHorizontal: 16,
+    marginBottom: 10,
+  },
+  categorySliderContent: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  categoryChip: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E1E3E6',
+  },
+  categoryChipSelected: {
+    backgroundColor: '#00926E',
+    borderColor: '#00926E',
+  },
+  categoryChipText: {
+    color: '#3F4348',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  categoryChipTextSelected: {
+    color: '#FFFFFF',
   },
   categoryHint: {
     fontSize: 13,
@@ -886,7 +1156,7 @@ const styles = StyleSheet.create({
   },
   filterBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   filterSheet: {
     backgroundColor: '#FFFFFF',

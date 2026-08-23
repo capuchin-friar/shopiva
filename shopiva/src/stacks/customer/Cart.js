@@ -10,72 +10,15 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import HomeScreen from "../../pages/customer/Home";
-import VendorsScreen from "../../pages/customer/Vendors";
-import VendorScreen from '../../pages/customer/Vendor';
-import ProductScreen from '../../pages/customer/Product';
 import CartScreen from '../../pages/customer/Cart';
 import CartCheckoutScreen from '../../pages/customer/CartCheckoutScreen';
 import PaymentSuccessScreen from '../../pages/customer/PaymentSuccessScreen';
 import PaymentFailedScreen from '../../pages/customer/PaymentFailedScreen';
-import { HomeStackCartIconButton } from '../../components/HomeStackCartButton';
 
 /** Bundled logo for native stack header (do not use `{ uri: '../assets/...' }` for local files). */
 const SHOPIVA_LOGO = require('../../assets/Shopiva.png');
-// import { setUserAuthTo } from '../../redux/...';
-const HomeStack = createNativeStackNavigator();
+const CartStack = createNativeStackNavigator();
 
-
-const homeOpt = (styles) => ({
-  title: 'Home',
-  headerBackVisible: false,
-  headerShadowVisible: false,
-  headerStyle: styles.homeHeaderBar,
-  // headerRight: () => (
-  //   <View>
-  //     <HomeStackCartIconButton
-  //       size={24}
-  //       color="#000000"
-  //       style={styles.vendorsHomeHeaderCart}
-  //     />
-  //   </View>
-  // ),
-  
-});
-const vendorsOpt = (navigation) => ({
-  title: 'Home',
-  headerRight: () => (
-    <View style={styles.vendorsHeaderRight}>
-      <TouchableOpacity
-        accessibilityRole="button"
-        accessibilityLabel="Select location"
-        onPress={() =>
-          navigation.setParams({ openVendorFilter: Date.now() })
-        }
-        style={styles.vendorsHeaderFilter}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      >
-        <Icon name="location-outline" size={22} color="#000000" />
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        accessibilityRole="button"
-        onPress={() =>
-          navigation.navigate('')
-        }
-        style={styles.vendorsHeaderFilter}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      >
-        <Icon name="notifications-outline" size={22} color="#000000" />
-      </TouchableOpacity>
-    </View>
-  ),
-})
-const vendorOpt={
-  header: () => (
-    <View style={styles.hiddenHeader} />
-  ),
-}
 const cartOpt = {
   title: 'Cart',
   headerShown: true,
@@ -105,23 +48,15 @@ const payFailedOpt = {
   headerShadowVisible: false,
   headerStyle: { backgroundColor: '#FFFFFF' },
 }
-export function HomeStackScreen() {
-  // const { user } = useSelector(s => s?.user ?? {});
-  // const dispatch = useDispatch();
+export function CartStackScreen() {
+
   return (
-    <HomeStack.Navigator>
-      <HomeStack.Screen
-        name="Home"
-        component={VendorsScreen}
-        options={({ navigation }) => vendorsOpt(navigation)}
-      />
-      <HomeStack.Screen name="Vendor" component={VendorScreen} options={vendorOpt} />
-      <HomeStack.Screen name="Product" component={ProductScreen} options={{   headerShown: false, }} />
-      <HomeStack.Screen name="Cart" component={CartScreen} options={cartOpt}/>
-      <HomeStack.Screen name="Cart-checkout" component={CartCheckoutScreen} options={cartCheckoutOpt}/>
-      <HomeStack.Screen name="Payment-success" component={PaymentSuccessScreen} options={paySuccessOpt}/>
-      <HomeStack.Screen name="Payment-failed" component={PaymentFailedScreen} options={payFailedOpt}/>
-    </HomeStack.Navigator>
+    <CartStack.Navigator>
+      <CartStack.Screen name="Cart" component={CartScreen} options={cartOpt}/>
+      <CartStack.Screen name="Cart-checkout" component={CartCheckoutScreen} options={cartCheckoutOpt}/>
+      <CartStack.Screen name="Payment-success" component={PaymentSuccessScreen} options={paySuccessOpt}/>
+      <CartStack.Screen name="Payment-failed" component={PaymentFailedScreen} options={payFailedOpt}/>
+    </CartStack.Navigator>
   );
 }
 
@@ -234,62 +169,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#000',
   },
-  /** Flat header bar: no shadow / elevation (matches full-bleed home hero). */
-  homeHeaderBar: {
-    backgroundColor: '#FFFFFF',
-    elevation: 0,
-    shadowOpacity: 0,
-    shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 0,
-    borderBottomWidth: 0,
-  },
-
-  homeHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 4,
-  },
-  vendorsHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: 4,
-  },
-  vendorsHeaderCart: {
-    marginRight: 10,
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  vendorsHomeHeaderCart: {
-    marginRight: 0,
-    paddingVertical: 4,
-    paddingHorizontal: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  vendorsHeaderFilter: {
-    marginRight: 4,
-    paddingVertical: 6,
-    paddingHorizontal: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-
-  homeHeaderLogoCnt: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-    display: "flex"
-    // marginLeft: 4,
-  },
-  homeHeaderLogo: {
-    width: "100%",
-    height: "100%",
-    // marginLeft: 4,
-  },
+ 
 });
 

@@ -1,6 +1,29 @@
+import categoryData from '../json/category_1.1.json';
+
 /**
  * Helpers for `src/json/mvp_category.json` — category → subcategory → product type.
  */
+
+export const GENDER_DRIVEN_CATEGORY_KEYS = new Set([
+  'apparel & accessories',
+  'jewelry & watches & eyewear',
+  'shoes & accessories',
+]);
+
+export function isGenderDrivenCategory(categoryKey) {
+  return GENDER_DRIVEN_CATEGORY_KEYS.has(String(categoryKey ?? '').trim().toLowerCase());
+}
+
+export function getGenderDrivenTypeOptions(categoryKey, gender) {
+  const key = String(categoryKey ?? '').trim().toLowerCase();
+  const normalizedGender = String(gender ?? '').trim().toLowerCase();
+  const group = categoryData?.[key];
+  if (!group || typeof group !== 'object') return [];
+  const options = Array.isArray(group[normalizedGender]) ? group[normalizedGender] : [];
+  return options
+    .map((item) => String(item ?? '').trim())
+    .filter(Boolean);
+}
 
 /**
  * Top-level keys in the MVP category file (e.g. `fashion`).
@@ -29,9 +52,13 @@ export function buildMvpCategoryFilters(data, categoryKey) {
   if (!Array.isArray(segments)) {
     return { subCategories: [], typesBySubCategory: new Map(), subTypePairs: [] };
   }
+
   for (const block of segments) {
     if (!block || typeof block !== 'object') continue;
-    for (const [subKey, subVal] of Object.entries(block)) {
+
+    const blockKeys = Object.keys(block);
+    for (const subKey of blockKeys) {
+      const subVal = block[subKey];
       subCats.add(subKey);
       if (!typeSets.has(subKey)) typeSets.set(subKey, new Set());
       if (subVal && typeof subVal === 'object') {
@@ -41,6 +68,7 @@ export function buildMvpCategoryFilters(data, categoryKey) {
       }
     }
   }
+
   const typesBySubCategory = new Map();
   for (const [sub, set] of typeSets) {
     typesBySubCategory.set(sub, [...set].sort((a, b) => a.localeCompare(b)));

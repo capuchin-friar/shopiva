@@ -679,7 +679,7 @@ const styles = StyleSheet.create({
   refreshHintText: { fontSize: 12, color: MUTED, fontWeight: '600' },
   modalRoot: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
@@ -717,7 +717,7 @@ const styles = StyleSheet.create({
   actionSheetModalRoot: { flex: 1, justifyContent: 'flex-end' },
   actionSheetBackdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(15, 23, 42, 0.45)',
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
   actionSheet: {
     backgroundColor: CARD,

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   Platform,
   StyleSheet,
@@ -8,9 +8,14 @@ import {
 } from 'react-native';
 import { Dropdown } from 'react-native-element-dropdown';
 import Video from 'react-native-video';
-import mvp_data from '../../data/mvp_category.json';
 import { useNavigation } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
 import { getStoredAccessToken } from '../../auth/session';
+import {
+  selectCategoryOptions,
+  selectCategoriesError,
+  selectCategoriesLoading,
+} from '../../../redux/categoriesSlice';
 /** Metro bundles this as a numeric asset id — pass to `source` directly. */
 const CUSTOMER_VIDEO = require('../../assets/customer.mp4');
 
@@ -19,14 +24,9 @@ export default function HomeScreen() {
   const [categoryGateError, setCategoryGateError] = useState('');
 
   const navigation = useNavigation();
-  const categoryOptions = useMemo(
-    () =>
-      Object.keys(mvp_data).map(key => ({
-        label: key.charAt(0).toUpperCase() + key.slice(1).toLowerCase(),
-        value: key,
-      })),
-    [],
-  );
+  const categoryOptions = useSelector(selectCategoryOptions);
+  const categoriesLoading = useSelector(selectCategoriesLoading);
+  const categoriesError = useSelector(selectCategoriesError);
 
   function handleExplore() {
     if (!category) {
@@ -83,11 +83,12 @@ export default function HomeScreen() {
             inputSearchStyle={styles.inputSearchStyle}
             iconStyle={styles.iconStyle}
             data={categoryOptions}
+            disable={categoriesLoading || categoryOptions.length === 0}
             search
             maxHeight={280}
             labelField="label"
             valueField="value"
-            placeholder="Select category"
+            placeholder={categoriesLoading ? 'Loading categories...' : 'Select category'}
             searchPlaceholder="Search categories..."
             value={category}
             onChange={item => {
@@ -95,15 +96,17 @@ export default function HomeScreen() {
               setCategoryGateError('');
             }}
           />
+          {categoriesError ? <Text style={styles.errorText}>{categoriesError}</Text> : null}
           {categoryGateError ? (
             <Text style={styles.errorText}>{categoryGateError}</Text>
           ) : null}
         </View>
 
         <TouchableOpacity
-          style={styles.btn}
+          style={[styles.btn, (categoriesLoading || categoryOptions.length === 0) && styles.btnDisabled]}
           onPress={handleExplore}
           activeOpacity={0.85}
+          disabled={categoriesLoading || categoryOptions.length === 0}
         >
           <Text style={styles.btnText}>Explore Vendors</Text>
         </TouchableOpacity>
@@ -179,6 +182,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 10,
+  },
+  btnDisabled: {
+    opacity: 0.65,
   },
   btnText: {
     color: '#fff',

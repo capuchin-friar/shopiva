@@ -108,6 +108,7 @@ export type CreateProductPayload = {
   description?: string | null;
   short_description?: string | null;
   category?: string | null;
+  category_id?: number | null;
   subcategory?: string | null;
   brand?: string | null;
   thumbnail_url?: string | null;
@@ -155,6 +156,7 @@ export class product {
       description = null,
       short_description = null,
       category = null,
+      category_id = null,
       subcategory = null,
       brand = null,
       images = [],
@@ -167,39 +169,71 @@ export class product {
       published_at = null,
       is_featured = false,
     } = payload;
-    console.log("payload:", payload);
-    const { rows } = await (
-      await db()
-    ).query<ProductRow>(
-      `INSERT INTO products (
-        shop_id, name, slug, description, short_description,
-        category, subcategory, brand, images, thumbnail_url, weight, dimensions, specifications, status,
-        is_published, published_at, is_featured
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-      RETURNING *`,
-      [
-        shop_id,
-        name,
-        slug,
-        description,
-        short_description,
-        category,
-        subcategory,
-        brand,
-        images,
-        thumbnail_url,
-        weight,
-        dimensions ? JSON.stringify(dimensions) : null,
-        JSON.stringify(specifications),
-        status,
-        is_published,
-        published_at,
-        is_featured,
-      ]
-    );
-    const row = rows[0];
-    if (!row) throw new Error("Failed to create product");
-    return row;
+
+    const pool = await db();
+    const client = await pool.connect();
+
+    try {
+      await client.query("BEGIN");
+
+      const { rows } = await client.query<ProductRow>(
+        `INSERT INTO products (
+          shop_id, name, slug, description, short_description,
+          category, subcategory, brand, images, thumbnail_url, weight, dimensions, specifications, status,
+          is_published, published_at, is_featured
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        RETURNING *`,
+        [
+          shop_id,
+          name,
+          slug,
+          description,
+          short_description,
+          category,
+          subcategory,
+          brand,
+          images,
+          thumbnail_url,
+          weight,
+          dimensions ? JSON.stringify(dimensions) : null,
+          JSON.stringify(specifications),
+          status,
+          is_published,
+          published_at,
+          is_featured,
+        ]
+      );
+
+      const row = rows[0];
+      if (!row) throw new Error("Failed to create product");
+
+      const categoryTargetId = Number(category_id ?? NaN);
+      const categoryName = String(category ?? row.category ?? "").trim();
+
+      if (categoryTargetId > 0) {
+        await client.query(
+          `UPDATE categories
+           SET existing_product_count = COALESCE(existing_product_count, 0) + 1
+           WHERE id = $1`,
+          [categoryTargetId],
+        );
+      } else if (categoryName) {
+        await client.query(
+          `UPDATE categories
+           SET existing_product_count = COALESCE(existing_product_count, 0) + 1
+           WHERE LOWER(category) = LOWER($1)`,
+          [categoryName],
+        );
+      }
+
+      await client.query("COMMIT");
+      return row;
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => undefined);
+      throw error;
+    } finally {
+      client.release();
+    }
   });
 
   static update = withErrorHandling(async (payload: UpdateProductPayload): Promise<ProductRow | null> => {
