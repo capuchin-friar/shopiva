@@ -365,6 +365,26 @@ export default function OrderDetailScreen() {
 
   useLayoutEffect(() => {
     navigation.setOptions({
+      headerLeft: () => (
+        <Pressable
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          onPress={() => {
+            if (navigation.canGoBack()) {
+              navigation.goBack();
+              return;
+            }
+            navigation.navigate('Activities');
+          }}
+          style={({ pressed }) => [
+            styles.headerBackButton,
+            pressed && styles.pressed,
+          ]}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Icon name="chevron-back" size={24} color={COLOR.TEXT} />
+        </Pressable>
+      ),
       headerTitle: () => (
         <View
           style={{
@@ -2333,6 +2353,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: COLOR.MUTED,
+  },
+  headerBackButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    marginLeft: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   headerEllipsis: {
     paddingVertical: 6,

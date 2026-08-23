@@ -272,10 +272,10 @@ export default function HomeScreen() {
     (item) => {
       const parent = navigation.getParent?.();
       parent?.navigate('Activities', {
-        screen: 'VendorOrderFlow',
+        screen: 'Order-detail',
         params: {
-          screen: 'order-detail',
-          params: { order: item, orderId: item.orderId },
+          order: item,
+          orderId: item.orderId,
         },
       });
     },
