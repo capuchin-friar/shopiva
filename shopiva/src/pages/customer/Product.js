@@ -1021,7 +1021,7 @@ export default function ProductScreen({ route, navigation }) {
             {selectedLineInCart ? 'Remove from cart' : 'Add to cart'}
           </Text>
         </TouchableOpacity>
-        {/* <TouchableOpacity
+        <TouchableOpacity
           style={styles.buyNow}
           activeOpacity={0.88}
           disabled={cartToggleBusy}
@@ -1038,7 +1038,7 @@ export default function ProductScreen({ route, navigation }) {
             color="#FFFFFF"
             style={styles.buyNowIcon}
           />
-        </TouchableOpacity> */}
+        </TouchableOpacity>
         <Text style={styles.sectionHeading}>Description</Text>
         <Text style={styles.descriptionBody}>
           {typeof product?.description === 'string' &&

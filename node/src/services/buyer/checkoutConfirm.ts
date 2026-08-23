@@ -35,6 +35,39 @@ async function clearCartForUser(userId: number): Promise<void> {
   await (await db()).query(`DELETE FROM cart_items WHERE user_id = $1`, [userId]);
 }
 
+function metadataOrdersFromVerifyData(data: Record<string, unknown>): Array<{
+  shop_id: number | null;
+  subtotal: number;
+  shipping_fee: number;
+  items: Array<Record<string, unknown>>;
+}> {
+  const meta = data.metadata && typeof data.metadata === "object"
+    ? (data.metadata as Record<string, unknown>)
+    : {};
+  const rawOrders = Array.isArray(meta.orders) ? meta.orders : [];
+
+  return rawOrders
+    .filter((order): order is Record<string, unknown> => !!order && typeof order === "object")
+    .map((order) => {
+      const items = Array.isArray(order.items) ? order.items.filter((item): item is Record<string, unknown> => !!item && typeof item === "object") : [];
+      const subtotal = items.reduce((sum, item) => {
+        const qty = Number(item.unit ?? item.quantity ?? 0);
+        const unitPrice = Number(item.unit_price ?? item.total ?? 0);
+        const total = Number(item.total ?? (qty * unitPrice));
+        return sum + (Number.isFinite(total) ? total : 0);
+      }, 0);
+      const parsedSubtotal = Number(order.subtotal ?? subtotal);
+      const shippingFee = Number(order.shipping_fee ?? 0);
+      const shopId = Number(order.shop_id ?? 0);
+      return {
+        shop_id: Number.isFinite(shopId) && shopId > 0 ? shopId : null,
+        subtotal: Number.isFinite(parsedSubtotal) ? parsedSubtotal : subtotal,
+        shipping_fee: Number.isFinite(shippingFee) ? shippingFee : 0,
+        items,
+      };
+    });
+}
+
 export type CheckoutConfirmRoomEntry = {
   room: ChatRoomRecord;
   existing: boolean;
@@ -96,6 +129,13 @@ export async function confirmCartCheckoutAndCreateChatRoom(
   }
 
   const lines = await listCartLinesForUser(buyerUserId);
+  const ship = Math.max(0, Number(shippingNaira) || 0);
+  const metadataOrders = metadataOrdersFromVerifyData(d);
+
+  let subtotalNaira = 0;
+  for (const line of lines) {
+    subtotalNaira += Number(line.quantity) * Number(line.unit_price);
+  }
 
   if (!lines.length) {
     const existing = await chatModel.listRoomsForUserByOrderId(buyerUserId, txnId);
@@ -103,14 +143,84 @@ export async function confirmCartCheckoutAndCreateChatRoom(
       const rooms = await roomsToEntriesForBuyer(buyerUserId, existing);
       return { rooms, transaction_id: txnId };
     }
+
+    if (metadataOrders.length) {
+      const metadataTotalNaira = metadataOrders.reduce((sum, order) => {
+        const itemsTotal = order.items.reduce((innerSum, item) => {
+          const qty = Number(item.unit ?? item.quantity ?? 0);
+          const unitPrice = Number(item.unit_price ?? 0);
+          const total = Number(item.total ?? (qty * unitPrice));
+          return innerSum + (Number.isFinite(total) ? total : 0);
+        }, 0);
+        return sum + Math.max(0, Number(order.subtotal ?? itemsTotal)) + Number(order.shipping_fee ?? 0);
+      }, 0);
+      const expectedKobo = Math.round((metadataTotalNaira + ship) * 100);
+      if (Math.abs(amountKobo - expectedKobo) <= 150) {
+        const vendorIds = (
+          await Promise.all(
+            metadataOrders
+              .map((order) => Number(order.shop_id))
+              .filter((shopId) => Number.isFinite(shopId) && shopId > 0)
+              .map(async (shopId) => {
+                const owner = await GetShopOwnerByShopIdService(shopId);
+                return Number(owner?.id ?? 0);
+              })
+          )
+        ).filter((id) => Number.isFinite(id) && id > 0);
+
+        if (vendorIds.length) {
+          const pool = await db();
+          const { rows: orders } = await pool.query(
+            `SELECT * FROM orders WHERE payment_reference = $1`,
+            [reference]
+          );
+
+          const results: CheckoutConfirmRoomEntry[] = [];
+          await Promise.all(
+            (orders.length ? orders : metadataOrders.map((order) => ({ id: txnId, shop_id: Number(order.shop_id ?? 0) }))).map(async (orderRow: any) => {
+              const shop_id = Number(orderRow.shop_id ?? 0);
+              if (!shop_id) return;
+              const vid = (await GetShopOwnerByShopIdService(shop_id)).id;
+              const roomOrderId = Number(orderRow.id ?? txnId);
+              const existingId =
+                (await chatModel.findRoomForOrderAndUsers(roomOrderId, buyerUserId, vid)) ||
+                (await chatModel.findRoomForOrderAndUsers(txnId, buyerUserId, vid));
+
+              if (existingId) {
+                const room = await chatModel.getRoomById(existingId);
+                if (!room) throw new Error("Chat room not found");
+                results.push({ room, existing: true, vendor_user_id: vid as any });
+                const payload = { room, existing: true };
+                notifyUser(buyerUserId, "room_created", payload);
+                notifyUser(vid as any, "room_created", payload);
+                return;
+              }
+
+              const room = await chatModel.createRoom({
+                order_id: roomOrderId,
+                initiator: buyerUserId,
+                participants: [
+                  { user_id: buyerUserId, role: "buyer" },
+                  { user_id: vid, role: "seller" },
+                ],
+              });
+
+              results.push({ room, existing: false, vendor_user_id: vid as any });
+              const payload = { room, existing: false };
+              notifyUser(buyerUserId, "room_created", payload);
+              notifyUser(vid as any, "room_created", payload);
+            })
+          );
+
+          await clearCartForUser(buyerUserId);
+          return { rooms: results, transaction_id: txnId };
+        }
+      }
+    }
+
     throw new Error("Cart is empty; cannot finalize checkout");
   }
 
-  let subtotalNaira = 0;
-  for (const line of lines) {
-    subtotalNaira += Number(line.quantity) * Number(line.unit_price);
-  }
-  const ship = Math.max(0, Number(shippingNaira) || 0);
   const expectedKobo = Math.round((subtotalNaira + ship) * 100);
   const tolerance = 150;
   if (Math.abs(amountKobo - expectedKobo) > tolerance) {
@@ -129,17 +239,16 @@ export async function confirmCartCheckoutAndCreateChatRoom(
     [reference]
   );
 
-  console.log("order id", orders);
-  // const orderKey = txnId;
-  // const orderKey = 'order.id';
   const results: CheckoutConfirmRoomEntry[] = [];
 
   await Promise.all(orders.map(async({id: orderKey, shop_id}) => {
-   
-
+    const roomOrderId = Number(orderKey ?? txnId);
     const vid = (await GetShopOwnerByShopIdService(shop_id)).id;
 
-    const existingId = await chatModel.findRoomForOrderAndUsers(orderKey, buyerUserId, vid);
+    const existingId =
+      (await chatModel.findRoomForOrderAndUsers(roomOrderId, buyerUserId, vid)) ||
+      (await chatModel.findRoomForOrderAndUsers(txnId, buyerUserId, vid));
+
     if (existingId) {
       const room = await chatModel.getRoomById(existingId);
       if (!room) throw new Error("Chat room not found");
@@ -148,11 +257,10 @@ export async function confirmCartCheckoutAndCreateChatRoom(
       notifyUser(buyerUserId, "room_created", payload);
       notifyUser(vid as any, "room_created", payload);
       return;
-      // continue;
     }
 
     const room = await chatModel.createRoom({
-      order_id: orderKey,
+      order_id: roomOrderId,
       initiator: buyerUserId,
       participants: [
         { user_id: buyerUserId, role: "buyer" },
