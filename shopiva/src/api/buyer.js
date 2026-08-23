@@ -24,6 +24,15 @@ export async function fetchBuyerOrders() {
   return readJson(res);
 }
 
+/** @returns {Promise<Array<Record<string, unknown>>>} */
+export async function fetchBuyerPendingReviews() {
+  const res = await apiFetchAuth('/buyer/pending-reviews');
+  const data = await readJson(res);
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.pendingReviews)) return data.pendingReviews;
+  return [];
+}
+
 /** @returns {Promise<{ order: Record<string, unknown> }>} */
 export async function fetchBuyerOrder(orderId) {
   const id = encodeURIComponent(String(orderId ?? '').trim());

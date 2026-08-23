@@ -24,6 +24,10 @@ export default function ActivitiesScreen({ navigation }) {
     navigation.navigate('Returns');
   }, [navigation]);
 
+  const goPendingReviews = useCallback(() => {
+    navigation.navigate('Pending-Reviews');
+  }, [navigation]);
+
   return (
     <View style={[styles.root, { paddingTop: 15 }]}>
       
@@ -75,6 +79,19 @@ export default function ActivitiesScreen({ navigation }) {
           </View>
           <Icon name="chevron-forward" size={22} color="#9CA3AF" />
         </TouchableOpacity>
+
+        {auth.activeRole === 'customer' ? (
+          <TouchableOpacity style={styles.optionRow} onPress={goPendingReviews} activeOpacity={0.85}>
+            <View style={[styles.optionIcon, styles.optionIconTeal]}>
+              <Icon name="star-outline" size={22} color="#0F766E" />
+            </View>
+            <View style={styles.optionBody}>
+              <Text style={styles.optionTitle}>Pending Reviews</Text>
+              <Text style={styles.optionDesc}>Leave feedback on delivered orders</Text>
+            </View>
+            <Icon name="chevron-forward" size={22} color="#9CA3AF" />
+          </TouchableOpacity>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -130,6 +147,9 @@ const styles = StyleSheet.create({
   },
   optionIconAmber: {
     backgroundColor: '#FEF3C7',
+  },
+  optionIconTeal: {
+    backgroundColor: '#CCFBF1',
   },
   optionBody: {
     flex: 1,

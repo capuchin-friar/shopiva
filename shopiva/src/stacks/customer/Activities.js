@@ -10,7 +10,8 @@ import DisputeDetailScreen from '../../pages/DisputeDetail';
 import ReturnListScreen from '../../pages/ReturnList';
 import ReturnDetailScreen from '../../pages/ReturnDetail';
 import ReturnActionScreen from '../../pages/ReturnAction';
-import ReviewSubmissionScreen from '../../pages/Review'
+import ReviewSubmissionScreen from '../../pages/Review';
+import PendingReviewsScreen from '../../pages/PendingReviews';
 import ChatRoomScreen from '../../pages/ChatRoom';
 const ActivitiesStack = createNativeStackNavigator();
 const activityOptions = {
@@ -103,6 +104,7 @@ export function ActivitiesStackScreen() {
       
       <ActivitiesStack.Screen name="Disputes" component={DisputesListScreen} options={disputeOpt} />
       <ActivitiesStack.Screen name="Dispute-detail" component={DisputeDetailScreen} options={{ headerShown: true, title: 'Dispute detail', headerBackVisible: true, headerShadowVisible: false}}  />
+      <ActivitiesStack.Screen name="Pending-Reviews" component={PendingReviewsScreen} options={{ headerShown: true, title: 'Pending Reviews', headerBackVisible: true, headerShadowVisible: false }} />
       
       <ActivitiesStack.Screen name="Returns" component={ReturnListScreen} options={returnOpt} />
       <ActivitiesStack.Screen name="Return-detail" component={ReturnDetailScreen} options={returnDetailOpt} />

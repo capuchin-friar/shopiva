@@ -38,7 +38,7 @@ const ReviewSubmissionScreen = ({ navigation }) => {
   const [comment, setComment] = useState('');
   // const [image_urls, set_image_urls] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { shop, order } = useRoute()?.params;
+  const { shop, order, orderItemId, productId } = useRoute()?.params ?? {};
   const user = getStoredUser();
 
   const reviewOptions = [
@@ -67,17 +67,24 @@ const ReviewSubmissionScreen = ({ navigation }) => {
         return;
       }
 
+      if (!orderItemId && !order?.order_item_id) {
+        Alert.alert('Review item missing', 'This review cannot be submitted without an order item reference.');
+        return;
+      }
+
       setIsSubmitting(true);
       await createReview({
-        shop_id: shop.id,
-        customer_id: order.customer_id,
-        order_id: order.id,
+        shop_id: shop?.id,
+        customer_id: order?.customer_id ?? user?.id,
+        order_id: order?.id,
+        order_item_id: orderItemId ?? order?.order_item_id,
+        product_id: productId ?? order?.product_id,
         rating,
         review_tag: reviewType,
         comment,
         // image_urls,
       });
-      navigation.pop(2);
+      navigation.goBack();
     } catch (error) {
       console.log('error: ', error);
     }
