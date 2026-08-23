@@ -27,8 +27,11 @@ export async function GetStorefrontShopController(req: Request, res: Response): 
         logo: row.logo,
         banner: row.banner,
         category: row.category,
+        average_rating: row.average_rating ?? 0,
+        review_count: row.review_count ?? 0,
       },
       shopPolicies: result.shopPolicies,
+      shopReviewMetrics: result.shopReviewMetrics,
     });
   } catch (err) {
     res.status(400).json({ error: err instanceof Error ? err.message : String(err) });

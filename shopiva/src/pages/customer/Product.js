@@ -21,9 +21,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { ShopOverflowMenu } from '../../components/ShopOverflowMenu';
 import ShopPolicyViewerModal from '../../components/ShopPolicyViewerModal';
 import ProductVariantCardPicker from '../../components/ProductVariantCardPicker';
-import ProductReviewsSection, {
-  RatingStars,
-} from '../../components/ProductReviewsSection';
+import ProductReviewsSection from '../../components/ProductReviewsSection';
+import RatingRow from '../../components/RatingRow';
 import { getStorefrontProduct } from '../../api/storefront';
 import {
   formatAttributeLabel,
@@ -903,16 +902,15 @@ export default function ProductScreen({ route, navigation }) {
               ) : null}
             </View>
             <View style={styles.priceReviewsCol}>
-              <RatingStars
+              <RatingRow
                 rating={reviewStats.avg}
-                size={15}
-                emptyColor="#CCC"
+                count={reviewStats.count}
+                starSize={15}
+                activeColor="#E8C547"
+                emptyColor="#CCCCCC"
+                countColor="#444444"
+                countSize={12}
               />
-              <Text style={styles.ratingsCount}>
-                {reviewStats.count === 1
-                  ? '1 review'
-                  : `${reviewStats.count} reviews`}
-              </Text>
             </View>
           </View>
           {hasVariants && attrKeys.length ? (

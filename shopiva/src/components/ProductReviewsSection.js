@@ -192,7 +192,7 @@ export default function ProductReviewsSection({ reviews, reviewMetrics, loading 
         <Text style={styles.summaryScore}>
           {displayCount > 0 ? `${displayAvg.toFixed(1)}/5.0` : '—/5.0'}
         </Text>
-        <RatingStars rating={displayAvg} size={22} style={styles.summaryStars} />
+        <RatingStars rating={displayAvg} size={22} color="#E8C547" emptyColor="#D0D0D0" style={styles.summaryStars} />
         <Text style={styles.summaryMeta}>
           {displayCount > 0
             ? `${displayCount} customer review${displayCount === 1 ? '' : 's'}`
@@ -223,7 +223,7 @@ export default function ProductReviewsSection({ reviews, reviewMetrics, loading 
             : '';
         return (
           <View key={String(rev.id ?? `${rev.reviewerName}-${when}`)} style={styles.reviewCard}>
-            <RatingStars rating={rev.rating} size={16} />
+            <RatingStars rating={rev.rating} size={16} color="#E8C547" emptyColor="#D0D0D0" />
             {rev.title ? <Text style={styles.reviewTitle}>{rev.title}</Text> : null}
             {rev.comment ? <Text style={styles.reviewBody}>{rev.comment}</Text> : null}
             {!rev.title && !rev.comment ? (

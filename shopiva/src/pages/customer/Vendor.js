@@ -16,6 +16,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
+import RatingRow from '../../components/RatingRow';
 import { buildMvpCategoryFilters, formatMvpCategoryLabel } from '../../utils/mvpCategory';
 import { selectCategoryTree } from '../../../redux/categoriesSlice';
 import { getStorefrontProducts, getStorefrontShop } from '../../api/storefront';
@@ -50,33 +51,19 @@ const SORT_OPTIONS = [
 
 function renderShopReviewSummary(shop) {
   const rating = Number(shop?.average_rating ?? shop?.averageRating ?? shop?.ratingAverage ?? 0);
-  const count = Number(shop?.review_count ?? shop?.reviewCount ?? shop?.ratingCount ?? 0);
-  if (!Number.isFinite(rating) || rating <= 0) {
-    return (
-      <View style={styles.shopReviewStarRow}>
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Icon
-            key={star}
-            name="star-outline"
-            size={17}
-            color="rgba(255,255,255,0.9)"
-          />
-        ))}
-      </View>
-    );
-  }
+  const count  = Number(shop?.review_count  ?? shop?.reviewCount  ?? shop?.ratingCount  ?? 0);
   return (
-    <Text style={styles.brandRating} numberOfLines={1}>
-      {`★ ${rating.toFixed(1)} (${formatCompactCount(count)})`}
-    </Text>
+    <RatingRow
+      rating={rating}
+      count={count}
+      starSize={17}
+      activeColor="#E8C547"
+      emptyColor="rgba(255,255,255,0.7)"
+      countColor="#FFFFFF"
+      countSize={14}
+      style={{ marginTop: 4 }}
+    />
   );
-}
-
-function formatCompactCount(value) {
-  const n = Number(value);
-  if (!Number.isFinite(n) || n <= 0) return '0';
-  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k`;
-  return String(Math.round(n));
 }
 
 /**
@@ -289,7 +276,27 @@ export default function VendorShopScreen({ route, navigation }) {
         
         if (cancelled) return;
         const shop = shopRes.shop && typeof shopRes.shop === 'object' ? shopRes.shop : {};
-        setShopMeta(/** @type {Record<string, unknown>} */ (shop));
+        const metrics = shopRes.shopReviewMetrics && typeof shopRes.shopReviewMetrics === 'object'
+          ? shopRes.shopReviewMetrics
+          : {};
+        const incomingVendor = vendor && typeof vendor === 'object' ? vendor : {};
+        setShopMeta(/** @type {Record<string, unknown>} */ ({
+          ...incomingVendor,
+          ...metrics,
+          ...shop,
+          average_rating: shop.average_rating
+            ?? metrics.average_rating
+            ?? incomingVendor.average_rating
+            ?? incomingVendor.averageRating
+            ?? incomingVendor.ratingAverage
+            ?? 0,
+          review_count: shop.review_count
+            ?? metrics.review_count
+            ?? incomingVendor.review_count
+            ?? incomingVendor.reviewCount
+            ?? incomingVendor.ratingCount
+            ?? 0,
+        }));
         const list = Array.isArray(prodRes.products) ? prodRes.products : [];
         setApiProducts(list.map(mapStorefrontProductToTile));
       } catch (e) {

@@ -190,7 +190,7 @@ export async function createProductReview(body) {
 }
 
 export async function createShopReview(body) {
-  const res = await apiFetchAuth('/buyer/review', {
+  const res = await apiFetchAuth('/buyer/shop-review', {
     method: 'POST',
     body: JSON.stringify(body),
   });

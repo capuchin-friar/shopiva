@@ -19,7 +19,7 @@ async function readJson(res) {
 
 /**
  * @param {string} slug
- * @returns {Promise<{ shop: Record<string, unknown>; shopPolicies?: Record<string, unknown> | null }>}
+ * @returns {Promise<{ shop: Record<string, unknown>; shopPolicies?: Record<string, unknown> | null; shopReviewMetrics?: Record<string, unknown> | null }>}
  */
 export async function getStorefrontShop(slug) {
   const s = String(slug ?? '').trim();
