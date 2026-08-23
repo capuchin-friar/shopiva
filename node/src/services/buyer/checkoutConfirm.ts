@@ -35,6 +35,54 @@ async function clearCartForUser(userId: number): Promise<void> {
   await (await db()).query(`DELETE FROM cart_items WHERE user_id = $1`, [userId]);
 }
 
+async function createCheckoutRoomsForOrderRows(
+  buyerUserId: number,
+  orderRows: Array<{ id?: unknown; shop_id?: unknown }>,
+  txnId: number,
+  dedupeOnly = false
+): Promise<CheckoutConfirmRoomEntry[]> {
+  const results: CheckoutConfirmRoomEntry[] = [];
+
+  for (const orderRow of orderRows) {
+    const shopId = Number(orderRow.shop_id ?? 0);
+    if (!shopId) continue;
+
+    const vid = (await GetShopOwnerByShopIdService(shopId)).id;
+    const roomOrderId = Number(orderRow.id ?? txnId);
+    const existingId =
+      (await chatModel.findRoomForOrderAndUsers(roomOrderId, buyerUserId, vid)) ||
+      (await chatModel.findRoomForOrderAndUsers(txnId, buyerUserId, vid));
+
+    if (existingId) {
+      const room = await chatModel.getRoomById(existingId);
+      if (!room) throw new Error("Chat room not found");
+      results.push({ room, existing: true, vendor_user_id: vid as any });
+      const payload = { room, existing: true };
+      notifyUser(buyerUserId, "room_created", payload);
+      notifyUser(vid as any, "room_created", payload);
+      continue;
+    }
+
+    if (dedupeOnly) continue;
+
+    const room = await chatModel.createRoom({
+      order_id: roomOrderId,
+      initiator: buyerUserId,
+      participants: [
+        { user_id: buyerUserId, role: "buyer" },
+        { user_id: vid, role: "seller" },
+      ],
+    });
+
+    results.push({ room, existing: false, vendor_user_id: vid as any });
+    const payload = { room, existing: false };
+    notifyUser(buyerUserId, "room_created", payload);
+    notifyUser(vid as any, "room_created", payload);
+  }
+
+  return results;
+}
+
 function metadataOrdersFromVerifyData(data: Record<string, unknown>): Array<{
   shop_id: number | null;
   subtotal: number;
@@ -144,6 +192,20 @@ export async function confirmCartCheckoutAndCreateChatRoom(
       return { rooms, transaction_id: txnId };
     }
 
+    const pool = await db();
+    const { rows: ordersByReference } = await pool.query(
+      `SELECT * FROM orders WHERE payment_reference = $1`,
+      [reference]
+    );
+
+    if (ordersByReference.length) {
+      const rooms = await createCheckoutRoomsForOrderRows(buyerUserId, ordersByReference, txnId, false);
+      if (rooms.length) {
+        await clearCartForUser(buyerUserId);
+        return { rooms, transaction_id: txnId };
+      }
+    }
+
     if (metadataOrders.length) {
       const metadataTotalNaira = metadataOrders.reduce((sum, order) => {
         const itemsTotal = order.items.reduce((innerSum, item) => {
@@ -156,64 +218,14 @@ export async function confirmCartCheckoutAndCreateChatRoom(
       }, 0);
       const expectedKobo = Math.round((metadataTotalNaira + ship) * 100);
       if (Math.abs(amountKobo - expectedKobo) <= 150) {
-        const vendorIds = (
-          await Promise.all(
-            metadataOrders
-              .map((order) => Number(order.shop_id))
-              .filter((shopId) => Number.isFinite(shopId) && shopId > 0)
-              .map(async (shopId) => {
-                const owner = await GetShopOwnerByShopIdService(shopId);
-                return Number(owner?.id ?? 0);
-              })
-          )
-        ).filter((id) => Number.isFinite(id) && id > 0);
-
-        if (vendorIds.length) {
-          const pool = await db();
-          const { rows: orders } = await pool.query(
-            `SELECT * FROM orders WHERE payment_reference = $1`,
-            [reference]
-          );
-
-          const results: CheckoutConfirmRoomEntry[] = [];
-          await Promise.all(
-            (orders.length ? orders : metadataOrders.map((order) => ({ id: txnId, shop_id: Number(order.shop_id ?? 0) }))).map(async (orderRow: any) => {
-              const shop_id = Number(orderRow.shop_id ?? 0);
-              if (!shop_id) return;
-              const vid = (await GetShopOwnerByShopIdService(shop_id)).id;
-              const roomOrderId = Number(orderRow.id ?? txnId);
-              const existingId =
-                (await chatModel.findRoomForOrderAndUsers(roomOrderId, buyerUserId, vid)) ||
-                (await chatModel.findRoomForOrderAndUsers(txnId, buyerUserId, vid));
-
-              if (existingId) {
-                const room = await chatModel.getRoomById(existingId);
-                if (!room) throw new Error("Chat room not found");
-                results.push({ room, existing: true, vendor_user_id: vid as any });
-                const payload = { room, existing: true };
-                notifyUser(buyerUserId, "room_created", payload);
-                notifyUser(vid as any, "room_created", payload);
-                return;
-              }
-
-              const room = await chatModel.createRoom({
-                order_id: roomOrderId,
-                initiator: buyerUserId,
-                participants: [
-                  { user_id: buyerUserId, role: "buyer" },
-                  { user_id: vid, role: "seller" },
-                ],
-              });
-
-              results.push({ room, existing: false, vendor_user_id: vid as any });
-              const payload = { room, existing: false };
-              notifyUser(buyerUserId, "room_created", payload);
-              notifyUser(vid as any, "room_created", payload);
-            })
-          );
-
+        const roomRows = metadataOrders.map((order) => ({
+          id: txnId,
+          shop_id: order.shop_id ?? 0,
+        }));
+        const rooms = await createCheckoutRoomsForOrderRows(buyerUserId, roomRows, txnId, false);
+        if (rooms.length) {
           await clearCartForUser(buyerUserId);
-          return { rooms: results, transaction_id: txnId };
+          return { rooms, transaction_id: txnId };
         }
       }
     }
@@ -239,40 +251,12 @@ export async function confirmCartCheckoutAndCreateChatRoom(
     [reference]
   );
 
-  const results: CheckoutConfirmRoomEntry[] = [];
-
-  await Promise.all(orders.map(async({id: orderKey, shop_id}) => {
-    const roomOrderId = Number(orderKey ?? txnId);
-    const vid = (await GetShopOwnerByShopIdService(shop_id)).id;
-
-    const existingId =
-      (await chatModel.findRoomForOrderAndUsers(roomOrderId, buyerUserId, vid)) ||
-      (await chatModel.findRoomForOrderAndUsers(txnId, buyerUserId, vid));
-
-    if (existingId) {
-      const room = await chatModel.getRoomById(existingId);
-      if (!room) throw new Error("Chat room not found");
-      results.push({ room, existing: true, vendor_user_id: vid as any });
-      const payload = { room, existing: true };
-      notifyUser(buyerUserId, "room_created", payload);
-      notifyUser(vid as any, "room_created", payload);
-      return;
-    }
-
-    const room = await chatModel.createRoom({
-      order_id: roomOrderId,
-      initiator: buyerUserId,
-      participants: [
-        { user_id: buyerUserId, role: "buyer" },
-        { user_id: vid, role: "seller" },
-      ],
-    });
-
-    results.push({ room, existing: false, vendor_user_id: vid as any });
-    const payload = { room, existing: false };
-    notifyUser(buyerUserId, "room_created", payload);
-    notifyUser(vid as any, "room_created", payload);
-  }));
+  const results = await createCheckoutRoomsForOrderRows(
+    buyerUserId,
+    orders,
+    txnId,
+    false
+  );
 
   await clearCartForUser(buyerUserId);
 

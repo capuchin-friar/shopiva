@@ -655,39 +655,6 @@ export default function ProductScreen({ route, navigation }) {
     if (!ensureReadyForCartOrCheckout()) return;
 
     setLoading(true);
-    if (selectedLineInCart && cartLineForSelection) {
-      if (cartLineForSelection.qty !== qty) {
-        setCartToggleBusy(true);
-        try {
-          await patchBuyerCartLine(cartLineForSelection.cartItemId, qty);
-          await syncCartMembership();
-          setLoading(false)
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          if (
-            msg.toLowerCase().includes('unauthorized') ||
-            msg.includes('401')
-          ) {
-            Alert.alert(
-              'Sign in required',
-              'Please sign in to update your cart.',
-            );
-          } else {
-            Alert.alert('Cart', msg);
-          }
-          setLoading(false)
-          return;
-        } finally {
-          setCartToggleBusy(false);
-          setLoading(false)
-        }
-      }
-      setLoading(false)
-    } else {
-      const ok = await performAddToCart(selectedInventoryId);
-      setLoading(false)
-      if (!ok) return;
-    }
 
     const imageUri =
       galleryUrls[0] ||
@@ -706,34 +673,26 @@ export default function ProductScreen({ route, navigation }) {
       productId: product.id,
       inventoryId: selectedInventoryId ?? undefined,
       variantLabel: variantSummaryText || undefined,
-      cartItemId:
-        selectedLineInCart &&
-        cartLineForSelection &&
-        Number.isFinite(cartLineForSelection.cartItemId)
-          ? cartLineForSelection.cartItemId
-          : undefined,
+      cartItemId: undefined,
     };
 
+    setLoading(false);
     navigation.navigate('Cart-checkout', {
       checkoutSource: 'product',
       checkoutLines: [buyLine],
     });
   }, [
-    product.id,
-    product.shop_id,
     ensureReadyForCartOrCheckout,
-    selectedLineInCart,
-    cartLineForSelection,
-    qty,
-    syncCartMembership,
-    performAddToCart,
-    selectedInventoryId,
-    navigation,
     galleryUrls,
     product?.uri,
     productIdParam,
     title,
     checkoutUnitPrice,
+    qty,
+    shopId,
+    product.id,
+    selectedInventoryId,
+    navigation,
     variantSummaryText,
   ]);
 
