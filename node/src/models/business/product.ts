@@ -325,6 +325,46 @@ export class product {
     );
     return rows;
   });
+
+  static getProductReviewsByProductId = withErrorHandling(async (productId: number) => {
+    const { rows } = await (await db()).query(
+      `SELECT
+          pr.id,
+          pr.product_id,
+          pr.rating,
+          CASE
+            WHEN pr.rating >= 5 THEN 'Best'
+            WHEN pr.rating >= 4 THEN 'Good'
+            WHEN pr.rating >= 3 THEN 'Average'
+            ELSE 'Poor'
+          END AS title,
+          pr.comment,
+          pr.image_urls,
+          pr.created_at,
+          pr.updated_at,
+          TRIM(CONCAT_WS(' ', u.fname, u.lname)) AS reviewer_name,
+          false AS is_verified_purchase
+       FROM product_reviews pr
+       LEFT JOIN users u ON u.id = pr.user_id
+       WHERE pr.product_id = $1
+       ORDER BY pr.created_at DESC
+       LIMIT 40`,
+      [productId],
+    );
+    return rows;
+  });
+
+  static getProductReviewMetricsByProductId = withErrorHandling(async (productId: number) => {
+    const { rows } = await (await db()).query(
+      `SELECT
+          COUNT(*)::int AS review_count,
+          COALESCE(ROUND(AVG(rating)::numeric, 2), 0) AS average_rating
+       FROM product_reviews
+       WHERE product_id = $1`,
+      [productId],
+    );
+    return rows[0] ?? { review_count: 0, average_rating: 0 };
+  });
 }
 
 export class inventory {

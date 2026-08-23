@@ -17,8 +17,10 @@ export async function GetStorefrontShopBySlugService(slug: string) {
     refundpolicy: unknown;
     custompolicies: unknown;
   } | null = null;
+  let shopReviewMetrics: Record<string, unknown> | null = null;
   if (shopId != null && Number.isFinite(Number(shopId))) {
-    const policyRows = await shopModel.getShopPoliciesByShopId(Number(shopId));
+    const sid = Number(shopId);
+    const policyRows = await shopModel.getShopPoliciesByShopId(sid);
     const pr = policyRows?.[0];
     if (pr) {
       shopPolicies = {
@@ -27,8 +29,15 @@ export async function GetStorefrontShopBySlugService(slug: string) {
         custompolicies: parseJsonbPolicyField(pr.custompolicies),
       };
     }
+
+    const metricRows = await shopModel.getShopMetricsById(sid);
+    shopReviewMetrics = (metricRows?.[0] as Record<string, unknown> | undefined) ?? null;
+    if (shopReviewMetrics) {
+      row.average_rating = Number(shopReviewMetrics.average_rating ?? row.average_rating ?? 0);
+      row.review_count = Number(shopReviewMetrics.review_count ?? row.review_count ?? 0);
+    }
   }
-  return { shop: row, shopPolicies };
+  return { shop: row, shopPolicies, shopReviewMetrics };
 }
 
 export async function GetStorefrontProductsByShopIdService(shopId: number) {
@@ -63,7 +72,7 @@ export async function GetStorefrontProductService(productId: number) {
     refundpolicy: unknown;
     custompolicies: unknown;
   } | null = null;
-  let productReviews: Awaited<ReturnType<typeof shopModel.getStorefrontReviewsByShopId>> = [];
+  let productReviews: unknown[] = [];
   let reviewMetrics: Record<string, unknown> | null = null;
   if (shopId != null && Number.isFinite(Number(shopId))) {
     const sid = Number(shopId);
@@ -76,9 +85,9 @@ export async function GetStorefrontProductService(productId: number) {
         custompolicies: parseJsonbPolicyField(pr.custompolicies),
       };
     }
-    productReviews = await shopModel.getStorefrontReviewsByShopId(sid);
-    const metricRows = await shopModel.getShopMetricsById(sid);
-    reviewMetrics = (metricRows?.[0] as Record<string, unknown> | undefined) ?? null;
   }
+  productReviews = await productModel.getProductReviewsByProductId(productId);
+  const metricRows = await productModel.getProductReviewMetricsByProductId(productId);
+  reviewMetrics = (metricRows as Record<string, unknown> | undefined) ?? null;
   return { product: productDto, shopPolicies, productReviews, reviewMetrics };
 }

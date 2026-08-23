@@ -196,26 +196,49 @@ function formatCompactCount(n) {
 
 /**
  * @param {Record<string, unknown> | null | undefined} v
- * @returns {string | null}
+ * @returns {{ rating: number; count: number } | null}
  */
-function vendorRatingSubtitle(v) {
+function vendorReviewStats(v) {
   if (!v || typeof v !== 'object') return null;
+  const rec = /** @type {Record<string, unknown>} */ (v);
   const ratingRaw =
-    /** @type {{ ratingAverage?: unknown; rating?: unknown }} */ (v)
-      .ratingAverage ?? /** @type {{ rating?: unknown }} */ (v).rating;
+    rec.average_rating ??
+    rec.averageRating ??
+    rec.ratingAverage ??
+    rec.rating ??
+    0;
   const countRaw =
-    /** @type {{ ratingCount?: unknown; reviewCount?: unknown }} */ (v)
-      .ratingCount ?? /** @type {{ reviewCount?: unknown }} */ (v).reviewCount;
+    rec.review_count ??
+    rec.reviewCount ??
+    rec.ratingCount ??
+    rec.rating_count ??
+    0;
   const rating = Number(ratingRaw);
   const count = Number(countRaw);
   if (!Number.isFinite(rating) || rating <= 0) {
     return null;
   }
-  const cLabel =
-    Number.isFinite(count) && count > 0
-      ? ` (${formatCompactCount(count)})`
-      : '';
-  return `${rating.toFixed(1)} ★${cLabel}`;
+  return {
+    rating,
+    count: Number.isFinite(count) && count > 0 ? Math.round(count) : 0,
+  };
+}
+
+function renderRatingStars(rating, activeColor, emptyColor) {
+  const safeRating = Number.isFinite(Number(rating)) ? Number(rating) : 0;
+  const stars = Array.from({ length: 5 }, (_, idx) => idx + 1);
+  return (
+    <View style={styles.inlineRatingRow}>
+      {stars.map(star => (
+        <Icon
+          key={star}
+          name={star <= Math.round(safeRating) ? 'star' : 'star-outline'}
+          size={13}
+          color={star <= Math.round(safeRating) ? activeColor : emptyColor}
+        />
+      ))}
+    </View>
+  );
 }
 
 /**
@@ -256,12 +279,33 @@ function VendorCard({
             </Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerText} onPress={() => onOpenShop?.(item)}>
-            <Text
-              style={[styles.vendorName, { color: t.primaryText }]}
-              numberOfLines={1}
-            >
-              {item.name || 'Shop'}
-            </Text>
+            <View style={styles.nameRow}>
+              <Text
+                style={[styles.vendorName, { color: t.primaryText }]}
+                numberOfLines={1}
+              >
+                {item.name || 'Shop'}
+              </Text>
+              <Text style={{fontSize: 8, color: '#fff'}}>●</Text>
+              <View style={styles.inlineRatingWrap}>
+                {(() => {
+                  const stats = vendorReviewStats(item);
+                  if (stats) {
+                    return (
+                      <>
+                        {renderRatingStars(stats.rating, t.ratingStar, t.secondaryText)}
+                        {stats.count > 0 ? (
+                          <Text style={[styles.reviewCountText, { color: t.primaryText }]}>
+                            {formatCompactCount(stats.count)}
+                          </Text>
+                        ) : null}
+                      </>
+                    );
+                  }
+                  return renderRatingStars(0, t.ratingStar, t.secondaryText);
+                })()}
+              </View>
+            </View>
             {loc ? (
               <View style={styles.cardLocationRow}>
                 <View style={styles.locationIconWrap}>
@@ -284,6 +328,7 @@ function VendorCard({
               </View>
             ) : null}
           </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.iconHit}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -759,9 +804,11 @@ export default function VendorScreen({ route, navigation }) {
 
   const menuSheetSubtitle = useMemo(() => {
     if (!menuVendor) return '';
-    return (
-      vendorRatingSubtitle(menuVendor) || vendorLocationLine(menuVendor) || ''
-    );
+    const stats = vendorReviewStats(menuVendor);
+    if (stats) {
+      return `${stats.rating.toFixed(1)} ★${stats.count > 0 ? ` (${formatCompactCount(stats.count)})` : ''}`;
+    }
+    return vendorLocationLine(menuVendor) || '';
   }, [menuVendor]);
 
   const renderVendorCard = useCallback(
@@ -1034,10 +1081,33 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     minWidth: 0,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 8,
+    marginBottom: 4,
+  },
   vendorName: {
     fontSize: 17,
     fontWeight: '700',
-    marginBottom: 4,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  inlineRatingWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    flexShrink: 0,
+  },
+  inlineRatingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  reviewCountText: {
+    fontSize: 10,
+    fontWeight: '700',
   },
   cardLocationRow: {
     flexDirection: 'row',

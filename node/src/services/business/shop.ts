@@ -261,6 +261,8 @@ export type ShopMapVendorRow = {
 export type ShopDiscoverVendorRow = Omit<ShopMapVendorRow, "lat" | "lng"> & {
     lat: number | null;
     lng: number | null;
+    ratingAverage?: number | null;
+    reviewCount?: number;
 };
 
 /** Map UI category keys (e.g. from mvp_category.json) to common DB forms like health_beauty. */
@@ -350,6 +352,10 @@ export async function GetShopsForDiscoverByCategoryService(category: string): Pr
         if (!Number.isFinite(id)) continue;
         const coords = parseShopLocationCoords(r.location);
         const { address, city } = parseAddressAndCityFromLocation(r.location);
+        const ratingAverageRaw = Number(r.average_rating ?? r.ratingAverage ?? r.averageRating ?? 0);
+        const reviewCountRaw = Number(r.review_count ?? r.reviewCount ?? 0);
+        const ratingAverage = Number.isFinite(ratingAverageRaw) && ratingAverageRaw > 0 ? ratingAverageRaw : null;
+        const reviewCount = Number.isFinite(reviewCountRaw) && reviewCountRaw >= 0 ? Math.floor(reviewCountRaw) : 0;
         out.push({
             id,
             name,
@@ -359,6 +365,8 @@ export async function GetShopsForDiscoverByCategoryService(category: string): Pr
             state: parseStateFromLocation(r.location),
             address,
             city,
+            ratingAverage,
+            reviewCount,
         });
     }
     return out;

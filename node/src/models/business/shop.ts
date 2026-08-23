@@ -701,8 +701,11 @@ export class shop{
               s.id,
               s.name,
               s.slug,
-              s.location
+              s.location,
+              m.average_rating,
+              m.review_count
             FROM shops s
+            LEFT JOIN shop_review_metrics m ON m.shop_id = s.id
             WHERE EXISTS (
                 SELECT 1
                 FROM UNNEST($1::text[]) AS u(v)

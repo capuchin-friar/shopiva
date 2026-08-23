@@ -142,10 +142,13 @@ function normalizeReview(row) {
   const o = row && typeof row === 'object' ? /** @type {Record<string, unknown>} */ (row) : {};
   const nameRaw = o.reviewer_name ?? o.reviewerName;
   const name = typeof nameRaw === 'string' ? nameRaw.trim() : '';
+  const titleRaw = o.title ?? o.review_tag ?? o.reviewTag;
+  const rating = Number(o.rating) || 0;
+  const fallbackTitle = rating >= 5 ? 'Best' : rating >= 4 ? 'Good' : rating >= 3 ? 'Average' : 'Poor';
   return {
     id: o.id,
-    rating: Number(o.rating) || 0,
-    title: typeof o.title === 'string' ? o.title.trim() : '',
+    rating,
+    title: typeof titleRaw === 'string' && titleRaw.trim() ? titleRaw.trim() : fallbackTitle,
     comment: typeof o.comment === 'string' ? o.comment.trim() : '',
     verified: Boolean(o.is_verified_purchase ?? o.isVerifiedPurchase),
     createdAt: String(o.created_at ?? o.createdAt ?? ''),

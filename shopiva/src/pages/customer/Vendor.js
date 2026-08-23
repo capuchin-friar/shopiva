@@ -48,6 +48,37 @@ const SORT_OPTIONS = [
   { label: 'Price: high to low', value: 'desc' },
 ];
 
+function renderShopReviewSummary(shop) {
+  const rating = Number(shop?.average_rating ?? shop?.averageRating ?? shop?.ratingAverage ?? 0);
+  const count = Number(shop?.review_count ?? shop?.reviewCount ?? shop?.ratingCount ?? 0);
+  if (!Number.isFinite(rating) || rating <= 0) {
+    return (
+      <View style={styles.shopReviewStarRow}>
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Icon
+            key={star}
+            name="star-outline"
+            size={17}
+            color="rgba(255,255,255,0.9)"
+          />
+        ))}
+      </View>
+    );
+  }
+  return (
+    <Text style={styles.brandRating} numberOfLines={1}>
+      {`★ ${rating.toFixed(1)} (${formatCompactCount(count)})`}
+    </Text>
+  );
+}
+
+function formatCompactCount(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return '0';
+  if (n >= 1000) return `${(n / 1000).toFixed(1).replace(/\.0$/, '')}k`;
+  return String(Math.round(n));
+}
+
 /**
  * @param {object[]} products
  * @param {{ gender: string | null; subCategory: string | null; type: string | null; sortPrice: 'none' | 'asc' | 'desc' }} f
@@ -388,6 +419,7 @@ export default function VendorShopScreen({ route, navigation }) {
                 <Text style={styles.brandWordmark} numberOfLines={1}>
                   {shopName}
                 </Text>
+                {renderShopReviewSummary(shopMeta)}
               </View>
             </ImageBackground>
           ) : (
@@ -425,6 +457,7 @@ export default function VendorShopScreen({ route, navigation }) {
                 <Text style={styles.brandWordmark} numberOfLines={1}>
                   {shopName}
                 </Text>
+                {renderShopReviewSummary(shopMeta)}
               </View>
             </View>
           )}
@@ -626,6 +659,7 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
     paddingTop: 8,
     alignItems: 'center',
+    justifyContent: 'center',
     zIndex: 2,
   },
   brandWordmark: {
@@ -638,6 +672,20 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.35)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
+  },
+  shopReviewStarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    gap: 4,
+  },
+  brandRating: {
+    color: 'rgba(255,255,255,0.96)',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 8,
   },
   heroRatingRow: {
     flexDirection: 'row',
