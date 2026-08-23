@@ -758,7 +758,7 @@ export default function ProductScreen({ route, navigation }) {
           ) : undefined
         }
       >
-        <View style={[styles.vendorHeader, { paddingTop: 15 }]}>
+        <View style={[styles.vendorHeader, { paddingTop: Platform.OS === 'android' ? insets.top : 15 }]}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.headerBack}
