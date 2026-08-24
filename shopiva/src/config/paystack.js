@@ -1,6 +1,6 @@
 // import { PAYSTACK_PUBLIC_KEY } from '@env';
 
-const PAYSTACK_PUBLIC_KEY = "pk_test_e352dde8bab5f470b952b6f769dc9964c60cb32f"
+const PAYSTACK_PUBLIC_KEY = "pk_live_13343a7bd4deeebc644070871efcdf8fdcf280f7"
 /**
  * Paystack public key from `.env` (see `.env.example`). Never put secret keys in the app.
  * @returns {string}
