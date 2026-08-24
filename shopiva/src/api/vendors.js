@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { apiFetchAuth } from './client';
 
 /**
  * @typedef {object} VendorDiscoverShop
@@ -25,7 +25,7 @@ export async function getVendorsOnMapByCategory(category) {
     throw new Error('category is required');
   }
   const q = encodeURIComponent(trimmed);
-  const res = await apiFetch(`/discover/vendors?category=${q}`);
+  const res = await apiFetchAuth(`/discover/vendors?category=${q}`);
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const hint =
