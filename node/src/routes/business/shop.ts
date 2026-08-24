@@ -1,5 +1,5 @@
 import express from "express";
-import { authenticate, verifyToken } from "../../middleware/auth.js";
+import { authenticate, optionalVerifyToken, verifyToken } from "../../middleware/auth.js";
 import {
     VerifyShopBvnController,
     UploadShopVerificationDocumentController,
@@ -70,7 +70,7 @@ const BusinessRouter = express.Router();
  */
 
 // Public customer discovery — NOT under /shop/:shopId/:id (that pattern would steal /shop/discover/... paths)
-BusinessRouter.get("/discover/vendors", ListShopsForDiscoverByCategoryController);
+BusinessRouter.get("/discover/vendors", optionalVerifyToken, ListShopsForDiscoverByCategoryController);
 
 // Policy clause patch (token auth; used by Next.js shop settings)
 BusinessRouter.post("/shop/patch/:shopId/policy-clause", verifyToken, PatchShopPolicyClauseController);

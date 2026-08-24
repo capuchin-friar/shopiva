@@ -340,9 +340,9 @@ function parseShopLocationCoords(location: unknown): { lat: number; lng: number 
  * Public discovery: active shops in a category (matches `shops.category`), with optional coordinates.
  * @see GET /discover/vendors
  */
-export async function GetShopsForDiscoverByCategoryService(category: string): Promise<ShopDiscoverVendorRow[]> {
+export async function GetShopsForDiscoverByCategoryService(category: string, excludeOwnerId?: number): Promise<ShopDiscoverVendorRow[]> {
     const variants = categoryMatchValues(category);
-    const rows = await shop.listShopsForMapByCategory(variants);
+    const rows = await shop.listShopsForMapByCategory(variants, excludeOwnerId);
     if (!Array.isArray(rows)) return [];
     const out: ShopDiscoverVendorRow[] = [];
     for (const r of rows as Record<string, unknown>[]) {

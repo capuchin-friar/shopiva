@@ -145,6 +145,35 @@ const verifyToken = async (
   }
 };
 
+/** Authenticate valid bearer tokens while preserving public access without one. */
+const optionalVerifyToken = async (
+  req: AuthRequest,
+  _res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) {
+    next();
+    return;
+  }
+
+  try {
+    const secret = getJwtSecret();
+    if (!secret) {
+      next();
+      return;
+    }
+    const decoded = jwt.verify(token, secret) as { id: number };
+    const user = await authenticateUser(Number(decoded.id));
+    if (user && user.accountstatus.toLowerCase() !== "deleted") {
+      req.user = { id: user.id, email: user.email };
+    }
+  } catch {
+    // Discovery remains public when a token is absent or no longer valid.
+  }
+  next();
+};
+
 // Middleware to authenticate and attach user to request
 const authenticate = async (
   req: AuthRequest,
@@ -186,5 +215,5 @@ const authenticate = async (
   }
 };
 
-export { authenticate, verifyToken, authenticateUser };
+export { authenticate, verifyToken, optionalVerifyToken, authenticateUser };
 export type { AuthRequest };

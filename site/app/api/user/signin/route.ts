@@ -29,7 +29,6 @@ export async function POST(request: NextRequest) {
     const { email: rawEmail, password, provider = "local" } = body;
     const email =
       typeof rawEmail === "string" ? rawEmail.trim() : "";
-
     if (provider === "local" && (!email || typeof password !== "string")) {
       return NextResponse.json(
         { bool: false, data: "invalid credentials" },
@@ -43,14 +42,19 @@ export async function POST(request: NextRequest) {
         ? await UserModel.findUserByEmailNormalized(email)
         : [];
 
+    console.log("passed!", email)
+    console.log("passed!", users)
+    
     if (users.length === 0) {
       return NextResponse.json(
         { bool: false, data: "invalid credentials" },
         { status: 401 }
       );
     }
-
+   
     const user = users[0];
+    
+
 
     // Check if account is deleted
     if (user.accountStatus === "deleted") {

@@ -693,7 +693,7 @@ export class shop{
      * Active shops matching any of the given category strings (public vendor discovery / optional map).
      * Location JSON is parsed in the service layer.
      */
-    static listShopsForMapByCategory = withErrorHandling(async (categoryVariants: string[]) => {
+    static listShopsForMapByCategory = withErrorHandling(async (categoryVariants: string[], excludeOwnerId?: number) => {
         if (!categoryVariants.length) return [];
         const { rows } = await (await db()).query(
             `
@@ -714,6 +714,7 @@ export class shop{
                    OR regexp_replace(lower(trim(s.category)), '[^a-z0-9]+', '_', 'g') LIKE
                       ('%' || regexp_replace(lower(trim(v)), '[^a-z0-9]+', '_', 'g') || '%')
               )
+              AND ($2::integer IS NULL OR s.ownerid <> $2)
                 AND EXISTS (
                   SELECT 1
                   FROM products p
@@ -723,7 +724,7 @@ export class shop{
               AND s.status IN ('active', 'pending_approval')
             ORDER BY s.name ASC
             `,
-            [categoryVariants]
+            [categoryVariants, excludeOwnerId ?? null]
         );
         return rows;
     });
