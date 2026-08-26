@@ -53,7 +53,7 @@ export async function PaystackWebhookController(
     const rawEvent = JSON.parse(rawBody.toString());
     const { event: eventType, data: paystackData } = rawEvent;
 
-      console.log("testing paystack webhook:", eventType);
+    console.log("testing paystack webhook:", eventType);
     // Process only successful charges
     if (eventType !== "charge.success") {
       if (eventType === "transfer.success") {
@@ -61,18 +61,25 @@ export async function PaystackWebhookController(
           status: "success",
           transfer_reference: paystackData.reference,
         });
+        res.status(200).json({ message: "Payment completed" });
+        return;
       } else if (eventType === "transfer.failed") {
         escrow.complete({
           status: "failed",
           transfer_reference: paystackData.reference,
         });
+        res.status(200).json({ message: "Payment completed" });
+        return;
       } else if (eventType === "transfer.reversed") {
         escrow.complete({
           status: "reversed",
           transfer_reference: paystackData.reference,
         });
+        res.status(200).json({ message: "Payment completed" });
+        return;
       } else {
         res.status(200).send("Ignored");
+        return;
       }
     }
 
@@ -118,8 +125,6 @@ export async function PaystackWebhookController(
 
     //
     const { metadata, reference } = paystackData;
-
-  
 
     // const { metadata, reference } = paystackData;
     const { customer_id, shipping_address, tax, orders } = metadata || {};
