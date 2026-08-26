@@ -439,7 +439,7 @@ export default function VendorProductListScreen() {
             <Text style={styles.actionSheetTitle} numberOfLines={2}>
               {actionSheetProduct?.title ?? 'Product'}
             </Text>
-            <Pressable
+            {/* <Pressable
               style={({ pressed }) => [styles.actionSheetRow, pressed && styles.modalRowPressed]}
               onPress={onEditProduct}
               accessibilityRole="button"
@@ -447,7 +447,7 @@ export default function VendorProductListScreen() {
             >
               <Icon name="create-outline" size={22} color={TEXT} style={styles.actionSheetRowIcon} />
               <Text style={styles.actionSheetRowLabel}>Edit</Text>
-            </Pressable>
+            </Pressable> */}
             <Pressable
               style={({ pressed }) => [styles.actionSheetRow, pressed && styles.modalRowPressed]}
               onPress={onDeleteProduct}

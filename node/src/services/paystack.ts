@@ -1,5 +1,7 @@
 import type { InitiateTransfer, NewPaystackRecipient } from "../types/business.js";
 import https from "https";
+import dotenv from "dotenv";
+dotenv.config();
 
 export class paystack {
     static secretKey() {
@@ -133,7 +135,7 @@ export class paystack {
         const params = JSON.stringify({
             "source": "balance",
             "reason": reason,
-            "amount": amount,
+            "amount": amount*100,
             "recipient": recipient,
             "reference": reference
         })
@@ -149,22 +151,24 @@ export class paystack {
             }
         }
 
-        const req = https.request(options, res => {
-            let data = ''
-
-            res.on('data', (chunk) => {
-                data += chunk
-            });
-
-            res.on('end', () => {
-                console.log(JSON.parse(data))
+        return new Promise((resolve, reject) => {
+            const req = https.request(options, res => {
+                let data = ''
+    
+                res.on('data', (chunk) => {
+                    data += chunk
+                });
+    
+                res.on('end', () => {
+                    resolve(JSON.parse(data))
+                })
+            }).on('error', error => {
+                reject(error);
             })
-        }).on('error', error => {
-            console.error(error)
+            req.write(params)
+            req.end()
         })
 
-        req.write(params)
-        req.end()
     }
 
 

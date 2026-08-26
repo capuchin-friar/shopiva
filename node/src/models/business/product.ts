@@ -249,7 +249,7 @@ export class product {
       brand = null,
       images = [],
       // videos = [],
-      tags = [],
+      // tags = [],
       weight = null,
       dimensions = null,
       specifications = {},
@@ -264,10 +264,10 @@ export class product {
     ).query<ProductRow>(
       `UPDATE products SET
         shop_id = $1, name = $2, slug = $3, description = $4, short_description = $5,
-        category = $6, subcategory = $7, brand = $8, images = $9, tags = $10,
-        weight = $11, dimensions = $12, specifications = $13, status = $14,
-        is_published = $15, published_at = $16, is_featured = $17, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $18
+        category = $6, subcategory = $7, brand = $8, images = $9,
+        weight = $10, dimensions = $11, specifications = $12, status = $13,
+        is_published = $14, published_at = $15, is_featured = $16, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $17
       RETURNING *`,
       [
         shop_id,
@@ -280,7 +280,7 @@ export class product {
         brand,
         images,
         // videos,
-        tags,
+        // tags,
         weight,
         dimensions ? JSON.stringify(dimensions) : null,
         JSON.stringify(specifications),

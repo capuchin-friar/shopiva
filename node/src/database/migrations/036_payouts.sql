@@ -22,11 +22,13 @@ CREATE TABLE shop_payouts (
         status IN (
             'pending',
             'processing',
+            'queued',
             'paid',
             'failed'
         )
     )
 );
+-- ((status)::text = ANY ((ARRAY['pending'::character varying, 'processing'::character varying, 'queued'::character varying, 'paid'::character varying, 'failed'::character varying])::text[]))
 -- CREATE INDEX idx_shop_payouts_status
 -- ON shop_payouts(status);
 

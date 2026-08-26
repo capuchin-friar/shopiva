@@ -96,6 +96,7 @@ export async function PaystackWebhookController(
     //
     const { metadata, reference } = paystackData;
 
+    console.log("testing paystack webhook:", eventType);
     // Process only successful charges
     if (eventType !== "charge.success") {
       if (eventType === "transfer.success") {
