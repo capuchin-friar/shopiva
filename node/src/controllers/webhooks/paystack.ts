@@ -58,7 +58,7 @@ export async function PaystackWebhookController(
     if (eventType !== "charge.success") {
       if (eventType === "transfer.success") {
         escrow.complete({
-          status: "success",
+          status: "paid",
           transfer_reference: paystackData.reference,
         });
         res.status(200).json({ message: "Payment completed" });
