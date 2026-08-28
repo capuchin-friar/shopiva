@@ -431,6 +431,7 @@ export default function CartCheckoutScreen({ navigation }) {
           reference: refStr,
           subtotal,
           total: total,
+          logistic_provider: logisticsProviders[logisticsProviderId],
           itemCount: checkoutLines.length,
         });
       },

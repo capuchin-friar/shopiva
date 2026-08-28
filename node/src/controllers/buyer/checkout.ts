@@ -16,13 +16,12 @@ export async function PostBuyerCheckoutConfirmPaymentController(req: AuthRequest
     }
     const body = (req.body ?? {}) as { reference?: unknown; shipping_naira?: unknown };
     const reference = String(body.reference ?? "").trim();
-    const shippingNaira = body.shipping_naira != null ? Number(body.shipping_naira) : 0;
 
     if (!reference) {
       res.status(400).json({ error: "reference is required" });
       return;
     }
-    const result = await confirmCartCheckoutAndCreateChatRoom(userId, reference, shippingNaira);
+    const result = await confirmCartCheckoutAndCreateChatRoom(userId, reference);
     const first = result.rooms[0];
     res.status(200).json({
       ok: true,

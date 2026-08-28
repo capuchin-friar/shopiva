@@ -53,8 +53,8 @@ function roomRecordToChatItem(room) {
  */
 export default function PaymentSuccessScreen({ navigation, route }) {
   const subtotal = normalizeAmount(route?.params?.subtotal);
-  const shipping = normalizeAmount(route?.params?.shipping);
-  const total = normalizeAmount(route?.params?.total || subtotal + shipping);
+  const logistics_provider = normalizeAmount(route?.params?.logistics_provider);
+  const total = normalizeAmount(route?.params?.total || subtotal);
   const itemCount = Math.max(0, Number(route?.params?.itemCount) || 0);
   const reference = String(route?.params?.reference || '').trim();
 
@@ -77,13 +77,13 @@ export default function PaymentSuccessScreen({ navigation, route }) {
       `Reference: ${reference || 'N/A'}`,
       `Items: ${itemCount}`,
       `Item price: ${formatNaira(subtotal)}`,
-      `Shipping: ${shipping > 0 ? formatNaira(shipping) : 'Free'}`,
+      `Logistics provider: ${logistics_provider}`,
       `Grand total: ${paidLabel}`,
       '',
       `Generated: ${new Date().toLocaleString()}`,
     ];
     return lines.join('\n');
-  }, [reference, itemCount, subtotal, shipping, paidLabel]);
+  }, [reference, itemCount, subtotal, logistics_provider, paidLabel]);
 
   const runConfirm = useCallback(async () => {
     if (!reference) {
@@ -96,7 +96,6 @@ export default function PaymentSuccessScreen({ navigation, route }) {
       const data = await confirmCheckoutPayment({
         reference,
         // order_id: route?.params?.order_id,
-        shipping_naira: shipping,
       });
       const rawRooms = Array.isArray(data?.rooms) ? data.rooms : [];
       /** @type {Array<{ room: Record<string, unknown>; vendor_user_id?: number; existing?: boolean }>} */
@@ -131,12 +130,12 @@ export default function PaymentSuccessScreen({ navigation, route }) {
     } finally {
       setConfirmLoading(false);
     }
-  }, [reference, shipping]);
+  }, [reference, logistics_provider]);
 
   useEffect(() => {
     if (!reference) return;
     void runConfirm();
-  }, [reference, shipping, runConfirm]);
+  }, [reference, logistics_provider, runConfirm]);
 
   const onShareReceipt = async () => {
     try {
@@ -159,41 +158,6 @@ export default function PaymentSuccessScreen({ navigation, route }) {
     } catch (e) {
       Alert.alert('Print unavailable', e instanceof Error ? e.message : String(e));
     }
-  };
-
-  const onContinueChat = async () => {
-    if (!hasConfirmedChats) {
-      Alert.alert(
-        'Chat not ready',
-        confirmError || 'We could not open your seller chat yet. Try again or open Chats from the tab bar.',
-        [
-          { text: 'Retry', onPress: () => void runConfirm() },
-          { text: 'OK', style: 'cancel' },
-        ],
-      );
-      return;
-    }
-    if (multiShopCheckout) {
-      const highlightRoomIds = confirmEntries
-        .map((e) => String(e.room?.id ?? '').trim())
-        .filter(Boolean);
-      /** Pin the last room from this checkout to the top (most recent thread for this payment). */
-      const pinId = highlightRoomIds.length ? highlightRoomIds[highlightRoomIds.length - 1] : '';
-      if (pinId) await setLastOpenedChatRoomId(pinId, 'customer');
-      parentTabNav?.navigate('Chat', {
-        screen: 'chat-list',
-        params: {
-          highlightRoomIds,
-          highlightExpiresAt: Date.now() + 120000,
-        },
-      });
-      return;
-    }
-    const chatItem = roomRecordToChatItem(confirmEntries[0].room);
-    parentTabNav?.navigate('Chat', {
-      screen: 'chat-room',
-      params: { chat: chatItem },
-    });
   };
 
   return (
@@ -243,7 +207,7 @@ export default function PaymentSuccessScreen({ navigation, route }) {
           </View>
           <View style={styles.row}>
             <Text style={styles.label}>Shipping</Text>
-            <Text style={styles.value}>{shipping > 0 ? formatNaira(shipping) : 'Free'}</Text>
+            <Text style={styles.value}> Pending </Text>
           </View>
           <View style={[styles.row, styles.totalRow]}>
             <Text style={styles.totalLabel}>Grand total</Text>
