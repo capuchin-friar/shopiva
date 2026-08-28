@@ -2,6 +2,7 @@ export { getApiBaseUrl, getApiBaseUrlOverride, setApiBaseUrlOverride, API_DEFAUL
 export { apiFetch, apiFetchAuth } from './client';
 export { getVendorsOnMapByCategory } from './vendors';
 export { getCategories } from './categories';
+export { getLogisticsProviders } from './logisticsProviders';
 export * from './storefront';
 export * from './buyer';
 export * from './auth';

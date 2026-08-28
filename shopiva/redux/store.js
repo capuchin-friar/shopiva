@@ -8,6 +8,7 @@ import disputeList from './disputes';
 import returnInfo from './return';
 import returnList from './returns';
 import categories from './categoriesSlice';
+import logisticsProviders from './logisticsProvidersSlice';
 
 const store = configureStore({
   reducer: {
@@ -20,6 +21,7 @@ const store = configureStore({
     returnInfo: returnInfo,
     returnList: returnList,
     categories,
+    logisticsProviders,
   },
 });
 

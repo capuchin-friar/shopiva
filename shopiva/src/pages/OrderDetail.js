@@ -706,7 +706,6 @@ export default function OrderDetailScreen() {
   const onOpenDispute = useCallback(async () => {
     if (orderInfo?.dispute) {
       const [vendor] = await fetchShopOwner(orderInfo.shop.id);
-      console.log('vendor:', vendor);
       dispatch(
         set_disputeInfo({
           ...orderInfo.dispute,
@@ -769,7 +768,6 @@ export default function OrderDetailScreen() {
     if (!orderInfo?.order) return;
     if (statusKey === 'order_disputed') {
       const [vendor] = await fetchShopOwner(orderInfo.shop.id);
-      console.log('vendor:', vendor);
       dispatch(
         set_disputeInfo({
           ...orderInfo.dispute,
@@ -1382,6 +1380,7 @@ export default function OrderDetailScreen() {
                     action: 'acceptance',
                     data: {
                       order_id: orderInfo.order.id,
+                      shipping_address: orderInfo.order.shipping_address,
                       event_type: 'acceptance',
                       stage: 'order_accepted',
                       actor_type: 'vendor',

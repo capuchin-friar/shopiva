@@ -4,7 +4,6 @@ export interface NewOrder{
     customer_id: string; 
     shop_id: string; 
     amount_paid: number; 
-    shipping_fee: number; 
     tax: number; 
     charges: number; 
     total_paid: number; 
@@ -13,8 +12,8 @@ export interface NewOrder{
     escrow_status: string; 
     payment_status: string; 
     shipping_address: string; 
+    logistics_provider_id: string; 
     payment_reference: string; 
-    shipping_method: string; 
     tracking_number: string; 
 }
 
