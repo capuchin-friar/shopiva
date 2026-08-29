@@ -86,6 +86,7 @@ async function createCheckoutRoomsForOrderRows(
 function metadataOrdersFromVerifyData(data: Record<string, unknown>): Array<{
   shop_id: number | null;
   subtotal: number;
+  shipping_fee: number;
   items: Array<Record<string, unknown>>;
 }> {
   const meta = data.metadata && typeof data.metadata === "object"
@@ -104,10 +105,12 @@ function metadataOrdersFromVerifyData(data: Record<string, unknown>): Array<{
         return sum + (Number.isFinite(total) ? total : 0);
       }, 0);
       const parsedSubtotal = Number(order.subtotal ?? subtotal);
+      const shippingFee = Number(order.shipping_fee ?? 0);
       const shopId = Number(order.shop_id ?? 0);
       return {
         shop_id: Number.isFinite(shopId) && shopId > 0 ? shopId : null,
         subtotal: Number.isFinite(parsedSubtotal) ? parsedSubtotal : subtotal,
+        shipping_fee: Number.isFinite(shippingFee) ? shippingFee : 0,
         items,
       };
     });
@@ -146,6 +149,7 @@ async function roomsToEntriesForBuyer(
 export async function confirmCartCheckoutAndCreateChatRoom(
   buyerUserId: number,
   reference: string,
+  shippingNaira: number
 ): Promise<CheckoutConfirmResult> {
   const ref = String(reference ?? "").trim();
   if (!ref) throw new Error("reference is required");
@@ -173,6 +177,7 @@ export async function confirmCartCheckoutAndCreateChatRoom(
   }
 
   const lines = await listCartLinesForUser(buyerUserId);
+  const ship = Math.max(0, Number(shippingNaira) || 0);
   const metadataOrders = metadataOrdersFromVerifyData(d);
 
   let subtotalNaira = 0;
@@ -202,21 +207,33 @@ export async function confirmCartCheckoutAndCreateChatRoom(
     }
 
     if (metadataOrders.length) {
-      const roomRows = metadataOrders.map((order) => ({
-        id: txnId,
-        shop_id: order.shop_id ?? 0,
-      }));
-      const rooms = await createCheckoutRoomsForOrderRows(buyerUserId, roomRows, txnId, false);
-      if (rooms.length) {
-        await clearCartForUser(buyerUserId);
-        return { rooms, transaction_id: txnId };
+      const metadataTotalNaira = metadataOrders.reduce((sum, order) => {
+        const itemsTotal = order.items.reduce((innerSum, item) => {
+          const qty = Number(item.unit ?? item.quantity ?? 0);
+          const unitPrice = Number(item.unit_price ?? 0);
+          const total = Number(item.total ?? (qty * unitPrice));
+          return innerSum + (Number.isFinite(total) ? total : 0);
+        }, 0);
+        return sum + Math.max(0, Number(order.subtotal ?? itemsTotal)) + Number(order.shipping_fee ?? 0);
+      }, 0);
+      const expectedKobo = Math.round((metadataTotalNaira + ship) * 100);
+      if (Math.abs(amountKobo - expectedKobo) <= 150) {
+        const roomRows = metadataOrders.map((order) => ({
+          id: txnId,
+          shop_id: order.shop_id ?? 0,
+        }));
+        const rooms = await createCheckoutRoomsForOrderRows(buyerUserId, roomRows, txnId, false);
+        if (rooms.length) {
+          await clearCartForUser(buyerUserId);
+          return { rooms, transaction_id: txnId };
+        }
       }
     }
 
     throw new Error("Cart is empty; cannot finalize checkout");
   }
 
-  const expectedKobo = Math.round((subtotalNaira + 100 /* Escrow Charges*/) * 100);
+  const expectedKobo = Math.round((subtotalNaira + ship) * 100);
   const tolerance = 150;
   if (Math.abs(amountKobo - expectedKobo) > tolerance) {
     throw new Error("Paid amount does not match cart total. Refresh and contact support.");

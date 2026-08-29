@@ -148,13 +148,13 @@ app.get("/categories", async (req, res) => {
   console.log("categories: ", rows);
 });
 
-app.get("/logistics-providers", async (req, res) => {
-  const pool = await db();
-  const { rows } = await pool.query(
-    `SELECT id, name, logo_url FROM logistics_providers WHERE is_active = TRUE ORDER BY name ASC`,
-  );
-  res.json(rows);
-});
+// app.get("/logistics-providers", async (req, res) => {
+//   const pool = await db();
+//   const { rows } = await pool.query(
+//     `SELECT id, name, logo_url FROM logistics_providers WHERE is_active = TRUE ORDER BY name ASC`,
+//   );
+//   res.json(rows);
+// });
 
 // Swagger Documentation
 app.use(

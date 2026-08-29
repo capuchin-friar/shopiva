@@ -7,7 +7,6 @@ import { apiFetch } from './client';
 export async function getLogisticsProviders() {
   const res = await apiFetch('/logistics-providers');
   const data = await res.json().catch(() => []);
-  console.log("data: ", data)
   if (!res.ok) {
     const hint =
       data?.error ||

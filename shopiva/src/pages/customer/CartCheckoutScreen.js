@@ -17,13 +17,8 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usePaystack } from 'react-native-paystack-webview';
-import { useDispatch, useSelector } from 'react-redux';
 import { useProfile } from '../../context/ProfileContext';
 import { fetchBuyerCart } from '../../api/buyer';
-import {
-  fetchLogisticsProviders,
-  selectLogisticsProvidersState,
-} from '../../../redux/logisticsProvidersSlice';
 import { canUsePaystackCheckout } from '../../paystack/paystackNativeGate';
 import { formatNaira } from '../../utils/formatNaira';
 import {
@@ -39,6 +34,7 @@ const BORDER = '#E0E0E0';
 const MUTED = '#757575';
 const ERROR = '#C62828';
 const ERROR_BG = '#FFEBEE';
+const EXPRESS_SHIPPING = 1000;
 
 /**
  * @param {string} email
@@ -143,13 +139,6 @@ export default function CartCheckoutScreen({ navigation }) {
   const { user } = useProfile();
   const route = useRoute();
   const { popup } = usePaystack();
-  const dispatch = useDispatch();
-  const {
-    providers: logisticsProviders,
-    isLoading: logisticsProvidersLoading,
-    error: logisticsProvidersError,
-    lastFetchedAt: logisticsProvidersLastFetchedAt,
-  } = useSelector(selectLogisticsProvidersState);
 
   const [cartLoading, setCartLoading] = useState(true);
   const [checkoutLines, setCheckoutLines] = useState(
@@ -163,7 +152,7 @@ export default function CartCheckoutScreen({ navigation }) {
   const [city, setCity] = useState('');
   const [zip, setZip] = useState('');
   const [country, setCountry] = useState('Nigeria');
-  const [logisticsProviderId, setLogisticsProviderId] = useState('');
+  const [delivery, setDelivery] = useState(('standard'));
   const [isLocating, setIsLocating] = useState(false);
 
   const [touchedSubmit, setTouchedSubmit] = useState(false);
@@ -233,12 +222,6 @@ export default function CartCheckoutScreen({ navigation }) {
     }, [route.params]),
   );
 
-  useEffect(() => {
-    if (!logisticsProvidersLastFetchedAt && !logisticsProvidersLoading) {
-      void dispatch(fetchLogisticsProviders());
-    }
-  }, [dispatch, logisticsProvidersLastFetchedAt, logisticsProvidersLoading]);
-
   useFocusEffect(
     useCallback(() => {
       if (!user) return;
@@ -254,7 +237,9 @@ export default function CartCheckoutScreen({ navigation }) {
     [checkoutLines],
   );
 
-  const total = Math.max(0, subtotal + 100 /* 100 naira charge for escrow services inured too */ ); 
+  const shippingCost = delivery === 'express' ? EXPRESS_SHIPPING : 0;
+  const shippingLabel = delivery === 'express' ? formatNaira(EXPRESS_SHIPPING) : 'Free';
+  const total = Math.max(0, subtotal + shippingCost);
 
   const errors = useMemo(() => {
     const e = /** @type {Record<string, string>} */ ({});
@@ -266,16 +251,15 @@ export default function CartCheckoutScreen({ navigation }) {
     if (!street.trim()) e.street = 'Street address is required.';
     else if (!isValidStreet(street)) e.street = 'Enter a complete street address.';
     if (!city.trim()) e.city = 'Enter your city.';
-    if (!logisticsProviderId) e.logisticsProvider = 'Select a logistics provider.';
     // if (!zip.trim()) e.zip = 'Enter a ZIP or postal code.';
     return e;
-  }, [fullName, email, phone, street, city, logisticsProviderId]);
+  }, [fullName, email, phone, street, city]);
 
   const showErrors = touchedSubmit;
   const hasBlockingErrors = Object.keys(errors).length > 0;
   const hasEmptyRequiredFields = useMemo(
-    () => !fullName.trim() || !email.trim() || !phone.trim() || !street.trim() || !logisticsProviderId,
-    [fullName, email, phone, street, logisticsProviderId],
+    () => !fullName.trim() || !email.trim() || !phone.trim() || !street.trim(),
+    [fullName, email, phone, street, city],
   );
 
   const showBottomToast = useCallback((message) => {
@@ -362,6 +346,7 @@ export default function CartCheckoutScreen({ navigation }) {
     /** Paystack `amount` for NGN is in kobo (smallest unit). */
     const amountKobo = Math.max(100, Math.round(Number(total) * 100));
     const reference = `shopiva_cart_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const firstLine = checkoutLines[0];
 
     const shippingSummary = `${street.trim()}, ${city.trim()}, ${zip.trim()}, ${country}`;
     const uid = Number(user?.id);
@@ -369,6 +354,34 @@ export default function CartCheckoutScreen({ navigation }) {
       setFormBanner('You must be signed in to pay.');
       return;
     }
+
+    /**
+     * Must match server `parseAndValidateOrderMetadata` (used by Paystack webhook after verify).
+     * Each line: `{ inventory_id, quantity, productId?, variant? }` — inventory_id is required for cart SKUs;
+     * productId is optional cross-check for `webhookOrderFromPaystack`.
+     */
+    const paystackItems = checkoutLines.map((line) => {
+      /** @type {Record<string, unknown>} */
+      const item = {
+        inventory_id: line.inventoryId,
+        quantity: line.qty,
+      };
+      if (line.productId != null) item.productId = line.productId;
+      if (line.variantLabel) item.variant = line.variantLabel;
+      return item;
+    });
+
+    const shippingAddress = {
+      fullName: fullName.trim(),
+      email: customerEmail,
+      phone: phone.trim(),
+      street: street.trim(),
+      city: city.trim(),
+      zip: zip.trim(),
+      country,
+      delivery,
+      summary: shippingSummary,
+    };
 
     // Group items by shop_id to create orders array
     const ordersByShop = checkoutLines.reduce((acc, line) => {
@@ -397,7 +410,8 @@ export default function CartCheckoutScreen({ navigation }) {
       
       return {
         shop_id: shopId,
-        logistics_provider_id: logisticsProviderId,
+        shipping_fee: shippingCost,
+        shipping_method: delivery,
         subtotal: orderSubtotal,
         items,
       };
@@ -405,6 +419,13 @@ export default function CartCheckoutScreen({ navigation }) {
 
     console.log("ordersArray: ", ordersArray);
 
+    const pricingBreakdown = {
+      currency: 'NGN',
+      totalNaira: total,
+      totalKobo: amountKobo,
+      subtotalNaira: subtotal,
+      shippingNaira: shippingCost,
+    };
 
     setIsPaying(true);
     setFormBanner('');
@@ -414,8 +435,7 @@ export default function CartCheckoutScreen({ navigation }) {
       reference,
       metadata: {
         customer_id: String(uid),
-        shipping_address: shippingSummary,
-        logistics_provider_id: logisticsProviderId,
+        shipping_address: street.trim(),
         tax: 0,
         orders: ordersArray
       },
@@ -430,8 +450,8 @@ export default function CartCheckoutScreen({ navigation }) {
         navigation.replace('Payment-success', {
           reference: refStr,
           subtotal,
+          shipping: shippingCost,
           total: total,
-          logistic_provider: logisticsProviders[logisticsProviderId],
           itemCount: checkoutLines.length,
         });
       },
@@ -441,6 +461,7 @@ export default function CartCheckoutScreen({ navigation }) {
         navigation.replace('Payment-failed', {
           reason: 'Payment was cancelled before completion.',
           subtotal,
+          shipping: shippingCost,
           total,
         });
       },
@@ -454,6 +475,7 @@ export default function CartCheckoutScreen({ navigation }) {
         navigation.replace('payment-failed', {
           reason: msg,
           subtotal,
+          shipping: shippingCost,
           total,
         });
       },
@@ -465,11 +487,14 @@ export default function CartCheckoutScreen({ navigation }) {
     email,
     total,
     checkoutLines,
-    logisticsProviderId,
+    delivery,
+    shippingCost,
     street,
     city,
     zip,
     country,
+    fullName,
+    phone,
     user?.id,
     popup,
     navigation,
@@ -633,43 +658,31 @@ export default function CartCheckoutScreen({ navigation }) {
               </View>
 
               <View style={styles.card}>
-                <Text style={styles.sectionHeading}>Logistics Provider</Text>
-                {logisticsProvidersLoading ? (
-                  <Text style={styles.deliverySub}>Loading logistics providers...</Text>
-                ) : logisticsProvidersError ? (
-                  <Text style={styles.errorText}>{logisticsProvidersError}</Text>
-                ) : logisticsProviders.length === 0 ? (
-                  <Text style={styles.deliverySub}>No logistics providers are currently available.</Text>
-                ) : (
-                  logisticsProviders.map((provider) => (
-                    <Pressable
-                      key={provider.id}
-                      onPress={() => setLogisticsProviderId(provider.id)}
-                      style={[
-                        styles.deliveryCard,
-                        logisticsProviderId === provider.id
-                          ? styles.deliveryCardSelected
-                          : styles.deliveryCardIdle,
-                      ]}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected: logisticsProviderId === provider.id }}
-                    >
-                      <View style={styles.logisticsProviderLogoSlot}>
-                        {provider.logo_url ? (
-                          <Image
-                            source={{ uri: provider.logo_url }}
-                            style={styles.logisticsProviderLogo}
-                            resizeMode="contain"
-                          />
-                        ) : null}
-                      </View>
-                      <Text style={styles.logisticsProviderName}>{provider.name}</Text>
-                    </Pressable>
-                  ))
-                )}
-                {showErrors && errors.logisticsProvider ? (
-                  <Text style={styles.errorText}>{errors.logisticsProvider}</Text>
-                ) : null}
+                <Text style={styles.sectionHeading}>Delivery options</Text>
+                <Pressable
+                  onPress={() => setDelivery('standard')}
+                  style={[styles.deliveryCard, delivery === 'standard' ? styles.deliveryCardSelected : styles.deliveryCardIdle]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: delivery === 'standard' }}
+                >
+                  <View style={styles.deliveryTextCol}>
+                    <Text style={styles.deliveryTitle}>Standard shipping</Text>
+                    <Text style={styles.deliverySub}>Delivered in 5–7 days</Text>
+                  </View>
+                  <Text style={styles.deliveryPrice}>Free</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => setDelivery('express')}
+                  style={[styles.deliveryCard, delivery === 'express' ? styles.deliveryCardSelected : styles.deliveryCardIdle]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: delivery === 'express' }}
+                >
+                  <View style={styles.deliveryTextCol}>
+                    <Text style={styles.deliveryTitle}>Express shipping</Text>
+                    <Text style={styles.deliverySub}>Delivered in 2–3 days</Text>
+                  </View>
+                  <Text style={styles.deliveryPrice}>{formatNaira(EXPRESS_SHIPPING)}</Text>
+                </Pressable>
               </View>
 
               {/* <Text style={styles.sectionHeading}>Payment method</Text> */}
@@ -682,9 +695,10 @@ export default function CartCheckoutScreen({ navigation }) {
 
         {subtotal > 0 && !cartLoading ? (
           <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
-            {/* <View style={styles.footerRow}>
+            <View style={styles.footerRow}>
               <Text style={styles.footerMuted}>Shipping</Text>
-            </View> */}
+              <Text style={styles.footerMuted}>{shippingLabel}</Text>
+            </View>
             <View style={styles.footerRowTotal}>
               <Text style={styles.totalWord}>Total</Text>
               <Text style={styles.totalAmount}>{formatNaira(total)}</Text>
@@ -728,8 +742,8 @@ export default function CartCheckoutScreen({ navigation }) {
                     <Text style={styles.orderModalTotalValue}>{formatNaira(subtotal)}</Text>
                   </View>
                   <View style={styles.orderModalTotalRow}>
-                    <Text style={styles.orderModalTotalLabel}>Charges</Text>
-                    <Text style={styles.orderModalTotalValue}>{formatNaira(100)}</Text>
+                    <Text style={styles.orderModalTotalLabel}>Shipping</Text>
+                    <Text style={styles.orderModalTotalValue}>{shippingLabel}</Text>
                   </View>
                   <View style={[styles.orderModalTotalRow, styles.orderModalTotalRowGrand]}>
                     <Text style={styles.orderModalGrandLabel}>Total</Text>
@@ -967,20 +981,6 @@ const styles = StyleSheet.create({
   },
   deliveryTextCol: { flex: 1, paddingRight: 12 },
   deliveryTitle: { fontSize: 16, fontWeight: '700', color: '#111' },
-  logisticsProviderLogoSlot: {
-    width: 44,
-    height: 44,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: BORDER,
-    backgroundColor: '#F5F5F5',
-    marginRight: 12,
-  },
-  logisticsProviderLogo: {
-    width: '100%',
-    height: '100%',
-  },
-  logisticsProviderName: { flex: 1, fontSize: 16, fontWeight: '700', color: '#111' },
   deliverySub: { fontSize: 13, color: MUTED, marginTop: 4 },
   deliveryPrice: { fontSize: 16, fontWeight: '700', color: '#111' },
   payRow: {

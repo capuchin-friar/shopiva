@@ -150,8 +150,6 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
   const [confirmPerformancePolicy, setConfirmPerformancePolicy] =
     useState(false);
   const [fulfillmentDuration, setFulfillmentDuration] = useState(null);
-  const [logisticsProvider, setLogisticsProvider] = useState('');
-  const [shippingCost, setShippingCost] = useState('');
 
   const navigation = useNavigation();
   useEffect(() => {
@@ -161,7 +159,7 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
   if (data.stage === 'order_rejected') {
     return (
       <>
-        {
+        {(
           <FormKeyboardAvoiding style={[styles.cnt, styles.processingRoot]}>
             {loading && <Spinner />}
             <ScrollView
@@ -298,13 +296,13 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
               </Pressable>
             </View>
           </FormKeyboardAvoiding>
-        }
+        )}
       </>
     );
   } else {
     return (
       <>
-        {
+        {(
           <FormKeyboardAvoiding style={[styles.cnt, styles.processingRoot]}>
             {loading && <Spinner />}
             <ScrollView
@@ -346,106 +344,29 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                 </View>
               </View>
 
-              <View style={[styles.processingCard]}>
-                <View
-                  style={[
-                    styles.processingCard,
-                    { padding: 0, paddingTop: 10 },
-                  ]}
-                >
-                  <Text style={styles.processingFieldLabel}>
-                    Logistics Provider
-                  </Text>
-                  <Text style={styles.processingFieldHint}>
-                    Provide the name of the Logistics company that will handle
-                    the shipping
-                  </Text>
-                  <TextInput
-                    style={[styles.textInput, styles.acceptanceFormInput]}
-                    placeholder="Logistics company or provider"
-                    value={logisticsProvider}
-                    onChangeText={setLogisticsProvider}
-                  />
-                </View>
-
-                <View
-                  style={[
-                    styles.processingCard,
-                    { padding: 0, paddingTop: 10 },
-                  ]}
-                >
-                  <Text style={styles.processingFieldLabel}>Shipping Cost</Text>
-                  <Text style={styles.processingFieldHint}>
-                    Input the shipping cost which the Logistics company will
-                    charge to ships the item(s) ordered.
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.textInput,
-                      styles.acceptanceFormInput,
-                      styles.deliveryDetailInput,
-                    ]}
-                    placeholder="Shipping cost"
-                    value={shippingCost}
-                    onChangeText={text =>
-                      setShippingCost(text.replace(/[^0-9]/g, ''))
-                    }
-                    keyboardType="numeric"
-                  />
-                </View>
-
-                <View
-                  style={[
-                    styles.processingCard,
-                    { padding: 0, paddingTop: 10 },
-                  ]}
-                >
-                  <Text style={styles.processingFieldLabel}>
-                    Estimated ship time
-                  </Text>
-                  <Text style={styles.processingFieldHint}>
-                    When do you plan to hand this order to the carrier? This
-                    helps set customer expectations.
-                  </Text>
-                  <Dropdown
-                    style={[styles.processingDropdown]}
-                    containerStyle={styles.dropdownContainer}
-                    placeholderStyle={styles.placeholderStyle}
-                    selectedTextStyle={styles.selectedTextStyle}
-                    itemTextStyle={styles.processingDropdownItem}
-                    iconStyle={styles.iconStyle}
-                    data={FULFILLMENT_TIMEFRAME_OPTIONS}
-                    maxHeight={280}
-                    labelField="label"
-                    valueField="value"
-                    placeholder="Select timeframe"
-                    value={fulfillmentDuration}
-                    onChange={item => setFulfillmentDuration(item.value)}
-                  />
-                </View>
-
-                <View
-                  style={[
-                    styles.processingCard,
-                    { padding: 0, paddingTop: 10 },
-                  ]}
-                >
-                  <Text style={styles.processingFieldLabel}>
-                    Customer's Delivery Address
-                  </Text>
-                  <Text style={styles.processingFieldHint}>
-                    The address below belongs to the Customer which you will provide to the Logistics Provider
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.textInput,
-                      styles.acceptanceFormInput,
-                      styles.deliveryDetailInput,
-                    ]}
-                    placeholder="Buyer delivery location"
-                    value={data.shipping_address}
-                  />
-                </View>
+              <View style={styles.processingCard}>
+                <Text style={styles.processingFieldLabel}>
+                  Estimated ship time
+                </Text>
+                <Text style={styles.processingFieldHint}>
+                  When do you plan to hand this order to the carrier? This helps
+                  set customer expectations.
+                </Text>
+                <Dropdown
+                  style={styles.processingDropdown}
+                  containerStyle={styles.dropdownContainer}
+                  placeholderStyle={styles.placeholderStyle}
+                  selectedTextStyle={styles.selectedTextStyle}
+                  itemTextStyle={styles.processingDropdownItem}
+                  iconStyle={styles.iconStyle}
+                  data={FULFILLMENT_TIMEFRAME_OPTIONS}
+                  maxHeight={280}
+                  labelField="label"
+                  valueField="value"
+                  placeholder="Select timeframe"
+                  value={fulfillmentDuration}
+                  onChange={item => setFulfillmentDuration(item.value)}
+                />
               </View>
 
               <View style={styles.processingCard}>
@@ -516,28 +437,9 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                     );
                     return;
                   }
-                  const normalizedShippingCost = Number(shippingCost);
-                  if (!logisticsProvider.trim()) {
-                    Alert.alert(
-                      'Logistics provider required',
-                      'Enter the company or provider handling delivery.',
-                    );
-                    return;
-                  }
-                  if (
-                    !shippingCost.trim() ||
-                    !Number.isFinite(normalizedShippingCost) ||
-                    normalizedShippingCost < 0
-                  ) {
-                    Alert.alert(
-                      'Valid shipping cost required',
-                      'Enter the shipping cost as a valid amount.',
-                    );
-                    return;
-                  }
-          
                   setLoading(!loading);
                   const u = await getStoredUser();
+                  
 
                   async function AcceptSubmit() {
                     const response = await emitSocketAck('order_acceptance', {
@@ -552,12 +454,9 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                           performance_policy: true,
                         },
                         fulfillment_duration: fulfillmentDuration,
-                        fulfillment_duration_label:
-                          FULFILLMENT_TIMEFRAME_OPTIONS.find(
-                            o => o.value === fulfillmentDuration,
-                          )?.label ?? null,
-                        logistics_provider: logisticsProvider.trim(),
-                        shipping_cost: normalizedShippingCost,
+                        fulfillment_duration_label: FULFILLMENT_TIMEFRAME_OPTIONS.find(
+                          o => o.value === fulfillmentDuration
+                        )?.label ?? null,
                       },
                       notes: note,
                       actor_id: u.id,
@@ -575,7 +474,7 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
                       {
                         text: 'Confirm',
                         style: 'default',
-                        onPress: AcceptSubmit,
+                        onPress:  AcceptSubmit,
                       },
                     ],
                   );
@@ -589,7 +488,7 @@ function Acceptance({ acceptance_value, updateAccptance, data }) {
               </Pressable>
             </View>
           </FormKeyboardAvoiding>
-        }
+        )}
       </>
     );
   }
@@ -655,11 +554,11 @@ function Processing({ data }) {
 
   return (
     <>
-      {
+      {(
         <FormKeyboardAvoiding style={[styles.cnt, styles.processingRoot]}>
-          {loading && <Spinner />}
+        {loading && <Spinner />}
           <ScrollView
-            keyboardShouldPersistTaps="handled"
+              keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               styles.processingScrollContent,
@@ -761,7 +660,7 @@ function Processing({ data }) {
             </Pressable>
           </View>
         </FormKeyboardAvoiding>
-      }
+      )}
     </>
   );
 }
@@ -854,11 +753,13 @@ function Shipping({ data }) {
 
   return (
     <>
-      {
+     
+
+      {(
         <FormKeyboardAvoiding style={[styles.cnt, styles.processingRoot]}>
-          {loading && <Spinner />}
+         {loading && <Spinner />}
           <ScrollView
-            keyboardShouldPersistTaps="handled"
+              keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               styles.processingScrollContent,
@@ -1017,7 +918,7 @@ function Shipping({ data }) {
             </Pressable>
           </View>
         </FormKeyboardAvoiding>
-      }
+      )}
     </>
   );
 }
@@ -1098,11 +999,13 @@ function OutForDelivery({ data }) {
 
   return (
     <>
-      {
+      
+      {(
+
         <FormKeyboardAvoiding style={[styles.cnt, styles.processingRoot]}>
-          {loading && <Spinner />}
+        {loading && <Spinner />}
           <ScrollView
-            keyboardShouldPersistTaps="handled"
+              keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               styles.processingScrollContent,
@@ -1232,7 +1135,7 @@ function OutForDelivery({ data }) {
             </Pressable>
           </View>
         </FormKeyboardAvoiding>
-      }
+      )}
     </>
   );
 }
@@ -1394,11 +1297,13 @@ function MarkAsDelivered({ data }) {
 
   return (
     <>
-      {
+      
+
+      {(
         <FormKeyboardAvoiding style={[styles.cnt, styles.processingRoot]}>
-          {loading && <Spinner />}
+        {loading && <Spinner />}
           <ScrollView
-            keyboardShouldPersistTaps="handled"
+              keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               styles.processingScrollContent,
@@ -1433,7 +1338,7 @@ function MarkAsDelivered({ data }) {
                 to {MAX_DELIVERY_EVIDENCE}. Scroll sideways to review.
               </Text>
               <ScrollView
-                keyboardShouldPersistTaps="handled"
+              keyboardShouldPersistTaps="handled"
                 horizontal
                 nestedScrollEnabled
                 showsHorizontalScrollIndicator={false}
@@ -1534,7 +1439,7 @@ function MarkAsDelivered({ data }) {
             </Pressable>
           </View>
         </FormKeyboardAvoiding>
-      }
+      )}
     </>
   );
 }
@@ -1569,26 +1474,24 @@ function ConfirmDelivery({ data }) {
     const u = await getStoredUser();
     const response = await emitSocketAck('order_confirmed', {
       ...data,
-      meta: JSON.stringify({ handedOffForShipping, withinCommittedTimeframe }),
+      meta: JSON.stringify({handedOffForShipping, withinCommittedTimeframe}),
       outcome: 'success',
       actor_id: u.id,
     });
     if (response.success) {
       dispatch(set_orderInfo(response.result));
-      console.log('response - result', response.result);
+      console.log("response - result",response.result);
       const orderItems = Array.isArray(response?.result?.order?.order_items)
         ? response.result.order.order_items
         : Array.isArray(response?.result?.order_items)
-        ? response.result.order_items
-        : [];
+          ? response.result.order_items
+          : [];
 
       const firstOrderItem = orderItems[0] ?? {};
-      const orderItemId =
-        firstOrderItem.id ?? firstOrderItem.order_item_id ?? null;
-      const productId =
-        firstOrderItem.product_id ?? firstOrderItem.productId ?? null;
+      const orderItemId = firstOrderItem.id ?? firstOrderItem.order_item_id ?? null;
+      const productId = firstOrderItem.product_id ?? firstOrderItem.productId ?? null;
 
-      navigation.navigate('ShopReview', {
+      navigation.navigate("ShopReview", {
         shop: response.result.shop,
         order: {
           ...(response.result.order ?? {}),
@@ -1599,18 +1502,20 @@ function ConfirmDelivery({ data }) {
         order_item_id: orderItemId,
         productId,
         product_id: productId,
-      });
+      })
       // navigation.goBack();
     }
   };
 
   return (
     <>
-      {
+      
+      {(
+        
         <FormKeyboardAvoiding style={[styles.cnt, styles.processingRoot]}>
-          {loading && <Spinner />}
+        {loading && <Spinner />}
           <ScrollView
-            keyboardShouldPersistTaps="handled"
+              keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               styles.processingScrollContent,
@@ -1694,7 +1599,7 @@ function ConfirmDelivery({ data }) {
             </Pressable>
           </View>
         </FormKeyboardAvoiding>
-      }
+      )}
     </>
   );
 }
@@ -1800,11 +1705,13 @@ function VendorCancelOrder({ data }) {
 
   return (
     <>
-      {
+      
+      {(
+        
         <FormKeyboardAvoiding style={[styles.cnt, styles.processingRoot]}>
-          {submitting && <Spinner />}
+        {submitting && <Spinner />}
           <ScrollView
-            keyboardShouldPersistTaps="handled"
+              keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               styles.processingScrollContent,
@@ -1920,7 +1827,7 @@ function VendorCancelOrder({ data }) {
             </Pressable>
           </View>
         </FormKeyboardAvoiding>
-      }
+      )}
     </>
   );
 }
@@ -2051,11 +1958,13 @@ function CancelOrder({ data }) {
 
   return (
     <>
-      {
+      
+      {(
+        
         <FormKeyboardAvoiding style={[styles.cnt, styles.processingRoot]}>
-          {submitting && <Spinner />}
+        {submitting && <Spinner />}
           <ScrollView
-            keyboardShouldPersistTaps="handled"
+              keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               styles.processingScrollContent,
@@ -2173,7 +2082,7 @@ function CancelOrder({ data }) {
             </Pressable>
           </View>
         </FormKeyboardAvoiding>
-      }
+      )}
     </>
   );
 }
@@ -2190,7 +2099,7 @@ function Spinner() {
           backgroundColor: 'rgba(0,0,0,0.3)',
           justifyContent: 'center',
           alignItems: 'center',
-          zIndex: 1000,
+          zIndex: 1000
         }}
       >
         <ActivityIndicator size="large" color="green" />
@@ -2287,9 +2196,6 @@ const styles = StyleSheet.create({
   },
   shippingTrackingLabel: {
     marginTop: 16,
-  },
-  deliveryDetailInput: {
-    marginTop: 12,
   },
   evidenceGalleryRow: {
     flexDirection: 'row',

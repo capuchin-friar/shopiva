@@ -34,7 +34,7 @@ export class OrderHandler{
 async function upsertNewOrder(payload: NewOrder){
     const pool = await db();
     const {
-        customer_id, shop_id, amount_paid, tax, charges, total_paid, currency, fulfillment_status, escrow_status, payment_status, shipping_address, payment_reference, logistics_provider_id
+        customer_id, shop_id, amount_paid, shipping_fee, tax, charges, total_paid, currency, fulfillment_status, escrow_status, payment_status, shipping_address, payment_reference, 
     } = payload
     
     try{
@@ -42,12 +42,12 @@ async function upsertNewOrder(payload: NewOrder){
         const { rows: [order] } = await pool.query(
             `INSERT INTO orders
             (
-                customer_id, shop_id, amount_paid, tax, charges, total_paid, currency, fulfillment_status, escrow_status, payment_status, shipping_address, payment_reference, logistic_provider, created_at, updated_at
+                customer_id, shop_id, amount_paid, shipping_fee, tax, charges, total_paid, currency, fulfillment_status, escrow_status, payment_status, shipping_address, payment_reference, created_at, updated_at
             ) VALUES(
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW()
             ) RETURNING id`,
             [
-                customer_id, shop_id, amount_paid, tax, charges, total_paid, currency, fulfillment_status, escrow_status, payment_status, shipping_address, payment_reference, logistics_provider_id
+                customer_id, shop_id, amount_paid, shipping_fee, tax, charges, total_paid, currency, fulfillment_status, escrow_status, payment_status, shipping_address, payment_reference
             ]
         );
         return order.id;

@@ -158,16 +158,16 @@ export async function PaystackWebhookController(
     // Create order from Paystack data
     await Promise.all(
       orders.map(async (order: any, index: Number) => {
-        const { items, shop_id, logistics_provider_id, subtotal } =
+        const { items, shop_id, shipping_fee, shipping_method, subtotal } =
           order;
 
         const newOrder: NewOrder = {
           customer_id: customer_id || paystackData.customer.email,
           shop_id: shop_id,
           amount_paid: subtotal,
-          logistics_provider_id: logistics_provider_id,
+          shipping_fee: shipping_fee || 0,
           tax: tax || 0,
-          charges: 100,
+          charges: 0,
           total_paid: subtotal,
           currency: "NGN",
           fulfillment_status: "payment_received",
@@ -175,6 +175,7 @@ export async function PaystackWebhookController(
           payment_status: paystackData.status,
           shipping_address: shipping_address || "",
           payment_reference: reference,
+          shipping_method: shipping_method || "",
           tracking_number: "",
         };
         const orderId = await OrderHandler.newOrder(newOrder);
