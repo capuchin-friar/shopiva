@@ -38,10 +38,16 @@ import { isVendorAccountRole } from '../profile/normalizeUser';
 import DeliveryPolicyModal from '../components/DeliveryPolicyModal';
 import { mapOrderRowToListItem } from '../utils/buyerUi';
 import { formatNaira } from '../utils/formatNaira';
-import { getCurrentCoordinates, requestLocationPermission, reverseGeocodeToPlace } from '../utils/deviceLocation';
+import {
+  getCurrentCoordinates,
+  requestLocationPermission,
+  reverseGeocodeToPlace,
+} from '../utils/deviceLocation';
 import { useSelector } from 'react-redux';
 import { formatMvpCategoryLabel } from '../utils/mvpCategory';
 import { selectCategoryKeys } from '../../redux/categoriesSlice';
+import geoZones from '../json/zones.json';
+import { formatPriceInput } from '../utils/variantOptions';
 
 const BRAND = '#0D4F3C';
 const BRAND_LIGHT = '#1A6B52';
@@ -96,7 +102,9 @@ function parseMaybeJson(value, fallback) {
   if (typeof value === 'string') {
     try {
       const o = JSON.parse(value);
-      return typeof o === 'object' && o != null && !Array.isArray(o) ? o : fallback;
+      return typeof o === 'object' && o != null && !Array.isArray(o)
+        ? o
+        : fallback;
     } catch {
       return fallback;
     }
@@ -146,7 +154,8 @@ function parseOpeningHours(raw) {
   const o = /** @type {Record<string, unknown>} */ (raw);
   const out = { ...base };
   for (const { key } of DAYS) {
-    if (o[key] != null && String(o[key]).trim() !== '') out[key] = String(o[key]).trim();
+    if (o[key] != null && String(o[key]).trim() !== '')
+      out[key] = String(o[key]).trim();
   }
   return out;
 }
@@ -179,7 +188,9 @@ function parseDayHours(raw) {
 /** @param {{ closed: boolean; openH: number; openM: number; closeH: number; closeM: number }} h */
 function formatDayHours(h) {
   if (h.closed) return 'Closed';
-  return `${pad2(h.openH)}:${pad2(h.openM)}–${pad2(h.closeH)}:${pad2(h.closeM)}`;
+  return `${pad2(h.openH)}:${pad2(h.openM)}–${pad2(h.closeH)}:${pad2(
+    h.closeM,
+  )}`;
 }
 
 /**
@@ -188,7 +199,8 @@ function formatDayHours(h) {
  * @param {unknown} policies
  */
 function pickLatestDeliveryClause(policies) {
-  if (!policies || typeof policies !== 'object' || Array.isArray(policies)) return null;
+  if (!policies || typeof policies !== 'object' || Array.isArray(policies))
+    return null;
   const p = /** @type {Record<string, unknown>} */ (policies);
   let d = p.deliverypolicy ?? p.deliveryPolicy ?? null;
   if (typeof d === 'string') {
@@ -252,18 +264,33 @@ function parseDeliveryContent(content) {
  * }} form
  */
 function buildUpdateBody(row, form, verificationDocumentsOverride) {
-  const socialLinks = parseMaybeJson(row.socialLinks ?? row.sociallinks, DEFAULT_SOCIAL);
+  const socialLinks = parseMaybeJson(
+    row.socialLinks ?? row.sociallinks,
+    DEFAULT_SOCIAL,
+  );
   const verificationDocuments =
     verificationDocumentsOverride != null
       ? verificationDocumentsOverride
-      : { ...DEFAULT_VERIFICATION, ...parseMaybeJson(row.verificationDocuments ?? row.verificationdocuments, {}) };
+      : {
+          ...DEFAULT_VERIFICATION,
+          ...parseMaybeJson(
+            row.verificationDocuments ?? row.verificationdocuments,
+            {},
+          ),
+        };
   const tags = Array.isArray(row.tags) ? row.tags : [];
-  const vendorType = String(row.vendortype ?? row.vendorType ?? 'reseller').trim() || 'reseller';
+  const vendorType =
+    String(row.vendortype ?? row.vendorType ?? 'reseller').trim() || 'reseller';
   const isActive = Boolean(row.isactive ?? row.isActive ?? true);
   const isVerified = Boolean(row.isverified ?? row.isVerified ?? false);
-  const status = String(row.status ?? 'pending_approval').trim() || 'pending_approval';
+  const status =
+    String(row.status ?? 'pending_approval').trim() || 'pending_approval';
 
-  const loc = { ...DEFAULT_LOCATION, ...parseMaybeJson(row.location ?? row.Location, DEFAULT_LOCATION), ...form.location };
+  const loc = {
+    ...DEFAULT_LOCATION,
+    ...parseMaybeJson(row.location ?? row.Location, DEFAULT_LOCATION),
+    ...form.location,
+  };
 
   return {
     name: form.name.trim(),
@@ -298,9 +325,16 @@ function docVerificationStatus(doc) {
 /** @param {unknown} bvn */
 function bvnVerificationStatus(bvn) {
   if (bvn && typeof bvn === 'object') {
-    const o = /** @type {{ verified?: unknown; last4?: unknown; submittedAt?: unknown }} */ (bvn);
-    if (o.verified === true) return { label: 'Passed', passed: true, pending: false };
-    if ((o.last4 != null && String(o.last4).trim() !== '') || o.submittedAt != null) {
+    const o =
+      /** @type {{ verified?: unknown; last4?: unknown; submittedAt?: unknown }} */ (
+        bvn
+      );
+    if (o.verified === true)
+      return { label: 'Passed', passed: true, pending: false };
+    if (
+      (o.last4 != null && String(o.last4).trim() !== '') ||
+      o.submittedAt != null
+    ) {
       return { label: 'Pending', passed: false, pending: true };
     }
   }
@@ -315,9 +349,13 @@ export default function ProfileShopInfoScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
-  const [shopsList, setShopsList] = useState(/** @type {Record<string, unknown>[]} */ ([]));
+  const [shopsList, setShopsList] = useState(
+    /** @type {Record<string, unknown>[]} */ ([]),
+  );
   const [activeShopId, setActiveShopId] = useState(0);
-  const [shopRow, setShopRow] = useState(/** @type {Record<string, unknown> | null} */ (null));
+  const [shopRow, setShopRow] = useState(
+    /** @type {Record<string, unknown> | null} */ (null),
+  );
 
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
@@ -328,24 +366,42 @@ export default function ProfileShopInfoScreen() {
   const [locationState, setLocationState] = useState({ ...DEFAULT_LOCATION });
   const [openingHours, setOpeningHours] = useState(() => defaultOpeningHours());
 
-  const [metrics, setMetrics] = useState({ revenue: 0, orders: 0, products: 0 });
+  const [metrics, setMetrics] = useState({
+    revenue: 0,
+    orders: 0,
+    products: 0,
+  });
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [modalBasics, setModalBasics] = useState(false);
   const [modalDesc, setModalDesc] = useState(false);
   const [modalCategory, setModalCategory] = useState(false);
-  const [modalHours, setModalHours] = useState(false);
+  const [zones, setZones] = useState([]);
   const [hoursDraft, setHoursDraft] = useState(() => defaultOpeningHours());
   /**
    * Time-picker target. `null` when closed; otherwise points at the day + edge
    * being edited so the wheel modal knows what to write back on Save.
    * @type {[null | { dayKey: string; edge: 'open' | 'close'; initialHour: number; initialMinute: number }, Function]}
    */
-  const [timePicker, setTimePicker] = useState(/** @type {null | { dayKey: string; edge: 'open' | 'close'; initialHour: number; initialMinute: number }} */ (null));
+  const [selectedZones, setSelectedZones] = useState([]);
+  const [shippingPriceList, setShippingPriceList] = useState({
+    "north central": [],
+    "north east": [],
+    "north west": [],
+    "south south": [],
+    "south east": [],
+    "south west": []
+  });
 
-  const [verDocModal, setVerDocModal] = useState(/** @type {{ title: string; help: string; docKey: string } | null} */ (null));
+  const [verDocModal, setVerDocModal] = useState(
+    /** @type {{ title: string; help: string; docKey: string } | null} */ (
+      null
+    ),
+  );
   const [verPickedName, setVerPickedName] = useState('');
-  const [verPickedFile, setVerPickedFile] = useState(/** @type {{ uri: string; name: string; type: string } | null} */ (null));
+  const [verPickedFile, setVerPickedFile] = useState(
+    /** @type {{ uri: string; name: string; type: string } | null} */ (null),
+  );
   const [verBusy, setVerBusy] = useState(false);
   const [modalBvn, setModalBvn] = useState(false);
   const [bvnDraft, setBvnDraft] = useState('');
@@ -365,9 +421,9 @@ export default function ProfileShopInfoScreen() {
     setLoading(true);
     try {
       const shops = await fetchOwnerShops(uid);
-      const list = shops.map((s) => /** @type {Record<string, unknown>} */ (s));
+      const list = shops.map(s => /** @type {Record<string, unknown>} */ (s));
       setShopsList(list);
-      const ids = list.map(shopIdOf).filter((id) => id > 0);
+      const ids = list.map(shopIdOf).filter(id => id > 0);
       let nextId = preferredShopIdRef.current;
       if (!nextId || !ids.includes(nextId)) nextId = ids[0] ?? 0;
       preferredShopIdRef.current = nextId;
@@ -385,7 +441,10 @@ export default function ProfileShopInfoScreen() {
       setCategory(pickStr(detail, 'category', 'Category'));
       setContactEmail(pickStr(detail, 'contactEmail', 'contactemail'));
       setContactPhone(pickStr(detail, 'contactPhone', 'contactphone'));
-      const loc = { ...DEFAULT_LOCATION, ...parseMaybeJson(detail.location ?? detail.Location, DEFAULT_LOCATION) };
+      const loc = {
+        ...DEFAULT_LOCATION,
+        ...parseMaybeJson(detail.location ?? detail.Location, DEFAULT_LOCATION),
+      };
       const { openingHours: _drop, ...locRest } = loc;
       void _drop;
       setLocationState(locRest);
@@ -398,13 +457,23 @@ export default function ProfileShopInfoScreen() {
         getProducts(nextId, uid).catch(() => ({ products: [] })),
       ]);
       const ordersArr = Array.isArray(ordersRows) ? ordersRows : [];
-      const items = ordersArr.map((r) => mapOrderRowToListItem(/** @type {Record<string, unknown>} */ (r)));
-      const revenue = items.reduce((sum, row) => sum + (Number(row.valueRupees) || 0), 0);
-      const prods = Array.isArray(productsRes?.products) ? productsRes.products : [];
+      const items = ordersArr.map(r =>
+        mapOrderRowToListItem(/** @type {Record<string, unknown>} */ (r)),
+      );
+      const revenue = items.reduce(
+        (sum, row) => sum + (Number(row.valueRupees) || 0),
+        0,
+      );
+      const prods = Array.isArray(productsRes?.products)
+        ? productsRes.products
+        : [];
       setMetrics({ revenue, orders: ordersArr.length, products: prods.length });
     } catch (e) {
       setShopRow(null);
-      Alert.alert('Could not load shop', e instanceof Error ? e.message : String(e));
+      Alert.alert(
+        'Could not load shop',
+        e instanceof Error ? e.message : String(e),
+      );
     } finally {
       setLoading(false);
     }
@@ -416,6 +485,10 @@ export default function ProfileShopInfoScreen() {
     }, [load]),
   );
 
+  useEffect(() => {
+    setZones(Object.entries(geoZones));
+    console.log('zones: ', Object.entries(geoZones));
+  }, []);
   /**
    * Persist current form state to the server.
    * Returns `true` when the save succeeded so callers (e.g. modal "Done")
@@ -428,58 +501,64 @@ export default function ProfileShopInfoScreen() {
    *
    * @param {{ silent?: boolean; openingHours?: Record<string, string> }} [opts]
    */
-  const persist = useCallback(async (opts) => {
-    if (!uid || !shopRow || !activeShopId) {
-      Alert.alert('Shop', 'No shop to update.');
-      return false;
-    }
-    if (!name.trim()) {
-      Alert.alert('Shop name', 'Enter a shop name.');
-      return false;
-    }
-    if (!slug.trim()) {
-      Alert.alert('Shop URL', 'Enter a shop slug.');
-      return false;
-    }
-    setSaving(true);
-    try {
-      const hoursToSave = opts?.openingHours ?? openingHours;
-      const locPayload = { ...locationState, openingHours: hoursToSave };
-      const body = buildUpdateBody(shopRow, {
-        name,
-        slug,
-        description,
-        category,
-        contactEmail,
-        contactPhone,
-        location: locPayload,
-      });
-      await updateVendorShop(activeShopId, uid, body);
-      await refresh().catch(() => {});
-      await load();
-      if (!opts?.silent) Alert.alert('Saved', 'Your shop has been updated.');
-      return true;
-    } catch (e) {
-      Alert.alert('Could not save', e instanceof Error ? e.message : String(e));
-      return false;
-    } finally {
-      setSaving(false);
-    }
-  }, [
-    uid,
-    shopRow,
-    activeShopId,
-    name,
-    slug,
-    description,
-    category,
-    contactEmail,
-    contactPhone,
-    locationState,
-    openingHours,
-    load,
-    refresh,
-  ]);
+  const persist = useCallback(
+    async opts => {
+      if (!uid || !shopRow || !activeShopId) {
+        Alert.alert('Shop', 'No shop to update.');
+        return false;
+      }
+      if (!name.trim()) {
+        Alert.alert('Shop name', 'Enter a shop name.');
+        return false;
+      }
+      if (!slug.trim()) {
+        Alert.alert('Shop URL', 'Enter a shop slug.');
+        return false;
+      }
+      setSaving(true);
+      try {
+        const hoursToSave = opts?.openingHours ?? openingHours;
+        const locPayload = { ...locationState, openingHours: hoursToSave };
+        const body = buildUpdateBody(shopRow, {
+          name,
+          slug,
+          description,
+          category,
+          contactEmail,
+          contactPhone,
+          location: locPayload,
+        });
+        await updateVendorShop(activeShopId, uid, body);
+        await refresh().catch(() => {});
+        await load();
+        if (!opts?.silent) Alert.alert('Saved', 'Your shop has been updated.');
+        return true;
+      } catch (e) {
+        Alert.alert(
+          'Could not save',
+          e instanceof Error ? e.message : String(e),
+        );
+        return false;
+      } finally {
+        setSaving(false);
+      }
+    },
+    [
+      uid,
+      shopRow,
+      activeShopId,
+      name,
+      slug,
+      description,
+      category,
+      contactEmail,
+      contactPhone,
+      locationState,
+      openingHours,
+      load,
+      refresh,
+    ],
+  );
 
   /**
    * Generic helper used by every editing modal's "Done" button:
@@ -499,7 +578,7 @@ export default function ProfileShopInfoScreen() {
   );
 
   const onSelectShop = useCallback(
-    (id) => {
+    id => {
       preferredShopIdRef.current = id;
       setActiveShopId(id);
       setPickerOpen(false);
@@ -513,18 +592,23 @@ export default function ProfileShopInfoScreen() {
     try {
       const granted = await requestLocationPermission();
       if (!granted) {
-        Alert.alert('Location', 'Permission was denied. You can still edit location fields after we add manual entry.');
+        Alert.alert(
+          'Location',
+          'Permission was denied. You can still edit location fields after we add manual entry.',
+        );
         return;
       }
       const c = await getCurrentCoordinates();
       const place = await reverseGeocodeToPlace(c.latitude, c.longitude);
-      setLocationState((prev) => ({
+      setLocationState(prev => ({
         ...prev,
         city: place.city || prev.city,
         state: place.state || prev.state,
         country: place.country || prev.country,
         coordinates: { lat: c.latitude, lng: c.longitude },
-        address: [place.city, place.state, place.country].filter(Boolean).join(', ') || prev.address,
+        address:
+          [place.city, place.state, place.country].filter(Boolean).join(', ') ||
+          prev.address,
       }));
     } catch (e) {
       Alert.alert('Location', e instanceof Error ? e.message : String(e));
@@ -534,14 +618,6 @@ export default function ProfileShopInfoScreen() {
   }, []);
 
   const policies = shopRow?.policies;
-  /** Most recent delivery clause (or null). Memoised on the policies blob. */
-  const deliveryClause = useMemo(() => pickLatestDeliveryClause(policies), [policies]);
-  const deliverySet = deliveryClause != null;
-  /** Parsed `[label, value]` rows for display when a delivery policy exists. */
-  const deliveryRows = useMemo(() => {
-    if (!deliveryClause) return [];
-    return parseDeliveryContent(deliveryClause.content);
-  }, [deliveryClause]);
 
   const onDeliveryPolicySaved = useCallback(async () => {
     await load();
@@ -568,11 +644,14 @@ export default function ProfileShopInfoScreen() {
   }, [locationState.coordinates]);
 
   const verDocs = useMemo(() => {
-    const parsed = parseMaybeJson(shopRow?.verificationDocuments ?? shopRow?.verificationdocuments, {});
+    const parsed = parseMaybeJson(
+      shopRow?.verificationDocuments ?? shopRow?.verificationdocuments,
+      {},
+    );
     return { ...DEFAULT_VERIFICATION, ...parsed };
   }, [shopRow]);
 
-  const openVerDocModal = useCallback((payload) => {
+  const openVerDocModal = useCallback(payload => {
     setVerPickedFile(null);
     setVerPickedName('');
     setVerDocModal(payload);
@@ -598,8 +677,7 @@ export default function ProfileShopInfoScreen() {
         ],
         destination: 'cachesDirectory',
       });
-      const uri =
-        copy.status === 'success' ? copy.localUri : f.uri;
+      const uri = copy.status === 'success' ? copy.localUri : f.uri;
       const name = f.name || 'document';
       const type = f.type || 'application/octet-stream';
       setVerPickedFile({ uri, name, type });
@@ -619,15 +697,30 @@ export default function ProfileShopInfoScreen() {
     }
     setVerBusy(true);
     try {
-      const { url } = await uploadShopVerificationDocument(activeShopId, verPickedFile);
+      const { url } = await uploadShopVerificationDocument(
+        activeShopId,
+        verPickedFile,
+      );
       const merged = {
         ...verDocs,
-        [verDocModal.docKey]: { url, verified: false, submittedAt: new Date().toISOString() },
+        [verDocModal.docKey]: {
+          url,
+          verified: false,
+          submittedAt: new Date().toISOString(),
+        },
       };
       const locPayload = { ...locationState, openingHours };
       const body = buildUpdateBody(
         shopRow,
-        { name, slug, description, category, contactEmail, contactPhone, location: locPayload },
+        {
+          name,
+          slug,
+          description,
+          category,
+          contactEmail,
+          contactPhone,
+          location: locPayload,
+        },
         merged,
       );
       await updateVendorShop(activeShopId, uid, body);
@@ -658,6 +751,42 @@ export default function ProfileShopInfoScreen() {
     load,
     refresh,
   ]);
+  const handleShippingPriceChange = useCallback(data => {
+    setShippingPriceList(prevList => {
+      const zoneStates = prevList[data.zone];
+
+      const stateIndex = zoneStates.findIndex(
+        item => item.state.toLowerCase() === data.state.toLowerCase(),
+      );
+
+      // State already exists → update its price
+      if (stateIndex !== -1) {
+        const updatedZoneStates = [...zoneStates];
+
+        updatedZoneStates[stateIndex] = {
+          ...updatedZoneStates[stateIndex],
+          price: formatPriceInput(data.price),
+        };
+
+        return {
+          ...prevList,
+          [data.zone]: updatedZoneStates,
+        };
+      }
+
+      // State doesn't exist → add it
+      return {
+        ...prevList,
+        [data.zone]: [
+          ...zoneStates,
+          {
+            state: data.state,
+            price: formatPriceInput(data.price),
+          },
+        ],
+      };
+    });
+  }, []);
 
   const submitBvn = useCallback(async () => {
     if (!uid || !activeShopId) return;
@@ -684,7 +813,9 @@ export default function ProfileShopInfoScreen() {
   const idDoc = verDocs.idCard ?? verDocs.identityProof;
   const idSt = docVerificationStatus(idDoc);
   const addrSt = docVerificationStatus(verDocs.proofOfAddress);
-  const cacSt = docVerificationStatus(verDocs.cacDocument ?? verDocs.businessLicense);
+  const cacSt = docVerificationStatus(
+    verDocs.cacDocument ?? verDocs.businessLicense,
+  );
   const bvnSt = bvnVerificationStatus(verDocs.bvn);
 
   const categoryOptions = useSelector(selectCategoryKeys);
@@ -692,7 +823,9 @@ export default function ProfileShopInfoScreen() {
   if (!isVendorAccountRole(user?.roleRaw)) {
     return (
       <View style={[styles.centered, { paddingTop: insets.top + 24 }]}>
-        <Text style={styles.muted}>Shop info is only available for seller (vendor) accounts.</Text>
+        <Text style={styles.muted}>
+          Shop info is only available for seller (vendor) accounts.
+        </Text>
       </View>
     );
   }
@@ -701,17 +834,25 @@ export default function ProfileShopInfoScreen() {
     return (
       <View style={[styles.centered, { paddingTop: insets.top + 24 }]}>
         <ActivityIndicator size="large" color={BRAND} />
-        <Text style={[styles.muted, { marginTop: 12 }]}>Loading your shop…</Text>
+        <Text style={[styles.muted, { marginTop: 12 }]}>
+          Loading your shop…
+        </Text>
       </View>
     );
   }
 
   if (!shopRow || !activeShopId) {
     return (
-      <View style={[styles.centered, { paddingTop: insets.top + 24, paddingHorizontal: 24 }]}>
+      <View
+        style={[
+          styles.centered,
+          { paddingTop: insets.top + 24, paddingHorizontal: 24 },
+        ]}
+      >
         <Text style={styles.emptyTitle}>No shop yet</Text>
         <Text style={styles.muted}>
-          Enable vendor mode in Settings and complete shop setup to manage your virtual shop here.
+          Enable vendor mode in Settings and complete shop setup to manage your
+          virtual shop here.
         </Text>
       </View>
     );
@@ -720,14 +861,22 @@ export default function ProfileShopInfoScreen() {
   const shopStatus = pickStr(shopRow, 'status', 'Status') || 'pending_approval';
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}>
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}
+    >
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 28) + 24 }}
+        contentContainerStyle={{
+          paddingBottom: Math.max(insets.bottom, 28) + 24,
+        }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.hero, { paddingTop: Math.max(insets.top, 12) + 8 }]}>
+        <View
+          style={[styles.hero, { paddingTop: Math.max(insets.top, 12) + 8 }]}
+        >
           <View style={styles.heroInner}>
             <View style={styles.avatarCircle}>
               <Icon name="storefront-outline" size={36} color={BRAND} />
@@ -736,10 +885,15 @@ export default function ProfileShopInfoScreen() {
         </View>
 
         <View style={styles.sheet}>
-          <Text style={styles.statusText}>{statusDisplayLabel(shopStatus)}</Text>
+          <Text style={styles.statusText}>
+            {statusDisplayLabel(shopStatus)}
+          </Text>
 
           {shopsList.length > 1 ? (
-            <Pressable style={styles.viewShopsRow} onPress={() => setPickerOpen(true)}>
+            <Pressable
+              style={styles.viewShopsRow}
+              onPress={() => setPickerOpen(true)}
+            >
               <Text style={styles.viewShopsTitle}>View shops</Text>
               <View style={styles.addCircle}>
                 <Icon name="chevron-down" size={20} color={CARD} />
@@ -749,7 +903,10 @@ export default function ProfileShopInfoScreen() {
             <Text style={styles.singleShopHint}>Your shop</Text>
           )}
 
-          <Pressable style={styles.shopNameRow} onPress={() => setModalBasics(true)}>
+          <Pressable
+            style={styles.shopNameRow}
+            onPress={() => setModalBasics(true)}
+          >
             <Text style={styles.shopNameTitle} numberOfLines={1}>
               {name || 'Shop'}
             </Text>
@@ -760,7 +917,9 @@ export default function ProfileShopInfoScreen() {
 
           <View style={styles.metricsRow}>
             <View style={styles.metricCol}>
-              <Text style={styles.metricValue}>{formatNaira(metrics.revenue)}</Text>
+              <Text style={styles.metricValue}>
+                {formatNaira(metrics.revenue)}
+              </Text>
               <Text style={styles.metricLabel}>Revenue</Text>
             </View>
             <View style={styles.metricCol}>
@@ -775,11 +934,16 @@ export default function ProfileShopInfoScreen() {
 
           <View style={styles.sectionDivider} />
 
-          <SectionHeader title="Category" onEdit={() => setModalCategory(true)} />
+          <SectionHeader
+            title="Category"
+            onEdit={() => setModalCategory(true)}
+          />
           <View style={styles.chipWrap}>
             {category.trim() ? (
               <View style={styles.chip}>
-                <Text style={styles.chipText}>{formatMvpCategoryLabel(category)}</Text>
+                <Text style={styles.chipText}>
+                  {formatMvpCategoryLabel(category)}
+                </Text>
               </View>
             ) : (
               <Text style={styles.placeholderLine}>No category set</Text>
@@ -807,8 +971,13 @@ export default function ProfileShopInfoScreen() {
 
           <View style={styles.sectionDivider} />
 
-          <SectionHeader title="Description" onEdit={() => setModalDesc(true)} />
-          <Text style={styles.bodyText}>{description.trim() || 'Add a short description for buyers.'}</Text>
+          <SectionHeader
+            title="Description"
+            onEdit={() => setModalDesc(true)}
+          />
+          <Text style={styles.bodyText}>
+            {description.trim() || 'Add a short description for buyers.'}
+          </Text>
 
           <View style={styles.sectionDivider} />
 
@@ -863,7 +1032,10 @@ export default function ProfileShopInfoScreen() {
 
           <Text style={styles.sectionTitlePlain}>Shop location</Text>
           <Pressable
-            style={({ pressed }) => [styles.outlineBtn, pressed && styles.outlineBtnPressed]}
+            style={({ pressed }) => [
+              styles.outlineBtn,
+              pressed && styles.outlineBtnPressed,
+            ]}
             onPress={() => {
               onUseMyLocation().catch(() => {});
             }}
@@ -876,21 +1048,27 @@ export default function ProfileShopInfoScreen() {
             )}
           </Pressable>
           <Text style={styles.helperGrey}>
-            Set where you operate. We read your device position once to suggest city and state — you can save after
-            reviewing.
+            Set where you operate. We read your device position once to suggest
+            city and state — you can save after reviewing.
           </Text>
           <Text style={styles.locationBold}>{locationSummary}</Text>
           <View style={styles.kv}>
             <Text style={styles.kvMuted}>State</Text>
-            <Text style={styles.kvVal}>{String(locationState.state ?? '—')}</Text>
+            <Text style={styles.kvVal}>
+              {String(locationState.state ?? '—')}
+            </Text>
           </View>
           <View style={styles.kv}>
             <Text style={styles.kvMuted}>City</Text>
-            <Text style={styles.kvVal}>{String(locationState.city ?? '—')}</Text>
+            <Text style={styles.kvVal}>
+              {String(locationState.city ?? '—')}
+            </Text>
           </View>
           <View style={styles.kv}>
             <Text style={styles.kvMuted}>Country</Text>
-            <Text style={styles.kvVal}>{String(locationState.country ?? '—')}</Text>
+            <Text style={styles.kvVal}>
+              {String(locationState.country ?? '—')}
+            </Text>
           </View>
           <View style={styles.kv}>
             <Text style={styles.kvMuted}>Coordinates</Text>
@@ -900,66 +1078,195 @@ export default function ProfileShopInfoScreen() {
           <View style={styles.sectionDivider} />
 
           {/* <SectionHeader title="Policies" onEdit={() => setModalDeliveryPolicy(true)} /> */}
-          <Pressable style={styles.policyRow} onPress={() => setModalDeliveryPolicy(true)}>
-            <Text style={styles.policyLabel}>Delivery policy</Text>
+          <Pressable
+            style={styles.policyRow}
+            onPress={() => setModalDeliveryPolicy(true)}
+          >
+            <Text style={styles.policyLabel}>Delivery/Logistics</Text>
             {/* <Text style={[styles.policyStatus, deliverySet && styles.policyStatusOk]}>{deliverySet ? 'Set' : 'Not set'}</Text> */}
             <View style={styles.iconCircle}>
               <Icon name="create-outline" size={18} color={BRAND} />
             </View>
           </Pressable>
-          {deliverySet ? (
-            <View style={styles.policyDetailCard}>
-              {deliveryClause?.title ? (
-                <Text style={styles.policyDetailTitle} numberOfLines={2}>
-                  {String(deliveryClause.title)}
-                </Text>
-              ) : null}
-              {deliveryRows.length === 0 ? (
-                <Text style={styles.placeholderLine}>Delivery policy is set, but no readable details were saved.</Text>
-              ) : (
-                deliveryRows.map((row, i) => (
+          <View
+            style={{
+              backgroundColor: '#efefef',
+              width: '100%',
+              paddingHorizontal: 7,
+              paddingVertical: 7,
+              borderRadius: 7,
+
+              // flex: 1,
+            }}
+          >
+            {zones.map(([key, value], i) => (
+              <View
+                key={i}
+                style={{
+                  display: 'flex',
+                  width: '100%',
+                  flexDirection: 'column',
+                  justifyContent: 'flex-start',
+                  backgroundColor: '#fff',
+                  borderRadius: 7,
+                  alignItems: 'flex-start',
+                  paddingHorizontal: 10,
+                  paddingVertical: 10,
+                  marginBottom: i === zones.length - 1 ? 0 : 7,
+                }}
+              >
+                <CheckRow
+                  label={key}
+                  checked={selectedZones.find(
+                    i => i.toLowerCase() === key.toLowerCase(),
+                  )}
+                  onToggle={() => {
+                    setSelectedZones(prevSelectedZones => {
+                      const isExist = prevSelectedZones.some(
+                        i => i.toLowerCase() === key.toLowerCase(),
+                      );
+
+                      if (isExist) {
+                        return prevSelectedZones.filter(
+                          i => i.toLowerCase() !== key.toLowerCase(),
+                        );
+                      }
+
+                      return [...prevSelectedZones, key];
+                    });
+                  }}
+                />
+
+                <View
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}
+                >
+                  {selectedZones.some(
+                    i => i.toLowerCase() === key.toLowerCase(),
+                  ) &&
+                    value.map((state, i) => {
+                      return (
+                        <View key={i} style={styles.zoneStates}>
+                          <Text
+                            style={{
+                              fontSize: 16,
+                              fontWeight: '500',
+                            }}
+                          >
+                            {state}
+                          </Text>
+                          <NairaInput
+                            value={
+                              shippingPriceList !== undefined && shippingPriceList[key].some(i => i.state === state) ? ((shippingPriceList[key][shippingPriceList[key].findIndex(i => i.state === state)].price)) : null
+                            }
+                            onChangeText={text => {
+                              handleShippingPriceChange({
+                                state: state,
+                                price: text,
+                                zone: key,
+                              });
+                            }}
+                            placeholder="Enter shipping price"
+                          />
+                        </View>
+                      );
+                    })}
+                </View>
+
+                {selectedZones.some(
+                  i => i.toLowerCase() === key.toLowerCase(),
+                ) && (
                   <View
-                    key={`${row.label}-${i}`}
-                    style={[styles.kv, i === deliveryRows.length - 1 && { marginBottom: 0 }]}
+                    style={{
+                      display: 'flex',
+                      width: '100%',
+                      // flexDirection: 'column',
+                      justifyContent: 'center',
+                      backgroundColor: '#fff',
+                      alignItems: 'center',
+                      padding: 8,
+                    }}
                   >
-                    <Text style={styles.kvMuted}>{row.label}</Text>
-                    <Text style={styles.kvVal} numberOfLines={2}>
-                      {row.value}
-                    </Text>
+                    <Pressable
+                      style={{
+                        height: 40,
+                        borderRadius: 7,
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                        width: '100%',
+                        backgroundColor: '#00897B',
+                      }}
+                      // onPress={() => {
+                      //   persist().catch(() => {});
+                      // }}
+                      // disabled={saving}
+                    >
+                      {saving ? (
+                        <ActivityIndicator color="#FFFFFF" />
+                      ) : (
+                        <Text style={styles.saveBtnText}>Save changes</Text>
+                      )}
+                    </Pressable>
                   </View>
-                ))
-              )}
-            </View>
-          ) : null}
+                )}
+              </View>
+            ))}
+          </View>
 
           <Pressable
-            style={({ pressed }) => [styles.saveBtn, pressed && styles.saveBtnPressed, saving && styles.saveBtnDisabled]}
+            style={({ pressed }) => [
+              styles.saveBtn,
+              pressed && styles.saveBtnPressed,
+              saving && styles.saveBtnDisabled,
+            ]}
             onPress={() => {
               persist().catch(() => {});
             }}
             disabled={saving}
           >
-            {saving ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.saveBtnText}>Save changes</Text>}
+            {saving ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.saveBtnText}>Save changes</Text>
+            )}
           </Pressable>
         </View>
       </ScrollView>
 
-      <Modal visible={pickerOpen} transparent animationType="fade" onRequestClose={() => setPickerOpen(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setPickerOpen(false)} />
-        <View style={[styles.modalSheet, { paddingBottom: insets.bottom + 16 }]}>
+      <Modal
+        visible={pickerOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPickerOpen(false)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setPickerOpen(false)}
+        />
+        <View
+          style={[styles.modalSheet, { paddingBottom: insets.bottom + 16 }]}
+        >
           <Text style={styles.modalTitle}>Select shop</Text>
-          {shopsList.map((s) => {
+          {shopsList.map(s => {
             const id = shopIdOf(s);
             const sn = pickStr(s, 'name', 'Name') || `Shop ${id}`;
             const selected = id === activeShopId;
             return (
               <Pressable
                 key={String(id)}
-                style={[styles.pickerItem, selected && styles.pickerItemSelected]}
+                style={[
+                  styles.pickerItem,
+                  selected && styles.pickerItemSelected,
+                ]}
                 onPress={() => onSelectShop(id)}
               >
                 <Text style={styles.pickerItemText}>{sn}</Text>
-                {selected ? <Icon name="checkmark-circle" size={22} color={BRAND} /> : null}
+                {selected ? (
+                  <Icon name="checkmark-circle" size={22} color={BRAND} />
+                ) : null}
               </Pressable>
             );
           })}
@@ -974,18 +1281,33 @@ export default function ProfileShopInfoScreen() {
         onSave={() => persistAndClose(() => setModalBasics(false))}
       >
         <Text style={styles.modalLabel}>Shop name</Text>
-        <TextInput value={name} onChangeText={setName} style={styles.modalInput} placeholder="Shop name" />
+        <TextInput
+          value={name}
+          onChangeText={setName}
+          style={styles.modalInput}
+          placeholder="Shop name"
+        />
         <Text style={styles.modalLabel}>Slug (URL)</Text>
         <TextInput
           value={slug}
-          onChangeText={(t) => setSlug(t.toLowerCase().replace(/\s+/g, '-'))}
+          onChangeText={t => setSlug(t.toLowerCase().replace(/\s+/g, '-'))}
           style={styles.modalInput}
           autoCapitalize="none"
         />
         <Text style={styles.modalLabel}>Contact email</Text>
-        <TextInput value={contactEmail} onChangeText={setContactEmail} style={styles.modalInput} keyboardType="email-address" />
+        <TextInput
+          value={contactEmail}
+          onChangeText={setContactEmail}
+          style={styles.modalInput}
+          keyboardType="email-address"
+        />
         <Text style={styles.modalLabel}>Contact phone</Text>
-        <TextInput value={contactPhone} onChangeText={setContactPhone} style={styles.modalInput} keyboardType="phone-pad" />
+        <TextInput
+          value={contactPhone}
+          onChangeText={setContactPhone}
+          style={styles.modalInput}
+          keyboardType="phone-pad"
+        />
       </FormModal>
 
       <FormModal
@@ -1015,125 +1337,29 @@ export default function ProfileShopInfoScreen() {
         {categoryOptions.length === 0 ? (
           <Text style={styles.placeholderLine}>No categories available.</Text>
         ) : (
-          categoryOptions.map((opt) => {
-            const selected = category.trim().toLowerCase() === opt.toLowerCase();
+          categoryOptions.map(opt => {
+            const selected =
+              category.trim().toLowerCase() === opt.toLowerCase();
             return (
               <Pressable
                 key={opt}
-                style={[styles.pickerItem, selected && styles.pickerItemSelected]}
+                style={[
+                  styles.pickerItem,
+                  selected && styles.pickerItemSelected,
+                ]}
                 onPress={() => setCategory(opt)}
               >
-                <Text style={styles.pickerItemText}>{formatMvpCategoryLabel(opt)}</Text>
-                {selected ? <Icon name="checkmark-circle" size={22} color={BRAND} /> : null}
+                <Text style={styles.pickerItemText}>
+                  {formatMvpCategoryLabel(opt)}
+                </Text>
+                {selected ? (
+                  <Icon name="checkmark-circle" size={22} color={BRAND} />
+                ) : null}
               </Pressable>
             );
           })
         )}
       </FormModal>
-
-      {/* Availability editing disabled — not in scope for now.
-      <FormModal
-        visible={modalHours}
-        title="Opening hours"
-        saving={saving}
-        onClose={() => !saving && setModalHours(false)}
-        onSave={async () => {
-          const next = { ...hoursDraft };
-          setOpeningHours(next);
-          await persistAndClose(() => setModalHours(false), { openingHours: next });
-        }}
-      >
-        {DAYS.map(({ key, label }) => {
-          const parsed = parseDayHours(hoursDraft[key]);
-          return (
-            <View key={key} style={styles.hourRow}>
-              <Text style={styles.hourLabel}>{label}</Text>
-              {parsed.closed ? (
-                <Text style={styles.hourClosedBadge}>Closed</Text>
-              ) : (
-                <>
-                  <Pressable
-                    style={styles.hourTimeBtn}
-                    onPress={() =>
-                      setTimePicker({
-                        dayKey: key,
-                        edge: 'open',
-                        initialHour: parsed.openH,
-                        initialMinute: parsed.openM,
-                      })
-                    }
-                    accessibilityLabel={`Open time for ${label}`}
-                  >
-                    <Text style={styles.hourTimeBtnText}>
-                      {pad2(parsed.openH)}:{pad2(parsed.openM)}
-                    </Text>
-                  </Pressable>
-                  <Text style={styles.hourArrow}>→</Text>
-                  <Pressable
-                    style={styles.hourTimeBtn}
-                    onPress={() =>
-                      setTimePicker({
-                        dayKey: key,
-                        edge: 'close',
-                        initialHour: parsed.closeH,
-                        initialMinute: parsed.closeM,
-                      })
-                    }
-                    accessibilityLabel={`Close time for ${label}`}
-                  >
-                    <Text style={styles.hourTimeBtnText}>
-                      {pad2(parsed.closeH)}:{pad2(parsed.closeM)}
-                    </Text>
-                  </Pressable>
-                </>
-              )}
-              <View style={styles.switchWrap}>
-                <Text style={styles.switchLabel}>Open</Text>
-                <Switch
-                  value={!parsed.closed}
-                  onValueChange={(open) => {
-                    setHoursDraft((h) => ({
-                      ...h,
-                      [key]: formatDayHours({ ...parsed, closed: !open }),
-                    }));
-                  }}
-                  trackColor={{ false: '#D1D5DB', true: BRAND_LIGHT }}
-                  thumbColor={!parsed.closed ? BRAND : '#F4F4F5'}
-                />
-              </View>
-            </View>
-          );
-        })}
-      </FormModal>
-      */}
-
-      {/* Availability time picker disabled — not in scope for now.
-      <TimePickerModal
-        visible={timePicker != null}
-        title={
-          timePicker
-            ? `${(DAYS.find((d) => d.key === timePicker.dayKey)?.label) ?? ''} — ${
-                timePicker.edge === 'open' ? 'Open time' : 'Close time'
-              }`
-            : ''
-        }
-        initialHour={timePicker?.initialHour ?? 9}
-        initialMinute={timePicker?.initialMinute ?? 0}
-        onCancel={() => setTimePicker(null)}
-        onSave={(h, m) => {
-          if (!timePicker) return;
-          setHoursDraft((draft) => {
-            const cur = parseDayHours(draft[timePicker.dayKey]);
-            const next =
-              timePicker.edge === 'open'
-                ? { ...cur, openH: h, openM: m }
-                : { ...cur, closeH: h, closeM: m };
-            return { ...draft, [timePicker.dayKey]: formatDayHours(next) };
-          });
-          setTimePicker(null);
-        }}
-      />
-      */}
 
       <Modal
         visible={Boolean(verDocModal)}
@@ -1144,25 +1370,44 @@ export default function ProfileShopInfoScreen() {
         }}
       >
         <View style={styles.formModalRoot}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => !verBusy && setVerDocModal(null)} />
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => !verBusy && setVerDocModal(null)}
+          />
           <View style={styles.formModalCard}>
             <Text style={styles.modalTitle}>{verDocModal?.title ?? ''}</Text>
-            <Text style={[styles.helperGrey, { marginBottom: 14 }]}>{verDocModal?.help ?? ''}</Text>
+            <Text style={[styles.helperGrey, { marginBottom: 14 }]}>
+              {verDocModal?.help ?? ''}
+            </Text>
             <Pressable
-              style={({ pressed }) => [styles.outlineBtn, pressed && styles.outlineBtnPressed]}
+              style={({ pressed }) => [
+                styles.outlineBtn,
+                pressed && styles.outlineBtnPressed,
+              ]}
               onPress={() => pickVerificationFile().catch(() => {})}
               disabled={verBusy}
             >
-              <Text style={styles.outlineBtnText}>{verPickedName ? 'Change file' : 'Choose file'}</Text>
+              <Text style={styles.outlineBtnText}>
+                {verPickedName ? 'Change file' : 'Choose file'}
+              </Text>
             </Pressable>
-            <Text style={styles.modalHint}>{verPickedName || 'No file chosen'}</Text>
+            <Text style={styles.modalHint}>
+              {verPickedName || 'No file chosen'}
+            </Text>
             <View style={[styles.modalActions, { marginTop: 18 }]}>
-              <Pressable onPress={() => !verBusy && setVerDocModal(null)} style={styles.modalGhostBtn} disabled={verBusy}>
+              <Pressable
+                onPress={() => !verBusy && setVerDocModal(null)}
+                style={styles.modalGhostBtn}
+                disabled={verBusy}
+              >
                 <Text style={styles.modalGhostText}>Cancel</Text>
               </Pressable>
               <Pressable
                 onPress={() => saveVerDocToShop().catch(() => {})}
-                style={[styles.modalPrimaryBtn, verBusy && styles.saveBtnDisabled]}
+                style={[
+                  styles.modalPrimaryBtn,
+                  verBusy && styles.saveBtnDisabled,
+                ]}
                 disabled={verBusy}
               >
                 {verBusy ? (
@@ -1185,12 +1430,16 @@ export default function ProfileShopInfoScreen() {
         }}
       >
         <View style={styles.formModalRoot}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => !bvnBusy && setModalBvn(false)} />
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => !bvnBusy && setModalBvn(false)}
+          />
           <View style={styles.formModalCard}>
             <Text style={styles.modalTitle}>BVN verification</Text>
             <Text style={[styles.helperGrey, { marginBottom: 12 }]}>
-              Enter your 11-digit BVN. We only store a masked record after verification. Connect Paystack or Mono for live
-              NIBSS checks when ready.
+              Enter your 11-digit BVN. We only store a masked record after
+              verification. Connect Paystack or Mono for live NIBSS checks when
+              ready.
             </Text>
             {bvnSt.passed &&
             verDocs.bvn &&
@@ -1203,7 +1452,7 @@ export default function ProfileShopInfoScreen() {
             ) : null}
             <TextInput
               value={bvnDraft}
-              onChangeText={(t) => setBvnDraft(t.replace(/\D/g, '').slice(0, 11))}
+              onChangeText={t => setBvnDraft(t.replace(/\D/g, '').slice(0, 11))}
               style={styles.modalInput}
               placeholder="11-digit BVN"
               keyboardType="number-pad"
@@ -1211,12 +1460,19 @@ export default function ProfileShopInfoScreen() {
               editable={!bvnBusy}
             />
             <View style={[styles.modalActions, { marginTop: 16 }]}>
-              <Pressable onPress={() => !bvnBusy && setModalBvn(false)} style={styles.modalGhostBtn} disabled={bvnBusy}>
+              <Pressable
+                onPress={() => !bvnBusy && setModalBvn(false)}
+                style={styles.modalGhostBtn}
+                disabled={bvnBusy}
+              >
                 <Text style={styles.modalGhostText}>Cancel</Text>
               </Pressable>
               <Pressable
                 onPress={() => submitBvn().catch(() => {})}
-                style={[styles.modalPrimaryBtn, bvnBusy && styles.saveBtnDisabled]}
+                style={[
+                  styles.modalPrimaryBtn,
+                  bvnBusy && styles.saveBtnDisabled,
+                ]}
                 disabled={bvnBusy}
               >
                 {bvnBusy ? (
@@ -1244,9 +1500,30 @@ function SectionHeader({ title, onEdit }) {
   return (
     <View style={styles.sectionHeaderRow}>
       <Text style={styles.sectionTitlePlain}>{title}</Text>
-      <TouchableOpacity onPress={onEdit} hitSlop={12} style={styles.iconCircle} accessibilityLabel={`Edit ${title}`}>
+      <TouchableOpacity
+        onPress={onEdit}
+        hitSlop={12}
+        style={styles.iconCircle}
+        accessibilityLabel={`Edit ${title}`}
+      >
         <Icon name="create-outline" size={18} color={BRAND} />
       </TouchableOpacity>
+    </View>
+  );
+}
+
+function NairaInput({ value, onChangeText, placeholder }) {
+  return (
+    <View style={styles.currencyWrap}>
+      <Text style={styles.currencySymbol}>₦</Text>
+      <TextInput
+        style={styles.currencyInput}
+        placeholder={placeholder}
+        placeholderTextColor="#9CA3AF"
+        keyboardType="decimal-pad"
+        value={value}
+        onChangeText={onChangeText}
+      />
     </View>
   );
 }
@@ -1268,7 +1545,11 @@ function VerificationRow({ label, status, hasProgress, onPress }) {
         </Text>
       </View>
       <View style={styles.iconCircle}>
-        <Icon name={hasProgress ? 'create-outline' : 'add'} size={18} color={BRAND} />
+        <Icon
+          name={hasProgress ? 'create-outline' : 'add'}
+          size={18}
+          color={BRAND}
+        />
       </View>
     </Pressable>
   );
@@ -1312,18 +1593,26 @@ function WheelColumn({ data, value, onChange }) {
         bounces={false}
         nestedScrollEnabled
         contentContainerStyle={{ paddingVertical: WHEEL_PADDING }}
-        onMomentumScrollEnd={(e) => {
+        onMomentumScrollEnd={e => {
           const y = e.nativeEvent.contentOffset.y;
-          const i = Math.max(0, Math.min(data.length - 1, Math.round(y / WHEEL_ITEM_HEIGHT)));
+          const i = Math.max(
+            0,
+            Math.min(data.length - 1, Math.round(y / WHEEL_ITEM_HEIGHT)),
+          );
           const next = data[i];
           if (next != null && next !== value) onChange(next);
         }}
       >
-        {data.map((d) => {
+        {data.map(d => {
           const selected = d === value;
           return (
             <View key={d} style={styles.wheelItem}>
-              <Text style={[styles.wheelItemText, selected && styles.wheelItemTextSelected]}>
+              <Text
+                style={[
+                  styles.wheelItemText,
+                  selected && styles.wheelItemTextSelected,
+                ]}
+              >
                 {pad2(d)}
               </Text>
             </View>
@@ -1332,6 +1621,21 @@ function WheelColumn({ data, value, onChange }) {
       </ScrollView>
       <View pointerEvents="none" style={styles.wheelHighlight} />
     </View>
+  );
+}
+
+function CheckRow({ label, checked, onToggle }) {
+  return (
+    <TouchableOpacity
+      style={styles.checkRow}
+      onPress={onToggle}
+      activeOpacity={0.88}
+    >
+      <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
+        {checked ? <Icon name="checkmark" size={14} color="#FFFFFF" /> : null}
+      </View>
+      <Text style={styles.checkLabel}>{label}</Text>
+    </TouchableOpacity>
   );
 }
 
@@ -1353,11 +1657,20 @@ const MINUTE_OPTIONS = Array.from({ length: 12 }, (_, i) => i * 5); // 00, 05, 1
  *   onSave: (h: number, m: number) => void;
  * }} props
  */
-function TimePickerModal({ visible, title, initialHour, initialMinute, onCancel, onSave }) {
+function TimePickerModal({
+  visible,
+  title,
+  initialHour,
+  initialMinute,
+  onCancel,
+  onSave,
+}) {
   const insets = useSafeAreaInsets();
-  const snapMinute = (m) => {
+  const snapMinute = m => {
     const idx = Math.round(m / 5);
-    return MINUTE_OPTIONS[Math.max(0, Math.min(MINUTE_OPTIONS.length - 1, idx))];
+    return MINUTE_OPTIONS[
+      Math.max(0, Math.min(MINUTE_OPTIONS.length - 1, idx))
+    ];
   };
   const [hour, setHour] = useState(initialHour);
   const [minute, setMinute] = useState(snapMinute(initialMinute));
@@ -1370,10 +1683,20 @@ function TimePickerModal({ visible, title, initialHour, initialMinute, onCancel,
   }, [visible, initialHour, initialMinute]);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onCancel}
+    >
       <View style={styles.formModalRoot}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} />
-        <View style={[styles.formModalCard, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+        <View
+          style={[
+            styles.formModalCard,
+            { paddingBottom: Math.max(insets.bottom, 20) },
+          ]}
+        >
           <Text style={styles.modalTitle}>{title}</Text>
           <Text style={styles.timePreview}>
             {pad2(hour)}:{pad2(minute)}
@@ -1381,14 +1704,23 @@ function TimePickerModal({ visible, title, initialHour, initialMinute, onCancel,
           <View style={styles.wheelRow}>
             <WheelColumn data={HOUR_OPTIONS} value={hour} onChange={setHour} />
             <Text style={styles.wheelColon}>:</Text>
-            <WheelColumn data={MINUTE_OPTIONS} value={minute} onChange={setMinute} />
+            <WheelColumn
+              data={MINUTE_OPTIONS}
+              value={minute}
+              onChange={setMinute}
+            />
           </View>
-          <Text style={styles.timeHelper}>Scroll each column to choose hour and minute.</Text>
+          <Text style={styles.timeHelper}>
+            Scroll each column to choose hour and minute.
+          </Text>
           <View style={styles.modalActions}>
             <Pressable onPress={onCancel} style={styles.modalGhostBtn}>
               <Text style={styles.modalGhostText}>Cancel</Text>
             </Pressable>
-            <Pressable onPress={() => onSave(hour, minute)} style={styles.modalPrimaryBtn}>
+            <Pressable
+              onPress={() => onSave(hour, minute)}
+              style={styles.modalPrimaryBtn}
+            >
               <Text style={styles.modalPrimaryText}>Set time</Text>
             </Pressable>
           </View>
@@ -1401,14 +1733,23 @@ function TimePickerModal({ visible, title, initialHour, initialMinute, onCancel,
 /** @param {{ visible: boolean; title: string; children: unknown; onClose: () => void; onSave: () => void; saving?: boolean }} props */
 function FormModal({ visible, title, children, onClose, onSave, saving }) {
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <View style={styles.formModalRoot}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={styles.formModalCard}>
           <Text style={styles.modalTitle}>{title}</Text>
           {children}
           <View style={styles.modalActions}>
-            <Pressable onPress={onClose} style={styles.modalGhostBtn} disabled={saving}>
+            <Pressable
+              onPress={onClose}
+              style={styles.modalGhostBtn}
+              disabled={saving}
+            >
               <Text style={styles.modalGhostText}>Cancel</Text>
             </Pressable>
             <Pressable
@@ -1451,7 +1792,12 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: 'rgba(255,255,255,0.35)',
     ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.15, shadowRadius: 8 },
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+      },
       android: { elevation: 4 },
     }),
   },
@@ -1509,6 +1855,38 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 12,
   },
+  input: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 7,
+    fontSize: 16,
+    // width: '60%',
+    color: '#111111',
+  },
+  currencyWrap: {
+    minHeight: 46,
+    width: 190,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  currencySymbol: {
+    fontSize: 18,
+    color: '#1F2937',
+    marginRight: 8,
+  },
+  currencyInput: {
+    // flex: 1,
+    fontSize: 16,
+    color: '#111111',
+    paddingVertical: 10,
+  },
   iconCircle: {
     width: 36,
     height: 36,
@@ -1547,6 +1925,17 @@ const styles = StyleSheet.create({
     marginVertical: 16,
     marginHorizontal: -4,
   },
+  zoneStates: {
+    width: '100%',
+    paddingHorizontal: 7,
+    paddingVertical: 7,
+    fontSize: 20,
+    background: '#f9f9f9',
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1557,6 +1946,35 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: BLACK,
+  },
+  checkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    marginBottom: 12,
+    gap: 7,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 10,
+    borderWidth: 0.5,
+    borderColor: '#B5BAC3',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  checkboxChecked: {
+    backgroundColor: '#111111',
+    borderColor: '#111111',
+  },
+  checkLabel: {
+    flex: 1,
+    fontSize: 16,
+    textTransform: 'capitalize',
+    fontWeight: '500',
+    color: '#000',
+    marginTop: 5,
   },
   chipWrap: { marginBottom: 4 },
   chip: {
@@ -1607,7 +2025,12 @@ const styles = StyleSheet.create({
   verStatusOk: { color: GREEN_OK, fontWeight: '600' },
   verStatusPending: { color: ORANGE_PENDING, fontWeight: '600' },
   modalHint: { fontSize: 13, color: MUTED, marginTop: 8 },
-  bvnOnFile: { fontSize: 13, color: GREEN_OK, fontWeight: '600', marginBottom: 8 },
+  bvnOnFile: {
+    fontSize: 13,
+    color: GREEN_OK,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
   outlineBtn: {
     alignSelf: 'flex-start',
     paddingVertical: 10,
@@ -1631,9 +2054,19 @@ const styles = StyleSheet.create({
     color: BLACK,
     marginBottom: 12,
   },
-  kv: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  kv: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
   kvMuted: { fontSize: 14, color: MUTED },
-  kvVal: { fontSize: 14, fontWeight: '500', color: BLACK, maxWidth: '62%', textAlign: 'right' },
+  kvVal: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: BLACK,
+    maxWidth: '62%',
+    textAlign: 'right',
+  },
   policyRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1669,10 +2102,24 @@ const styles = StyleSheet.create({
   saveBtnPressed: { opacity: 0.9 },
   saveBtnDisabled: { opacity: 0.65 },
   saveBtnText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  centered: { flex: 1, backgroundColor: PAGE_BG, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  centered: {
+    flex: 1,
+    backgroundColor: PAGE_BG,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
   muted: { fontSize: 14, color: MUTED, textAlign: 'center', lineHeight: 20 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: BLACK, marginBottom: 8 },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.5)' },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: BLACK,
+    marginBottom: 8,
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
   modalSheet: {
     position: 'absolute',
     left: 16,
@@ -1683,7 +2130,12 @@ const styles = StyleSheet.create({
     padding: 16,
     maxHeight: '70%',
   },
-  modalTitle: { fontSize: 17, fontWeight: '700', marginBottom: 12, color: BLACK },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 12,
+    color: BLACK,
+  },
   pickerItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -1706,7 +2158,13 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 28,
   },
-  modalLabel: { fontSize: 12, fontWeight: '600', color: MUTED, marginTop: 10, marginBottom: 6 },
+  modalLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: MUTED,
+    marginTop: 10,
+    marginBottom: 6,
+  },
   modalInput: {
     borderWidth: 1,
     borderColor: BORDER,
@@ -1717,7 +2175,12 @@ const styles = StyleSheet.create({
     color: BLACK,
   },
   modalInputTall: { minHeight: 120, textAlignVertical: 'top' },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 16, marginTop: 20 },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 16,
+    marginTop: 20,
+  },
   modalGhostBtn: { paddingVertical: 10, paddingHorizontal: 12 },
   modalGhostText: { fontSize: 16, color: MUTED, fontWeight: '600' },
   modalPrimaryBtn: {
@@ -1727,7 +2190,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   modalPrimaryText: { color: '#FFFFFF', fontWeight: '700', fontSize: 16 },
-  hourRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 10 },
+  hourRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 10,
+  },
   hourLabel: { width: 84, fontSize: 14, color: BLACK, fontWeight: '500' },
   hourInput: {
     flex: 1,

@@ -177,7 +177,6 @@ export default function CartCheckoutScreen({ navigation }) {
 
           setCheckoutLines(/** @type {typeof checkoutLines} */ (normalized));
           setCartLoading(false);
-          console.log("route:", normalized)
         }
         return () => {
           cancelled = true;
@@ -239,7 +238,8 @@ export default function CartCheckoutScreen({ navigation }) {
 
   const shippingCost = delivery === 'express' ? EXPRESS_SHIPPING : 0;
   const shippingLabel = delivery === 'express' ? formatNaira(EXPRESS_SHIPPING) : 'Free';
-  const total = Math.max(0, subtotal + shippingCost);
+  const escrowCharge = 200;
+  const total = Math.max(0, subtotal + shippingCost + escrowCharge);
 
   const errors = useMemo(() => {
     const e = /** @type {Record<string, string>} */ ({});
@@ -699,6 +699,10 @@ export default function CartCheckoutScreen({ navigation }) {
               <Text style={styles.footerMuted}>Shipping</Text>
               <Text style={styles.footerMuted}>{shippingLabel}</Text>
             </View>
+            <View style={styles.footerRow}>
+              <Text style={styles.footerMuted}>Escrow charges</Text>
+              <Text style={styles.footerMuted}>{formatNaira(escrowCharge)}</Text>
+            </View>
             <View style={styles.footerRowTotal}>
               <Text style={styles.totalWord}>Total</Text>
               <Text style={styles.totalAmount}>{formatNaira(total)}</Text>
@@ -744,6 +748,10 @@ export default function CartCheckoutScreen({ navigation }) {
                   <View style={styles.orderModalTotalRow}>
                     <Text style={styles.orderModalTotalLabel}>Shipping</Text>
                     <Text style={styles.orderModalTotalValue}>{shippingLabel}</Text>
+                  </View>
+                  <View style={styles.orderModalTotalRow}>
+                    <Text style={styles.orderModalTotalLabel}>Escrow charges</Text>
+                    <Text style={styles.orderModalTotalValue}>{formatNaira(escrowCharge)}</Text>
                   </View>
                   <View style={[styles.orderModalTotalRow, styles.orderModalTotalRowGrand]}>
                     <Text style={styles.orderModalGrandLabel}>Total</Text>
