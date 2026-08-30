@@ -14,9 +14,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Ionicons';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/Ionicons';
 import {
   errorCodes,
   isErrorWithCode,
@@ -272,12 +272,12 @@ function buildUpdateBody(row, form, verificationDocumentsOverride) {
     verificationDocumentsOverride != null
       ? verificationDocumentsOverride
       : {
-          ...DEFAULT_VERIFICATION,
-          ...parseMaybeJson(
-            row.verificationDocuments ?? row.verificationdocuments,
-            {},
-          ),
-        };
+        ...DEFAULT_VERIFICATION,
+        ...parseMaybeJson(
+          row.verificationDocuments ?? row.verificationdocuments,
+          {},
+        ),
+      };
   const tags = Array.isArray(row.tags) ? row.tags : [];
   const vendorType =
     String(row.vendortype ?? row.vendorType ?? 'reseller').trim() || 'reseller';
@@ -345,16 +345,17 @@ export default function ProfileShopInfoScreen() {
   const insets = useSafeAreaInsets();
   const { user, refresh } = useProfile();
   const preferredShopIdRef = useRef(0);
+  const navigation = useNavigation();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [locating, setLocating] = useState(false);
   const [shopsList, setShopsList] = useState(
-    /** @type {Record<string, unknown>[]} */ ([]),
+    /** @type {Record<string, unknown>[]} */([]),
   );
   const [activeShopId, setActiveShopId] = useState(0);
   const [shopRow, setShopRow] = useState(
-    /** @type {Record<string, unknown> | null} */ (null),
+    /** @type {Record<string, unknown> | null} */(null),
   );
 
   const [name, setName] = useState('');
@@ -376,6 +377,7 @@ export default function ProfileShopInfoScreen() {
   const [modalBasics, setModalBasics] = useState(false);
   const [modalDesc, setModalDesc] = useState(false);
   const [modalCategory, setModalCategory] = useState(false);
+
   const [zones, setZones] = useState([]);
   const [hoursDraft, setHoursDraft] = useState(() => defaultOpeningHours());
   /**
@@ -385,22 +387,22 @@ export default function ProfileShopInfoScreen() {
    */
   const [selectedZones, setSelectedZones] = useState([]);
   const [shippingPriceList, setShippingPriceList] = useState({
-    "north central": [],
-    "north east": [],
-    "north west": [],
-    "south south": [],
-    "south east": [],
-    "south west": []
+    'north central': [],
+    'north east': [],
+    'north west': [],
+    'south south': [],
+    'south east': [],
+    'south west': [],
   });
 
   const [verDocModal, setVerDocModal] = useState(
-    /** @type {{ title: string; help: string; docKey: string } | null} */ (
+    /** @type {{ title: string; help: string; docKey: string } | null} */(
       null
     ),
   );
   const [verPickedName, setVerPickedName] = useState('');
   const [verPickedFile, setVerPickedFile] = useState(
-    /** @type {{ uri: string; name: string; type: string } | null} */ (null),
+    /** @type {{ uri: string; name: string; type: string } | null} */(null),
   );
   const [verBusy, setVerBusy] = useState(false);
   const [modalBvn, setModalBvn] = useState(false);
@@ -421,7 +423,7 @@ export default function ProfileShopInfoScreen() {
     setLoading(true);
     try {
       const shops = await fetchOwnerShops(uid);
-      const list = shops.map(s => /** @type {Record<string, unknown>} */ (s));
+      const list = shops.map(s => /** @type {Record<string, unknown>} */(s));
       setShopsList(list);
       const ids = list.map(shopIdOf).filter(id => id > 0);
       let nextId = preferredShopIdRef.current;
@@ -458,7 +460,7 @@ export default function ProfileShopInfoScreen() {
       ]);
       const ordersArr = Array.isArray(ordersRows) ? ordersRows : [];
       const items = ordersArr.map(r =>
-        mapOrderRowToListItem(/** @type {Record<string, unknown>} */ (r)),
+        mapOrderRowToListItem(/** @type {Record<string, unknown>} */(r)),
       );
       const revenue = items.reduce(
         (sum, row) => sum + (Number(row.valueRupees) || 0),
@@ -481,7 +483,7 @@ export default function ProfileShopInfoScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      load().catch(() => {});
+      load().catch(() => { });
     }, [load]),
   );
 
@@ -529,7 +531,7 @@ export default function ProfileShopInfoScreen() {
           location: locPayload,
         });
         await updateVendorShop(activeShopId, uid, body);
-        await refresh().catch(() => {});
+        await refresh().catch(() => { });
         await load();
         if (!opts?.silent) Alert.alert('Saved', 'Your shop has been updated.');
         return true;
@@ -582,7 +584,7 @@ export default function ProfileShopInfoScreen() {
       preferredShopIdRef.current = id;
       setActiveShopId(id);
       setPickerOpen(false);
-      load().catch(() => {});
+      load().catch(() => { });
     },
     [load],
   );
@@ -669,9 +671,9 @@ export default function ProfileShopInfoScreen() {
             fileName: f.name || 'document',
             ...(f.isVirtual && f.convertibleToMimeTypes?.[0]?.mimeType
               ? {
-                  convertVirtualFileToType:
-                    f.convertibleToMimeTypes[0].mimeType,
-                }
+                convertVirtualFileToType:
+                  f.convertibleToMimeTypes[0].mimeType,
+              }
               : {}),
           },
         ],
@@ -724,7 +726,7 @@ export default function ProfileShopInfoScreen() {
         merged,
       );
       await updateVendorShop(activeShopId, uid, body);
-      await refresh().catch(() => {});
+      await refresh().catch(() => { });
       await load();
       setVerDocModal(null);
       Alert.alert('Saved', 'Document saved to your shop.');
@@ -798,7 +800,7 @@ export default function ProfileShopInfoScreen() {
     setBvnBusy(true);
     try {
       await verifyShopBvn(activeShopId, digits);
-      await refresh().catch(() => {});
+      await refresh().catch(() => { });
       await load();
       setModalBvn(false);
       setBvnDraft('');
@@ -1037,7 +1039,7 @@ export default function ProfileShopInfoScreen() {
               pressed && styles.outlineBtnPressed,
             ]}
             onPress={() => {
-              onUseMyLocation().catch(() => {});
+              onUseMyLocation().catch(() => { });
             }}
             disabled={locating}
           >
@@ -1078,142 +1080,35 @@ export default function ProfileShopInfoScreen() {
           <View style={styles.sectionDivider} />
 
           {/* <SectionHeader title="Policies" onEdit={() => setModalDeliveryPolicy(true)} /> */}
-          <Pressable
+          <View
             style={styles.policyRow}
-            onPress={() => setModalDeliveryPolicy(true)}
+            // onPress={() => setModalDeliveryPolicy(true)}
           >
             <Text style={styles.policyLabel}>Delivery/Logistics</Text>
-            {/* <Text style={[styles.policyStatus, deliverySet && styles.policyStatusOk]}>{deliverySet ? 'Set' : 'Not set'}</Text> */}
-            <View style={styles.iconCircle}>
-              <Icon name="create-outline" size={18} color={BRAND} />
-            </View>
-          </Pressable>
-          <View
-            style={{
-              backgroundColor: '#efefef',
-              width: '100%',
-              paddingHorizontal: 7,
-              paddingVertical: 7,
-              borderRadius: 7,
+          </View>
+          <View style={styles.shippingCardsWrap}>
 
-              // flex: 1,
-            }}
-          >
-            {zones.map(([key, value], i) => (
-              <View
-                key={i}
-                style={{
-                  display: 'flex',
-                  width: '100%',
-                  flexDirection: 'column',
-                  justifyContent: 'flex-start',
-                  backgroundColor: '#fff',
-                  borderRadius: 7,
-                  alignItems: 'flex-start',
-                  paddingHorizontal: 10,
-                  paddingVertical: 10,
-                  marginBottom: i === zones.length - 1 ? 0 : 7,
-                }}
-              >
-                <CheckRow
-                  label={key}
-                  checked={selectedZones.find(
-                    i => i.toLowerCase() === key.toLowerCase(),
-                  )}
-                  onToggle={() => {
-                    setSelectedZones(prevSelectedZones => {
-                      const isExist = prevSelectedZones.some(
-                        i => i.toLowerCase() === key.toLowerCase(),
-                      );
-
-                      if (isExist) {
-                        return prevSelectedZones.filter(
-                          i => i.toLowerCase() !== key.toLowerCase(),
-                        );
-                      }
-
-                      return [...prevSelectedZones, key];
-                    });
-                  }}
-                />
-
-                <View
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                  }}
-                >
-                  {selectedZones.some(
-                    i => i.toLowerCase() === key.toLowerCase(),
-                  ) &&
-                    value.map((state, i) => {
-                      return (
-                        <View key={i} style={styles.zoneStates}>
-                          <Text
-                            style={{
-                              fontSize: 16,
-                              fontWeight: '500',
-                            }}
-                          >
-                            {state}
-                          </Text>
-                          <NairaInput
-                            value={
-                              shippingPriceList !== undefined && shippingPriceList[key].some(i => i.state === state) ? ((shippingPriceList[key][shippingPriceList[key].findIndex(i => i.state === state)].price)) : null
-                            }
-                            onChangeText={text => {
-                              handleShippingPriceChange({
-                                state: state,
-                                price: text,
-                                zone: key,
-                              });
-                            }}
-                            placeholder="Enter shipping price"
-                          />
-                        </View>
-                      );
-                    })}
-                </View>
-
-                {selectedZones.some(
-                  i => i.toLowerCase() === key.toLowerCase(),
-                ) && (
-                  <View
-                    style={{
-                      display: 'flex',
-                      width: '100%',
-                      // flexDirection: 'column',
-                      justifyContent: 'center',
-                      backgroundColor: '#fff',
-                      alignItems: 'center',
-                      padding: 8,
-                    }}
-                  >
-                    <Pressable
-                      style={{
-                        height: 40,
-                        borderRadius: 7,
-                        display: 'flex',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                        width: '100%',
-                        backgroundColor: '#00897B',
-                      }}
-                      // onPress={() => {
-                      //   persist().catch(() => {});
-                      // }}
-                      // disabled={saving}
-                    >
-                      {saving ? (
-                        <ActivityIndicator color="#FFFFFF" />
-                      ) : (
-                        <Text style={styles.saveBtnText}>Save changes</Text>
-                      )}
-                    </Pressable>
-                  </View>
-                )}
+            <TouchableOpacity style={styles.optionRow} onPress={() => navigation.navigate("shipping-fee-model")}  activeOpacity={0.85}>
+              <View style={[styles.optionIcon, styles.optionIconBrand]}>
+                <Icon name="options-outline" size={22} color="#00926e" />
               </View>
-            ))}
+              <View style={styles.optionBody}>
+                <Text style={styles.optionTitle}>Shipping Model</Text>
+                <Text style={styles.optionDesc}>Choose how shipping fees are calculated for orders.</Text>
+              </View>
+              <Icon name="chevron-forward" size={22} color="#9CA3AF" />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={[styles.optionRow, {marginBottom: 0}]} onPress={() => navigation.navigate("shipping-zones")} activeOpacity={0.85}>
+              <View style={[styles.optionIcon, styles.optionIconBrand]}>
+                <Icon name="map-outline" size={22} color="#00926e" />
+              </View>
+              <View style={styles.optionBody}>
+                <Text style={styles.optionTitle}>Shipping Zones</Text>
+                <Text style={styles.optionDesc}>Set base fees and discounts for different locations.</Text>
+              </View>
+              <Icon name="chevron-forward" size={22} color="#9CA3AF" />
+            </TouchableOpacity>
           </View>
 
           <Pressable
@@ -1223,7 +1118,7 @@ export default function ProfileShopInfoScreen() {
               saving && styles.saveBtnDisabled,
             ]}
             onPress={() => {
-              persist().catch(() => {});
+              persist().catch(() => { });
             }}
             disabled={saving}
           >
@@ -1384,7 +1279,7 @@ export default function ProfileShopInfoScreen() {
                 styles.outlineBtn,
                 pressed && styles.outlineBtnPressed,
               ]}
-              onPress={() => pickVerificationFile().catch(() => {})}
+              onPress={() => pickVerificationFile().catch(() => { })}
               disabled={verBusy}
             >
               <Text style={styles.outlineBtnText}>
@@ -1403,7 +1298,7 @@ export default function ProfileShopInfoScreen() {
                 <Text style={styles.modalGhostText}>Cancel</Text>
               </Pressable>
               <Pressable
-                onPress={() => saveVerDocToShop().catch(() => {})}
+                onPress={() => saveVerDocToShop().catch(() => { })}
                 style={[
                   styles.modalPrimaryBtn,
                   verBusy && styles.saveBtnDisabled,
@@ -1442,10 +1337,10 @@ export default function ProfileShopInfoScreen() {
               ready.
             </Text>
             {bvnSt.passed &&
-            verDocs.bvn &&
-            typeof verDocs.bvn === 'object' &&
-            verDocs.bvn.last4 != null &&
-            String(verDocs.bvn.last4).trim() !== '' ? (
+              verDocs.bvn &&
+              typeof verDocs.bvn === 'object' &&
+              verDocs.bvn.last4 != null &&
+              String(verDocs.bvn.last4).trim() !== '' ? (
               <Text style={styles.bvnOnFile}>
                 On file: ••••{String(verDocs.bvn.last4)} (verified)
               </Text>
@@ -1468,7 +1363,7 @@ export default function ProfileShopInfoScreen() {
                 <Text style={styles.modalGhostText}>Cancel</Text>
               </Pressable>
               <Pressable
-                onPress={() => submitBvn().catch(() => {})}
+                onPress={() => submitBvn().catch(() => { })}
                 style={[
                   styles.modalPrimaryBtn,
                   bvnBusy && styles.saveBtnDisabled,
@@ -1572,7 +1467,7 @@ const WHEEL_PADDING = WHEEL_ITEM_HEIGHT * Math.floor(WHEEL_VISIBLE_ITEMS / 2);
  * }} props
  */
 function WheelColumn({ data, value, onChange }) {
-  const scrollRef = useRef(/** @type {ScrollView | null} */ (null));
+  const scrollRef = useRef(/** @type {ScrollView | null} */(null));
   const idx = Math.max(0, data.indexOf(value));
 
   // Keep the centred row in sync when `value` changes from outside (e.g. when
@@ -1919,6 +1814,47 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: MUTED,
   },
+  optionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 5,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 4,
+  },
+  optionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  optionIconOrange: {
+    backgroundColor: '#FFEDD5',
+  },
+  optionIconGray: {
+    backgroundColor: '#F3F4F6',
+  },
+  optionIconBrand: {
+    backgroundColor: '#E8F6F1',
+  },
+  optionBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+  optionTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#111111',
+  },
+  optionDesc: {
+    marginTop: 4,
+    fontSize: 14,
+    color: '#6B7280',
+  },
   sectionDivider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: BORDER,
@@ -2072,6 +2008,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     gap: 10,
+  },
+  shippingCardsWrap: {
+    backgroundColor: '#EFEFEF',
+    width: '100%',
+    paddingHorizontal: 5,
+    paddingVertical: 5,
+    borderRadius: 7,
+    marginBottom: 7,
+    flexDirection: 'column',
+    // gap: 7,
+  },
+  shippingCard: {
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+  },
+  shippingCardTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: BLACK,
+    marginBottom: 4,
+  },
+  shippingCardDesc: {
+    fontSize: 12,
+    lineHeight: 17,
+    color: MUTED,
   },
   policyLabel: { flex: 1, fontSize: 18, fontWeight: '600', color: BLACK },
   policyStatus: { fontSize: 14, color: MUTED, marginRight: 4 },

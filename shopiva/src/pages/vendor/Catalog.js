@@ -21,6 +21,10 @@ export default function CatalogScreen({ navigation }) {
     navigation.navigate('AddProduct');
   }, [navigation]);
 
+  const goShipping = useCallback(() => {
+    navigation.navigate('Shipping');
+  }, [navigation]);
+
   return (
     <View style={[styles.root, { paddingTop: 15 }]}>
   
@@ -52,6 +56,17 @@ export default function CatalogScreen({ navigation }) {
           <View style={styles.optionBody}>
             <Text style={styles.optionTitle}>Inventory</Text>
             <Text style={styles.optionDesc}>Stock levels and availability</Text>
+          </View>
+          <Icon name="chevron-forward" size={22} color="#9CA3AF" />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.optionRow} onPress={goShipping} activeOpacity={0.85}>
+          <View style={[styles.optionIcon, styles.optionIconBrand]}>
+            <Icon name="car-outline" size={22} color="#00926e" />
+          </View>
+          <View style={styles.optionBody}>
+            <Text style={styles.optionTitle}>Shipping</Text>
+            <Text style={styles.optionDesc}>Fee model, discounts, and delivery zones</Text>
           </View>
           <Icon name="chevron-forward" size={22} color="#9CA3AF" />
         </TouchableOpacity>
@@ -127,6 +142,9 @@ const styles = StyleSheet.create({
   },
   optionIconGray: {
     backgroundColor: '#F3F4F6',
+  },
+  optionIconBrand: {
+    backgroundColor: '#E8F6F1',
   },
   optionBody: {
     flex: 1,

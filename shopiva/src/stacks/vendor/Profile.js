@@ -19,7 +19,11 @@ import SettingsWhatsappScreen from '../../pages/SettingsWhatsapp';
 import SettingsPayoutScreen from '../../pages/SettingsPayoutScreen';
 import PersonalInformationScreen from '../../pages/PersonalInformation';
 import DeleteAccountScreen from '../../pages/DeleteAccountScreen';
-import {Platform} from 'react-native';
+import { Platform } from 'react-native';
+import ShippingFeeModelScreen from '../../pages/vendor/ShippingFeeModelScreen';
+import ShippingMultiItemDiscountScreen from '../../pages/vendor/ShippingMultiItemDiscountScreen';
+import ShippingZonesScreen from '../../pages/vendor/ShippingZonesScreen';
+import ShippingZoneEditScreen from '../../pages/vendor/ShippingZoneEditScreen';
 /** Lazily loaded so `react-native-maps` native module is not required until this screen mounts. */
 // const SettingsLocationLazy = lazy(() => import('../pages/SettingsLocation'));
 
@@ -171,7 +175,7 @@ export function VendorProfileStackScreen() {
     contentStyle: { backgroundColor: '#F7F7F8' },
     headerBackTitle: "Settings",
   }
-  const profileSettingsOpt={
+  const profileSettingsOpt = {
     headerShown: true,
     headerShadowVisible: false,
     header: ProfileSettingsHeader,
@@ -185,7 +189,7 @@ export function VendorProfileStackScreen() {
     contentStyle: { backgroundColor: '#FFFFFF' },
     headerBackTitle: "Settings",
   }
-  const profileTxnOpt={
+  const profileTxnOpt = {
     headerShown: true,
     headerShadowVisible: false,
     title: "Transaction",
@@ -263,6 +267,15 @@ export function VendorProfileStackScreen() {
       <ProfileStack.Screen name="profile-settings-location" component={SettingsLocationSuspense} options={profileLocationOpt} />
       <ProfileStack.Screen name="profile-settings-payout" component={SettingsPayoutScreen} options={profilePayoutOpt} />
       <ProfileStack.Screen name="profile-settings-delete-account" component={DeleteAccountScreen} options={profileDeleteAccountOpt} />
+      {/* Shipping Setup Screens */}
+      <ProfileStack.Screen name="shipping-fee-model" component={ShippingFeeModelScreen} options={{ title: "Shipping Fee Model", }} />
+      <ProfileStack.Screen name="shipping-discount" component={ShippingMultiItemDiscountScreen} options={{ title: "Multi-Item Discount" }} />
+      <ProfileStack.Screen name="shipping-zones" component={ShippingZonesScreen} options={{ title: "Shipping Zones" }} />
+      <ProfileStack.Screen name="shipping-zone-edit" component={ShippingZoneEditScreen} options={({ route }) => ({
+        title: route.params?.mode === 'edit' ? 'Edit Zone' : 'Add / Edit Zone',
+      })} />
+      {/* Shipping Setup Screens */}
+
     </ProfileStack.Navigator>
   );
 }
