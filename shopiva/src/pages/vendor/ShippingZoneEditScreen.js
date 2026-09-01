@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   Pressable,
@@ -22,6 +23,7 @@ import {
 } from './shippingShared';
 import { formatPriceInput } from '../../utils/variantOptions';
 import { useNavigation } from '@react-navigation/native';
+import { saveShippingZone } from '../../api/shop';
 
 /** @param {string} name */
 function slugFromName(name) {
@@ -55,6 +57,9 @@ export default function ShippingZoneEditScreen({ route }) {
     existingZone?.discountPercent ?? defaultDiscount,
   );
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const shopId = route.params?.shopId;
+  const userId = route.params?.userId;
 
   const onBaseFeeChange = (text) => {
     setBaseFeeText(text);
@@ -71,7 +76,7 @@ export default function ShippingZoneEditScreen({ route }) {
     setLocations((prev) => prev.filter((item) => item !== loc));
   };
 
-  const onSave = () => {
+  const onSave = async () => {
     const name = zoneName.trim();
     if (!name) {
       Alert.alert('Zone name required', 'Enter a name for this shipping zone.');
@@ -85,26 +90,47 @@ export default function ShippingZoneEditScreen({ route }) {
       Alert.alert('Base fee required', 'Enter a base shipping fee for the first item.');
       return;
     }
+    if (!shopId || !userId) {
+      Alert.alert('Unable to save', 'Missing shop information. Please try again.');
+      return;
+    }
 
     const zoneId = existingZone?.id ?? slugFromName(name);
     const pinColors = [BRAND, '#16A34A', '#EA580C', '#2563EB', '#9333EA'];
     const colorIndex = Math.abs(zoneId.split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % pinColors.length;
+    const pinColor = existingZone?.pinColor ?? pinColors[colorIndex];
 
-    navigation.navigate({
-      name: 'shipping-zones',
-      params: {
-        pendingZone: {
-          id: zoneId,
-          name,
-          locations,
-          baseFee,
-          discountPercent,
-          pinColor: existingZone?.pinColor ?? pinColors[colorIndex],
-        },
-      },
-      merge: true,
-    });
-    navigation.goBack();
+    setSaving(true);
+    try {
+      await saveShippingZone(shopId, userId, {
+        zoneId,
+        name,
+        locations,
+        baseFee,
+        discountPercent,
+        pinColor,
+      });
+
+      // navigation.navigate({
+      //   name: 'shipping-zones',
+      //   params: {
+      //     pendingZone: {
+      //       id: zoneId,
+      //       name,
+      //       locations,
+      //       baseFee,
+      //       discountPercent,
+      //       pinColor,
+      //     },
+      //   },
+      //   merge: true,
+      // });
+      navigation.goBack();
+    } catch (error) {
+      Alert.alert('Save failed', error?.message || 'Could not save shipping zone. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const onDelete = () => {
@@ -229,7 +255,7 @@ export default function ShippingZoneEditScreen({ route }) {
           alignItems: 'center', 
           justifyContent: 'center',
           width: '100%',
-          height: 150,
+          height: isEdit ? 150 : 90,
           paddingHorizontal: 10,
         }}
       >
@@ -237,6 +263,7 @@ export default function ShippingZoneEditScreen({ route }) {
           style={sharedStyles.primaryBtn}
           activeOpacity={0.88}
           onPress={onSave}
+          disabled={saving}
         >
           <Text style={sharedStyles.primaryBtnText}>Save Zone</Text>
         </TouchableOpacity>
@@ -245,6 +272,7 @@ export default function ShippingZoneEditScreen({ route }) {
             style={sharedStyles.dangerBtn}
             activeOpacity={0.88}
             onPress={onDelete}
+            disabled={saving}
           >
             <Text style={sharedStyles.dangerBtnText}>Delete Zone</Text>
           </TouchableOpacity>
@@ -308,6 +336,24 @@ export default function ShippingZoneEditScreen({ route }) {
           </ScrollView>
         </View>
       </Modal>
+
+      {saving ? (
+        <View
+          pointerEvents="auto"
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.25)',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <ActivityIndicator size="large" color={BRAND} />
+        </View>
+      ) : null}
     </View>
   );
 }

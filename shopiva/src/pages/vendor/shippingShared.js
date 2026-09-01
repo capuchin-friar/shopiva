@@ -10,23 +10,9 @@ export const BORDER = '#E5E7EB';
 export const INPUT_BG = '#FFF';
 export const DANGER = '#DC2626';
 
-/** @typedef {'per_item' | 'per_order_flat' | 'multi_item_discount'} ShippingFeeModel */
+/** @typedef {'multi_item_discount'} ShippingFeeModel */
 
 export const SHIPPING_FEE_MODELS = [
-  {
-    id: /** @type {ShippingFeeModel} */ ('per_item'),
-    title: 'Per Item',
-    description: 'Charge shipping for each item in the cart.',
-    icon: 'cube-outline',
-    recommended: false,
-  },
-  {
-    id: /** @type {ShippingFeeModel} */ ('per_order_flat'),
-    title: 'Per Order (Flat)',
-    description: 'Charge a flat shipping fee for every order.',
-    icon: 'bag-outline',
-    recommended: false,
-  },
   {
     id: /** @type {ShippingFeeModel} */ ('multi_item_discount'),
     title: 'Multi-Item Discount',
@@ -109,14 +95,6 @@ export function shippingTotalForItemCount(model, baseFee, discountPercent, itemC
 
   if (count <= 0) return 0;
 
-  if (model === 'per_order_flat') {
-    return base;
-  }
-
-  if (model === 'per_item') {
-    return base * count;
-  }
-
   const additional = Math.max(0, count - 1);
   const discountedUnit = base * (1 - discount);
   return base + additional * discountedUnit;
@@ -140,8 +118,6 @@ export function buildPreviewLines(model, baseFee, discountPercent) {
       } else {
         detail = ` (${formatNaira(baseFee)} + ${count - 1} × ${formatNaira(discountedUnit)})`;
       }
-    } else if (model === 'per_item' && count > 1) {
-      detail = ` (${count} × ${formatNaira(baseFee)})`;
     }
 
     lines.push({

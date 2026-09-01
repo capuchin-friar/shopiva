@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
@@ -20,15 +21,40 @@ import {
   sharedStyles,
   ShippingPreviewCard,
 } from './shippingShared';
+import { getShippingMultiItemDiscount, saveShippingFeeModel, saveShippingMultiItemDiscount } from '../../api/shop';
 
 /**
  * Screen 2 — configure base fee and discount for multi-item shipping model.
  */
 export default function ShippingMultiItemDiscountScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
-  const [baseFee, setBaseFee] = useState(route.params?.baseFee ?? 1000);
-  const [baseFeeText, setBaseFeeText] = useState(formatAmountInput(route.params?.baseFee ?? 1000));
+  const [baseFee, setBaseFee] = useState(route.params?.baseFee ?? 1500);
+  const [baseFeeText, setBaseFeeText] = useState(formatAmountInput(route.params?.baseFee ?? 1500));
   const [discountPercent, setDiscountPercent] = useState(route.params?.discountPercent ?? 50);
+  const [saving, setSaving] = useState(false);
+  const shopId = route.params?.shopId;
+  const userId = route.params?.userId;
+
+  useEffect(() => {
+    if (route.params?.baseFee != null && route.params?.discountPercent != null) return;
+    if (!shopId || !userId) return;
+
+    let active = true;
+    getShippingMultiItemDiscount(shopId, userId)
+      .then((data) => {
+        if (!active || !data) return;
+        const fee = Number(data.base_fee ?? data.baseFee);
+        const discount = Number(data.discount_percent ?? data.discountPercent);
+        setBaseFee(fee);
+        setBaseFeeText(formatAmountInput(fee));
+        setDiscountPercent(discount);
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [shopId, userId, route.params?.baseFee, route.params?.discountPercent]);
 
   const previewLines = useMemo(
     () => buildPreviewLines('multi_item_discount', baseFee, discountPercent),
@@ -40,17 +66,32 @@ export default function ShippingMultiItemDiscountScreen({ navigation, route }) {
     setBaseFee(parseAmountInput(text));
   };
 
-  const onSave = () => {
+  const onSave = async () => {
     if (baseFee <= 0) {
       Alert.alert('Base fee required', 'Enter a base shipping fee for the first item.');
       return;
     }
+    if (!shopId || !userId) {
+      Alert.alert('Unable to save', 'Missing shop information. Please try again.');
+      return;
+    }
 
-    navigation.navigate('ShippingZones', {
-      model: route.params?.model ?? 'multi_item_discount',
-      baseFee,
-      discountPercent,
-    });
+    setSaving(true);
+    try {
+      await Promise.all([
+        saveShippingFeeModel(shopId, userId, {
+          model: 'multi_item_discount',
+          baseFee,
+          discountPercent,
+        }),
+        saveShippingMultiItemDiscount(shopId, userId, { baseFee, discountPercent }),
+      ]);
+      navigation.goBack();
+    } catch (error) {
+      Alert.alert('Save failed', error?.message || 'Could not save shipping model. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -135,10 +176,29 @@ export default function ShippingMultiItemDiscountScreen({ navigation, route }) {
           style={sharedStyles.primaryBtn}
           activeOpacity={0.88}
           onPress={onSave}
+          disabled={saving}
         >
           <Text style={sharedStyles.primaryBtnText}>Save Model</Text>
         </TouchableOpacity>
       </View>
+
+      {saving ? (
+        <View
+          pointerEvents="auto"
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.25)',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <ActivityIndicator size="large" color={BRAND} />
+        </View>
+      ) : null}
     </View>
   );
 }

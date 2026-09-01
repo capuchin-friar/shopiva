@@ -59,6 +59,16 @@ import {
     GetShopDisputesController,
     GetShopDisputeByIdController,
 } from "../../controllers/business/disputes.js";
+import {
+    SaveShippingFeeModelController,
+    GetShippingFeeModelController,
+    SaveShippingZoneController,
+    GetShippingZonesController,
+    DeleteShippingZoneController,
+    SaveShippingMultiItemDiscountController,
+    GetShippingMultiItemDiscountController,
+    CheckShippingConfigStatusController,
+} from "../../controllers/business/shipping.js";
 
 
 // Business Router
@@ -151,5 +161,15 @@ BusinessRouter.post("/shop/:shopId/product/:productId/inventory/update/:inventor
 BusinessRouter.post("/shop/:shopId/product/:productId/inventory/delete/:inventoryId/:id", authenticate, DeleteInventoryController);
 BusinessRouter.get("/shop/reviews/:shopId/:id", authenticate, GetShopReviewsController);
 BusinessRouter.get("/shop/metrics/:shopId/:id", authenticate, GetShopMetricsController);
+
+// Shipping Configuration Routes
+BusinessRouter.post("/shop/:shopId/shipping/fee-model/:id", authenticate, SaveShippingFeeModelController);
+BusinessRouter.get("/shop/:shopId/shipping/fee-model/:id", authenticate, GetShippingFeeModelController);
+BusinessRouter.post("/shop/:shopId/shipping/zone/:id", authenticate, SaveShippingZoneController);
+BusinessRouter.get("/shop/:shopId/shipping/zones/:id", authenticate, GetShippingZonesController);
+BusinessRouter.delete("/shop/:shopId/shipping/zone/:zoneId/:id", authenticate, DeleteShippingZoneController);
+BusinessRouter.post("/shop/:shopId/shipping/multi-item-discount/:id", authenticate, SaveShippingMultiItemDiscountController);
+BusinessRouter.get("/shop/:shopId/shipping/multi-item-discount/:id", authenticate, GetShippingMultiItemDiscountController);
+BusinessRouter.get("/shop/:shopId/shipping/config-status/:id", authenticate, CheckShippingConfigStatusController);
 
 export default BusinessRouter;

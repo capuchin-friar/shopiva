@@ -414,3 +414,154 @@ export async function fetchShopDispute(shopId, disputeId, userId) {
   }
   return /** @type {Record<string, unknown>} */ (dispute);
 }
+
+/**
+ * Save or update shipping fee model for a shop.
+ * POST /shop/:shopId/shipping/fee-model/:userId
+ * @param {number | string} shopId
+ * @param {number | string} userId
+ * @param {{
+ *   model: 'per_item' | 'per_order_flat' | 'multi_item_discount';
+ *   baseFee: number;
+ *   discountPercent: number;
+ * }} body
+ * @returns {Promise<Record<string, unknown>>}
+ */
+export async function saveShippingFeeModel(shopId, userId, body) {
+  const res = await apiFetchAuth(
+    `/shop/${encodeURIComponent(String(shopId))}/shipping/fee-model/${encodeURIComponent(String(userId))}`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  );
+  return readJson(res);
+}
+
+/**
+ * Get shipping fee model for a shop.
+ * GET /shop/:shopId/shipping/fee-model/:userId
+ * @param {number | string} shopId
+ * @param {number | string} userId
+ * @returns {Promise<Record<string, unknown> | null>}
+ */
+export async function getShippingFeeModel(shopId, userId) {
+  const res = await apiFetchAuth(
+    `/shop/${encodeURIComponent(String(shopId))}/shipping/fee-model/${encodeURIComponent(String(userId))}`,
+    { method: 'GET' },
+  );
+  const data = await readJson(res);
+  return data.data ?? null;
+}
+
+/**
+ * Save or update a shipping zone.
+ * POST /shop/:shopId/shipping/zone/:userId
+ * @param {number | string} shopId
+ * @param {number | string} userId
+ * @param {{
+ *   zoneId: string;
+ *   name: string;
+ *   locations: string[];
+ *   baseFee: number;
+ *   discountPercent: number;
+ *   pinColor: string;
+ * }} body
+ * @returns {Promise<Record<string, unknown>>}
+ */
+export async function saveShippingZone(shopId, userId, body) {
+  const res = await apiFetchAuth(
+    `/shop/${encodeURIComponent(String(shopId))}/shipping/zone/${encodeURIComponent(String(userId))}`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  );
+  return readJson(res);
+}
+
+/**
+ * Get all shipping zones for a shop.
+ * GET /shop/:shopId/shipping/zones/:userId
+ * @param {number | string} shopId
+ * @param {number | string} userId
+ * @returns {Promise<Record<string, unknown>[]>}
+ */
+export async function getShippingZones(shopId, userId) {
+  const res = await apiFetchAuth(
+    `/shop/${encodeURIComponent(String(shopId))}/shipping/zones/${encodeURIComponent(String(userId))}`,
+    { method: 'GET' },
+  );
+  const data = await readJson(res);
+  return Array.isArray(data.data) ? data.data : [];
+}
+
+/**
+ * Delete a shipping zone.
+ * DELETE /shop/:shopId/shipping/zone/:zoneId/:userId
+ * @param {number | string} shopId
+ * @param {string} zoneId
+ * @param {number | string} userId
+ * @returns {Promise<Record<string, unknown>>}
+ */
+export async function deleteShippingZone(shopId, zoneId, userId) {
+  const res = await apiFetchAuth(
+    `/shop/${encodeURIComponent(String(shopId))}/shipping/zone/${encodeURIComponent(zoneId)}/${encodeURIComponent(String(userId))}`,
+    { method: 'DELETE' },
+  );
+  return readJson(res);
+}
+
+/**
+ * Save or update multi-item discount configuration.
+ * POST /shop/:shopId/shipping/multi-item-discount/:userId
+ * @param {number | string} shopId
+ * @param {number | string} userId
+ * @param {{
+ *   baseFee: number;
+ *   discountPercent: number;
+ * }} body
+ * @returns {Promise<Record<string, unknown>>}
+ */
+export async function saveShippingMultiItemDiscount(shopId, userId, body) {
+  const res = await apiFetchAuth(
+    `/shop/${encodeURIComponent(String(shopId))}/shipping/multi-item-discount/${encodeURIComponent(String(userId))}`,
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  );
+  return readJson(res);
+}
+
+/**
+ * Get multi-item discount configuration.
+ * GET /shop/:shopId/shipping/multi-item-discount/:userId
+ * @param {number | string} shopId
+ * @param {number | string} userId
+ * @returns {Promise<Record<string, unknown> | null>}
+ */
+export async function getShippingMultiItemDiscount(shopId, userId) {
+  const res = await apiFetchAuth(
+    `/shop/${encodeURIComponent(String(shopId))}/shipping/multi-item-discount/${encodeURIComponent(String(userId))}`,
+    { method: 'GET' },
+  );
+  const data = await readJson(res);
+  return data.data ?? null;
+}
+
+/**
+ * Check shipping configuration status for a shop.
+ * GET /shop/:shopId/shipping/config-status/:userId
+ * @param {number | string} shopId
+ * @param {number | string} userId
+ * @returns {Promise<{ hasFeeModel: boolean; hasZones: boolean; status: 'not_set' | 'partial' | 'complete' }>}
+ */
+export async function checkShippingConfigStatus(shopId, userId) {
+  const res = await apiFetchAuth(
+    `/shop/${encodeURIComponent(String(shopId))}/shipping/config-status/${encodeURIComponent(String(userId))}`,
+    { method: 'GET' },
+  );
+  const data = await readJson(res);
+  return data.data ?? { hasFeeModel: false, hasZones: false, status: 'not_set' };
+}

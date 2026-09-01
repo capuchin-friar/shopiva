@@ -13,48 +13,55 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { formatNaira } from '../../utils/formatNaira';
 import { BRAND, sharedStyles } from './shippingShared';
+import { deleteShippingZone, getShippingZones } from '../../api/shop';
 
 /** @typedef {{ id: string; name: string; locations: string[]; baseFee: number; discountPercent: number; pinColor: string }} ShippingZone */
 
-/** @type {ShippingZone[]} */
-const DEFAULT_ZONES = [
-  {
-    id: 'lagos',
-    name: 'Lagos',
-    locations: ['Lagos State'],
-    baseFee: 1000,
-    discountPercent: 50,
-    pinColor: BRAND,
-  },
-  {
-    id: 'other-states',
-    name: 'Nigeria (Other States)',
-    locations: ['All other states'],
-    baseFee: 1500,
-    discountPercent: 50,
-    pinColor: '#16A34A',
-  },
-  {
-    id: 'abuja',
-    name: 'Abuja (FCT)',
-    locations: ['FCT Abuja'],
-    baseFee: 1200,
-    discountPercent: 50,
-    pinColor: '#EA580C',
-  },
-];
+/** @param {Record<string, unknown>} row @returns {ShippingZone} */
+function mapZoneRow(row) {
+  return {
+    id: String(row.zone_id ?? row.id ?? ''),
+    name: String(row.name ?? ''),
+    locations: Array.isArray(row.locations) ? row.locations : [],
+    baseFee: Number(row.base_fee ?? 0),
+    discountPercent: Number(row.discount_percent ?? 0),
+    pinColor: String(row.pin_color ?? BRAND),
+  };
+}
 
 /**
  * Screen 3 — list shipping zones with base fee and discount summary.
  */
 export default function ShippingZonesScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
-  const [zones, setZones] = useState(DEFAULT_ZONES);
+  const [zones, setZones] = useState(/** @type {ShippingZone[]} */ ([]));
+  const [loading, setLoading] = useState(false);
   const [menuZoneId, setMenuZoneId] = useState(/** @type {string | null} */(null));
 
   const model = route.params?.model ?? 'multi_item_discount';
   const defaultBaseFee = route.params?.baseFee ?? 1000;
   const defaultDiscount = route.params?.discountPercent ?? 50;
+  const shopId = route.params?.shopId;
+  const userId = route.params?.userId;
+
+  const loadZones = useCallback(async () => {
+    if (!shopId || !userId) return;
+    setLoading(true);
+    try {
+      const rows = await getShippingZones(shopId, userId);
+      setZones((Array.isArray(rows) ? rows : []).map(mapZoneRow));
+    } catch (error) {
+      Alert.alert('Failed to load zones', error?.message || 'Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [shopId, userId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadZones();
+    }, [loadZones]),
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -88,6 +95,8 @@ export default function ShippingZonesScreen({ navigation, route }) {
       model,
       defaultBaseFee,
       defaultDiscount,
+      shopId,
+      userId,
     });
   };
 
@@ -98,6 +107,8 @@ export default function ShippingZonesScreen({ navigation, route }) {
       model,
       defaultBaseFee,
       defaultDiscount,
+      shopId,
+      userId,
     });
   };
 
@@ -131,6 +142,14 @@ export default function ShippingZonesScreen({ navigation, route }) {
           </View>
 
         </View>
+
+        {loading ? (
+          <Text style={sharedStyles.sectionSubtitle}>Loading zones…</Text>
+        ) : zones.length === 0 ? (
+          <Text style={sharedStyles.sectionSubtitle}>
+            No shipping zones yet. Tap "Add Zone" to create one.
+          </Text>
+        ) : null}
 
         {zones.map((zone) => (
           <TouchableOpacity
@@ -244,8 +263,15 @@ export default function ShippingZonesScreen({ navigation, route }) {
                     {
                       text: 'Delete',
                       style: 'destructive',
-                      onPress: () => {
-                        setZones((prev) => prev.filter((z) => z.id !== zone.id));
+                      onPress: async () => {
+                        try {
+                          if (shopId && userId) {
+                            await deleteShippingZone(shopId, zone.id, userId);
+                          }
+                          setZones((prev) => prev.filter((z) => z.id !== zone.id));
+                        } catch (error) {
+                          Alert.alert('Delete failed', error?.message || 'Please try again.');
+                        }
                       },
                     },
                   ],

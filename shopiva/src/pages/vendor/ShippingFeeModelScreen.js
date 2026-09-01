@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   Pressable,
@@ -14,39 +14,57 @@ import {
   buildPreviewLines,
   sharedStyles,
   SHIPPING_FEE_MODELS,
-  ShippingPreviewCard,
+  ShippingPreviewCard, 
 } from './shippingShared';
+import { getShippingMultiItemDiscount } from '../../api/shop';
 
-const DEFAULT_BASE_FEE = 1000;
+const DEFAULT_BASE_FEE = 1500;
 const DEFAULT_DISCOUNT = 50;
 
 /**
- * Screen 1 — choose shipping fee model (per item, flat, or multi-item discount).
+ * Screen 1 — choose shipping fee model (currently only multi-item discount).
  */
 export default function ShippingFeeModelScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
   const initialModel = route.params?.model ?? 'multi_item_discount';
   const [selectedModel, setSelectedModel] = useState(initialModel);
+  const [baseFee, setBaseFee] = useState(route.params?.baseFee ?? null);
+  const [discountPercent, setDiscountPercent] = useState(route.params?.discountPercent ?? null);
+  const shopId = route.params?.shopId;
+  const userId = route.params?.userId;
+
+  useEffect(() => {
+    if (route.params?.baseFee != null && route.params?.discountPercent != null) return;
+    if (!shopId || !userId) return;      
+    let active = true;
+    getShippingMultiItemDiscount(shopId, userId)
+      .then((data) => {
+        if (!active || !data) return;
+        setBaseFee(Number(data.base_fee ?? data.baseFee));
+        setDiscountPercent(Number(data.discount_percent ?? data.discountPercent));
+      })
+      .catch(() => {});
+
+    return () => {
+      active = false;
+    };
+  }, [shopId, userId, route.params?.baseFee, route.params?.discountPercent]);
+
+  const effectiveBaseFee = baseFee ?? DEFAULT_BASE_FEE;
+  const effectiveDiscount = discountPercent ?? DEFAULT_DISCOUNT;
 
   const previewLines = useMemo(
-    () => buildPreviewLines(selectedModel, DEFAULT_BASE_FEE, DEFAULT_DISCOUNT),
-    [selectedModel],
+    () => buildPreviewLines(selectedModel, effectiveBaseFee, effectiveDiscount),
+    [selectedModel, effectiveBaseFee, effectiveDiscount],
   );
 
   const onConfigure = () => {
-    if (selectedModel === 'multi_item_discount') {
-      navigation.navigate('shipping-discount', {
-        model: selectedModel,
-        baseFee: route.params?.baseFee ?? DEFAULT_BASE_FEE,
-        discountPercent: route.params?.discountPercent ?? DEFAULT_DISCOUNT,
-      });
-      return;
-    }
-
-    navigation.navigate('shipping-zones', {
+    navigation.navigate('shipping-discount', {
       model: selectedModel,
-      baseFee: route.params?.baseFee ?? DEFAULT_BASE_FEE,
-      discountPercent: route.params?.discountPercent ?? DEFAULT_DISCOUNT,
+      baseFee: effectiveBaseFee,
+      discountPercent: effectiveDiscount,
+      shopId,
+      userId,
     });
   };
 

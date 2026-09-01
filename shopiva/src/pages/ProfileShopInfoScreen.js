@@ -31,6 +31,7 @@ import {
   updateVendorShop,
   uploadShopVerificationDocument,
   verifyShopBvn,
+  checkShippingConfigStatus,
 } from '../api/shop';
 import { getProducts } from '../api/product';
 import { useProfile } from '../context/ProfileContext';
@@ -394,6 +395,11 @@ export default function ProfileShopInfoScreen() {
     'south east': [],
     'south west': [],
   });
+  const [shippingConfigStatus, setShippingConfigStatus] = useState({
+    hasFeeModel: false,
+    hasZones: false,
+    status: 'not_set',
+  });
 
   const [verDocModal, setVerDocModal] = useState(
     /** @type {{ title: string; help: string; docKey: string } | null} */(
@@ -470,6 +476,15 @@ export default function ProfileShopInfoScreen() {
         ? productsRes.products
         : [];
       setMetrics({ revenue, orders: ordersArr.length, products: prods.length });
+
+      // Load shipping configuration status
+      try {
+        const shippingStatus = await checkShippingConfigStatus(nextId, uid);
+        setShippingConfigStatus(shippingStatus);
+      } catch (e) {
+        // Silently fail for shipping status - not critical
+        setShippingConfigStatus({ hasFeeModel: false, hasZones: false, status: 'not_set' });
+      }
     } catch (e) {
       setShopRow(null);
       Alert.alert(
@@ -952,24 +967,7 @@ export default function ProfileShopInfoScreen() {
             )}
           </View>
 
-          {/* Availability section disabled — not in scope for now.
-          <View style={styles.sectionDivider} />
 
-          <SectionHeader title="Availability" onEdit={() => { setHoursDraft({ ...openingHours }); setModalHours(true); }} />
-          <View style={styles.tableHeader}>
-            <Text style={[styles.th, { flex: 1 }]}>Day</Text>
-            <Text style={[styles.th, { flex: 1.2 }]}>Hours</Text>
-          </View>
-          {DAYS.map(({ key, label }) => {
-            const display = formatDayHours(parseDayHours(openingHours[key]));
-            return (
-              <View key={key} style={styles.tableRow}>
-                <Text style={styles.td}>{label}</Text>
-                <Text style={styles.tdMuted}>{display}</Text>
-              </View>
-            );
-          })}
-          */}
 
           <View style={styles.sectionDivider} />
 
@@ -1032,6 +1030,67 @@ export default function ProfileShopInfoScreen() {
 
           <View style={styles.sectionDivider} />
 
+          <View>
+            <View
+              style={styles.policyRow}
+            // onPress={() => setModalDeliveryPolicy(true)}
+            >
+              <Text style={styles.policyLabel}>Delivery/Logistics</Text>
+            </View>
+            <View style={styles.shippingCardsWrap}>
+              <TouchableOpacity style={styles.optionRow} onPress={() => navigation.navigate("shipping-fee-model", { shopId: activeShopId, userId: uid })} activeOpacity={0.85}>
+                <View style={[styles.optionIcon, styles.optionIconBrand]}>
+                  <Icon name="options-outline" size={22} color="#00926e" />
+                </View>
+                <View style={styles.optionBody}>
+                  <Text style={styles.optionTitle}>Shipping Model</Text>
+                  <Text style={styles.optionDesc}>Choose how shipping fees are calculated for orders.</Text>
+                </View>
+                <View style={{ alignItems: 'center', gap: 6 }}>
+                  {shippingConfigStatus.hasFeeModel ? (
+                    <View style={styles.statusBadgeSet}>
+                      <Icon name="checkmark-circle" size={16} color="#16A34A" />
+                      <Text style={styles.statusBadgeText}>Set</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.statusBadgeNotSet}>
+                      <Icon name="alert-circle-outline" size={16} color="#B45309" />
+                      <Text style={styles.statusBadgeTextNotSet}>Not set</Text>
+                    </View>
+                  )}
+                  <Icon name="chevron-forward" size={18} color="#9CA3AF" />
+                </View>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.optionRow, { marginBottom: 0 }]} onPress={() => navigation.navigate("shipping-zones", { shopId: activeShopId, userId: uid })} activeOpacity={0.85}>
+                <View style={[styles.optionIcon, styles.optionIconBrand]}>
+                  <Icon name="map-outline" size={22} color="#00926e" />
+                </View>
+                <View style={styles.optionBody}>
+                  <Text style={styles.optionTitle}>Shipping Zones</Text>
+                  <Text style={styles.optionDesc}>Set base fees and discounts for different locations.</Text>
+                </View>
+                <View style={{ alignItems: 'center', gap: 6 }}>
+                  {shippingConfigStatus.hasZones ? (
+                    <View style={styles.statusBadgeSet}>
+                      <Icon name="checkmark-circle" size={16} color="#16A34A" />
+                      <Text style={styles.statusBadgeText}>Set</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.statusBadgeNotSet}>
+                      <Icon name="alert-circle-outline" size={16} color="#B45309" />
+                      <Text style={styles.statusBadgeTextNotSet}>Not set</Text>
+                    </View>
+                  )}
+                  <Icon name="chevron-forward" size={18} color="#9CA3AF" />
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.sectionDivider} />
+
+
+
           <Text style={styles.sectionTitlePlain}>Shop location</Text>
           <Pressable
             style={({ pressed }) => [
@@ -1078,38 +1137,6 @@ export default function ProfileShopInfoScreen() {
           </View>
 
           <View style={styles.sectionDivider} />
-
-          {/* <SectionHeader title="Policies" onEdit={() => setModalDeliveryPolicy(true)} /> */}
-          <View
-            style={styles.policyRow}
-            // onPress={() => setModalDeliveryPolicy(true)}
-          >
-            <Text style={styles.policyLabel}>Delivery/Logistics</Text>
-          </View>
-          <View style={styles.shippingCardsWrap}>
-
-            <TouchableOpacity style={styles.optionRow} onPress={() => navigation.navigate("shipping-fee-model")}  activeOpacity={0.85}>
-              <View style={[styles.optionIcon, styles.optionIconBrand]}>
-                <Icon name="options-outline" size={22} color="#00926e" />
-              </View>
-              <View style={styles.optionBody}>
-                <Text style={styles.optionTitle}>Shipping Model</Text>
-                <Text style={styles.optionDesc}>Choose how shipping fees are calculated for orders.</Text>
-              </View>
-              <Icon name="chevron-forward" size={22} color="#9CA3AF" />
-            </TouchableOpacity>
-
-            <TouchableOpacity style={[styles.optionRow, {marginBottom: 0}]} onPress={() => navigation.navigate("shipping-zones")} activeOpacity={0.85}>
-              <View style={[styles.optionIcon, styles.optionIconBrand]}>
-                <Icon name="map-outline" size={22} color="#00926e" />
-              </View>
-              <View style={styles.optionBody}>
-                <Text style={styles.optionTitle}>Shipping Zones</Text>
-                <Text style={styles.optionDesc}>Set base fees and discounts for different locations.</Text>
-              </View>
-              <Icon name="chevron-forward" size={22} color="#9CA3AF" />
-            </TouchableOpacity>
-          </View>
 
           <Pressable
             style={({ pressed }) => [
@@ -2037,7 +2064,7 @@ const styles = StyleSheet.create({
     lineHeight: 17,
     color: MUTED,
   },
-  policyLabel: { flex: 1, fontSize: 18, fontWeight: '600', color: BLACK },
+  policyLabel: { flex: 1, fontSize: 16, fontWeight: '600', color: BLACK },
   policyStatus: { fontSize: 14, color: MUTED, marginRight: 4 },
   policyStatusOk: { color: GREEN_OK, fontWeight: '600' },
   policyDetailCard: {
@@ -2269,5 +2296,33 @@ const styles = StyleSheet.create({
     color: MUTED,
     textAlign: 'center',
     marginTop: 8,
+  },
+  statusBadgeSet: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: '#DCFCE7',
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#16A34A',
+  },
+  statusBadgeNotSet: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: '#FFFBEB',
+  },
+  statusBadgeTextNotSet: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#B45309',
   },
 });
